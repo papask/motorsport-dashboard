@@ -5,8 +5,8 @@ import DriverStandings from './pages/DriverStandings';
 import ConstructorStandings from './pages/ConstructorStandings';
 import RaceSchedule from './pages/RaceSchedule';
 import RaceResults from './pages/RaceResults';
-import Telemetry from './pages/Telemetry';
 import RaceTimeline from './pages/RaceTimeline';
+import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import './index.css';
 
@@ -27,8 +27,14 @@ const NAV_ITEMS = [
     children: [
       { path: '/results', label: '레이스 결과', icon: '🏁' },
       { path: '/timeline', label: '타임라인', icon: '📈' },
-      { path: '/incidents', label: '인시던트', icon: '⚠️' },
-      { path: '/telemetry', label: '텔레메트리', icon: '📊' },
+    ]
+  },
+  { 
+    label: '분석', 
+    icon: '📊',
+    children: [
+      { path: '/telemetry', label: '텔레메트리', icon: '⚡' },
+      { path: '/incidents', label: '인시던트', icon: '🚩' },
     ]
   },
 ];
@@ -83,7 +89,7 @@ function NavContent({ NAV_ITEMS }: { NAV_ITEMS: any[] }) {
 }
 
 function App() {
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedYear, setSelectedYear] = useState(2025);
 
   return (
     <BrowserRouter>
@@ -115,8 +121,8 @@ function App() {
             <Route path="/schedule" element={<RaceSchedule year={selectedYear} />} />
             <Route path="/results" element={<RaceResults year={selectedYear} />} />
             <Route path="/timeline" element={<RaceTimeline year={selectedYear} />} />
-            <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
+            <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
           </Routes>
         </main>
       </div>
@@ -125,3 +131,4 @@ function App() {
 }
 
 export default App;
+

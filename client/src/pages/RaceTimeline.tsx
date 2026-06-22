@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
-import { getSessions, getRaceTimeline } from '../services/api';
-import { getSessionNameKR, getTeamNameKR, getDriverNameKR, UI_LABELS } from '../constants/koreanTerms';
+import { getSeasonSchedule, getRaceTimeline } from '../services/api';
+import { getTeamNameKR, getDriverNameKR, UI_LABELS, getCountryNameKR } from '../constants/koreanTerms';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea, LabelList } from 'recharts';
 
-function renderCustomLabel(props: any, name: string, isEnd: boolean, dataLength: number, isDimmed: boolean) {
+function renderCustomLabel(props: any, text: string, isEnd: boolean, dataLength: number, isDimmed: boolean) {
   const { x, y, index } = props;
   if (isEnd && index !== dataLength - 1) return null;
   if (!isEnd && index !== 0) return null;
@@ -21,7 +21,7 @@ function renderCustomLabel(props: any, name: string, isEnd: boolean, dataLength:
       fontFamily="var(--font-display)"
       style={{ pointerEvents: 'none' }}
     >
-      #{name}
+      {text}
     </text>
   );
 }
@@ -95,12 +95,22 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
     return false;
   });
 
+  // Deduplicate non-pit events (flags) by type on the same lap
+  const uniqueEvents = events.reduce((acc: any[], ev: any) => {
+    if (ev.type === 'pit') {
+      acc.push(ev);
+    } else if (!acc.some((existing: any) => existing.type === ev.type)) {
+      acc.push(ev);
+    }
+    return acc;
+  }, []);
+
   return (
     <div style={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '12px 16px', maxHeight: 400, overflowY: 'auto', fontSize: 12, minWidth: 200 }}>
       <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: '#f0f0f5' }}>랩 {label}</div>
-      {events.length > 0 && (
+      {uniqueEvents.length > 0 && (
         <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          {events.map((ev: any, i: number) => {
+          {uniqueEvents.map((ev: any, i: number) => {
             const style = EVENT_STYLES[ev.type] || EVENT_STYLES.pit;
             return (
               <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: style.bg, color: style.color, marginRight: 4, marginBottom: 4 }}>
@@ -145,7 +155,25 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
   const animRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(0);
 
-  const { positionStream, pitStream, rcStream, lapStream, drivers, raceStartTime, raceEndTime } = data;
+  const { positionStream, pitStream, rcStream, lapStream, drivers, raceStartTime, raceEndTime, totalLaps } = data;
+
+  // Compute the last completed lap for each driver to determine retired status
+  const maxLapsPerDriver = useMemo(() => {
+    const maxLaps: Record<number, number> = {};
+    if (!data?.timeline) return maxLaps;
+    for (const lapData of data.timeline) {
+      const lapNum = lapData.lap;
+      for (const key of Object.keys(lapData)) {
+        if (key.startsWith('d') && key !== '_drivers' && key !== '_events') {
+          const dn = parseInt(key.replace('d', ''));
+          if (!isNaN(dn)) {
+            maxLaps[dn] = Math.max(maxLaps[dn] || 0, lapNum);
+          }
+        }
+      }
+    }
+    return maxLaps;
+  }, [data]);
 
   // Find effective race start: prefer interpolated Lap 1 start from lapStream
   const effectiveStart = useMemo(() => {
@@ -311,16 +339,38 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
   const simMin = Math.floor(simTime / 60000);
   const simSec = Math.floor((simTime % 60000) / 1000);
 
-  // Sort drivers by position
+  // Sort drivers by position (active first, retired/DNS at the bottom)
   const sortedDrivers = Object.entries(positions)
-    .map(([dn, pos]) => ({
-      driverNumber: Number(dn),
-      position: pos,
-      info: driverMap[Number(dn)],
-      prevPosition: prevPositions[Number(dn)] || pos,
-    }))
-    .filter(d => d.info && d.position <= 20)
-    .sort((a, b) => a.position - b.position);
+    .map(([dn, pos]) => {
+      const driverNumber = Number(dn);
+      const maxLap = maxLapsPerDriver[driverNumber] || 0;
+      const isRetired = maxLap < totalLaps && currentLap > maxLap;
+      const isDNS = maxLap === 0 && currentLap >= 1;
+      
+      return {
+        driverNumber,
+        position: pos,
+        info: driverMap[driverNumber],
+        prevPosition: prevPositions[driverNumber] || pos,
+        isRetired,
+        isDNS,
+      };
+    })
+    .filter(d => d.info)
+    .sort((a, b) => {
+      const aRet = a.isRetired || a.isDNS;
+      const bRet = b.isRetired || b.isDNS;
+      
+      if (aRet && !bRet) return 1;
+      if (!aRet && bRet) return -1;
+      if (aRet && bRet) {
+        const aMax = maxLapsPerDriver[a.driverNumber] || 0;
+        const bMax = maxLapsPerDriver[b.driverNumber] || 0;
+        if (aMax !== bMax) return bMax - aMax; // longer distance first
+        return a.position - b.position;
+      }
+      return a.position - b.position;
+    });
 
   return (
     <div className="card fade-in" style={{ padding: 0, overflow: 'hidden' }}>
@@ -408,23 +458,29 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
         }} />
       </div>
 
-      {/* Pit stop banner */}
-      {activePits.length > 0 && (
-        <div style={{
-          padding: '6px 24px', background: 'rgba(255,255,255,0.03)',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>🛞 PIT:</span>
-          {activePits.map((pit: any, i: number) => (
-            <span key={i} style={{
-              padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#555', color: '#fff',
-            }}>
-              {driverMap[pit.dn]?.nameAcronym || `#${pit.dn}`} {pit.dur ? `(${pit.dur.toFixed(1)}s)` : ''}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Pit stop banner (always rendered to maintain layout stability) */}
+      <div style={{
+        padding: '6px 24px', background: 'rgba(255,255,255,0.02)',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
+        minHeight: 37,
+        boxSizing: 'border-box',
+      }}>
+        {activePits.length > 0 ? (
+          <>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>🛞 PIT:</span>
+            {activePits.map((pit: any, i: number) => (
+              <span key={i} style={{
+                padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#555', color: '#fff',
+              }}>
+                {driverMap[pit.dn]?.nameAcronym || `#${pit.dn}`} {pit.dur ? `(${pit.dur.toFixed(1)}s)` : ''}
+              </span>
+            ))}
+          </>
+        ) : (
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', fontWeight: 500 }}>피트인 차량 없음</span>
+        )}
+      </div>
 
       {/* Leaderboard */}
       <div style={{ padding: '8px 0' }}>
@@ -434,6 +490,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
           const krName = getDriverNameKR(driver.info?.fullName || '');
           const krTeam = getTeamNameKR(driver.info?.teamName || '');
           const posDelta = driver.prevPosition - driver.position;
+          const isRetiredOrDNS = driver.isRetired || driver.isDNS;
 
           return (
             <div
@@ -441,29 +498,35 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
               style={{
                 display: 'flex', alignItems: 'center',
                 padding: '7px 24px',
-                background: driver.position <= 3 ? `linear-gradient(90deg, ${color}18, transparent 60%)` : 'transparent',
+                background: !isRetiredOrDNS && driver.position <= 3 ? `linear-gradient(90deg, ${color}18, transparent 60%)` : 'transparent',
                 borderLeft: `3px solid ${color}`,
                 transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                opacity: isPitting ? 0.55 : 1,
+                opacity: isRetiredOrDNS ? 0.35 : (isPitting ? 0.55 : 1),
               }}
             >
               <div style={{
-                width: 30, fontWeight: 800, fontSize: 17, fontFamily: 'var(--font-display)',
-                color: driver.position === 1 ? '#FFD700' : driver.position === 2 ? '#C0C0C0' : driver.position === 3 ? '#CD7F32' : 'var(--text-secondary)',
+                width: 30, fontWeight: 800, fontSize: isRetiredOrDNS ? 11 : 17, fontFamily: 'var(--font-display)',
+                color: isRetiredOrDNS ? 'var(--text-muted)' : (driver.position === 1 ? '#FFD700' : driver.position === 2 ? '#C0C0C0' : driver.position === 3 ? '#CD7F32' : 'var(--text-secondary)'),
                 textAlign: 'center',
               }}>
-                {driver.position}
+                {driver.isDNS ? 'DNS' : (driver.isRetired ? 'DNF' : driver.position)}
               </div>
               <div style={{ width: 28, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>
-                {posDelta > 0 ? <span style={{ color: '#00C853' }}>▲{posDelta}</span>
-                  : posDelta < 0 ? <span style={{ color: '#E10600' }}>▼{Math.abs(posDelta)}</span>
-                  : <span style={{ color: 'rgba(255,255,255,0.15)' }}>–</span>}
+                {isRetiredOrDNS ? (
+                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>–</span>
+                ) : posDelta > 0 ? (
+                  <span style={{ color: '#00C853' }}>▲{posDelta}</span>
+                ) : posDelta < 0 ? (
+                  <span style={{ color: '#E10600' }}>▼{Math.abs(posDelta)}</span>
+                ) : (
+                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>–</span>
+                )}
               </div>
               <div style={{ width: 4, height: 26, background: color, borderRadius: 2, margin: '0 10px' }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {driver.info?.nameAcronym || '???'}
-                  {(() => {
+                  {!isRetiredOrDNS && (() => {
                     const compound = getTireCompound(driver.driverNumber, currentLap);
                     if (!compound) return null;
                     return (
@@ -481,7 +544,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
                   {krTeam || driver.info?.teamName}
                 </div>
               </div>
-              {isPitting && (
+              {isPitting && !isRetiredOrDNS && (
                 <div style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#555', color: '#fff' }}>
                   🛞 PIT
                 </div>
@@ -530,15 +593,15 @@ function getTeamColor(teamName: string, defaultColor: string) {
 // MAIN PAGE
 // ===================================
 export default function RaceTimeline({ year }: Props) {
-  const [selectedSession, setSelectedSession] = useState<number | null>(null);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [isChartOpen, setIsChartOpen] = useState(true);
   const [isReplayOpen, setIsReplayOpen] = useState(true);
   const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
 
-  const { data: sessionsData } = useApi(() => getSessions(year), [year]);
+  const { data: scheduleData } = useApi(() => getSeasonSchedule(year), [year]);
   const timeline = useApi(
-    (signal) => (selectedSession ? getRaceTimeline(selectedSession, signal) : Promise.resolve(null)),
-    [selectedSession]
+    (signal) => (selectedRound ? getRaceTimeline(year, selectedRound, signal) : Promise.resolve(null)),
+    [year, selectedRound]
   );
 
   const toggleDriver = (driverKey: string) => {
@@ -573,9 +636,9 @@ export default function RaceTimeline({ year }: Props) {
     return currentStint?.compound || null;
   };
 
-  const raceSessions = (sessionsData || []).filter((s: any) => s.sessionType === 'Race');
+  const races = scheduleData?.races || [];
 
-  const driverKeys: { key: string; color: string; name: string; fullName: string; driverNumber: number; dashed?: boolean }[] = [];
+  const driverKeys: { key: string; color: string; name: string; code: string; fullName: string; driverNumber: number; dashed?: boolean }[] = [];
   if (timeline.data?.drivers && timeline.data?.timeline?.length > 0) {
     const keysWithData = new Set<string>();
     for (const lapData of timeline.data.timeline) {
@@ -595,6 +658,7 @@ export default function RaceTimeline({ year }: Props) {
           key, 
           color: getTeamColor(teamName, driver.teamColour), 
           name: `${driver.driverNumber}`, 
+          code: driver.nameAcronym || driver.broadcastName || `${driver.driverNumber}`,
           fullName: driver.fullName,
           driverNumber: driver.driverNumber,
           dashed: count > 0 
@@ -635,19 +699,26 @@ export default function RaceTimeline({ year }: Props) {
     return Array.from({ length: total + 1 }, (_, i) => i).filter(n => n === 0 || n % 2 !== 0);
   }, [timeline.data]);
 
+  const evenTicks = useMemo(() => {
+    if (!timeline.data?.timeline) return [];
+    const total = timeline.data.totalLaps || 0;
+    // Always include Lap 0 (Grid) and even laps 2, 4, 6...
+    return Array.from({ length: total + 1 }, (_, i) => i).filter(n => n === 0 || n % 2 === 0);
+  }, [timeline.data]);
+
   return (
     <div className="page-container">
       <div className="page-header fade-in">
         <h2 className="page-title">📈 레이스 타임라인</h2>
-        <p className="page-subtitle">{year} 시즌 · 실시간 순위 변동 및 레이스 이벤트 시각화</p>
+        <p className="page-subtitle">{year} 시즌 · 순위 변동 차트 및 레이스 리플레이</p>
       </div>
 
       <div className="selector-group fade-in fade-in-delay-1">
-        <select className="selector" value={selectedSession || ''} onChange={(e) => setSelectedSession(Number(e.target.value))}>
+        <select className="selector" value={selectedRound || ''} onChange={(e) => setSelectedRound(Number(e.target.value))}>
           <option value="" disabled>레이스 선택</option>
-          {raceSessions.map((s: any) => (
-            <option key={s.sessionKey} value={s.sessionKey}>
-              {s.circuitShortName} - {getSessionNameKR(s.sessionName)}
+          {races.map((r: any) => (
+            <option key={r.round} value={r.round}>
+              라운드 {r.round} - {getCountryNameKR(r.circuit.country)} ({r.raceName})
             </option>
           ))}
         </select>
@@ -684,6 +755,7 @@ export default function RaceTimeline({ year }: Props) {
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                           <XAxis dataKey="lap" ticks={oddTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false}
                             label={{ value: UI_LABELS.lap, fill: '#5c5c72', fontSize: 11, position: 'insideBottomRight', offset: -5 }} />
+                          <XAxis xAxisId="top" orientation="top" dataKey="lap" ticks={evenTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis reversed domain={[0.5, Math.min(20, driverKeys.length) + 0.5]}
                             tick={false} axisLine={false} tickLine={false}
                             label={{ value: UI_LABELS.position, fill: '#5c5c72', fontSize: 11, angle: -90, position: 'insideLeft' }}
@@ -696,7 +768,7 @@ export default function RaceTimeline({ year }: Props) {
                               key={`stripe-${i}`} 
                               x1={i * 2 + 1} 
                               x2={i * 2 + 2} 
-                              fill="rgba(255,255,255,0.015)" 
+                              fill="rgba(255,255,255,0.045)" 
                               stroke="none" 
                             />
                           ))}
@@ -724,8 +796,8 @@ export default function RaceTimeline({ year }: Props) {
                                 onClick={() => toggleDriver(d.key)}
                                 style={{ cursor: 'pointer' }}
                                 activeDot={{ r: 4, fill: d.color, stroke: '#0a0a0f', strokeWidth: 2 }}>
-                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.name, false, timeline.data.timeline.length, isDimmed)} />
-                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.name, true, timeline.data.timeline.length, isDimmed)} />
+                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.code, false, timeline.data.timeline.length, isDimmed)} />
+                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.code, true, timeline.data.timeline.length, isDimmed)} />
                                 <LabelList dataKey={d.key} content={(props) => renderTireMarker(props, d.key, getTireCompound, timeline.data.timeline, selectedDrivers)} />
                               </Line>
                             );
@@ -806,14 +878,14 @@ export default function RaceTimeline({ year }: Props) {
                     </div>
                   </div>
                 </div>
-                <RaceReplay key={selectedSession} data={timeline.data} getTireCompound={getTireCompound} />
+                <RaceReplay key={selectedRound} data={timeline.data} getTireCompound={getTireCompound} />
               </div>
             )}
           </div>
         </div>
       )}
 
-      {!selectedSession && (
+      {!selectedRound && (
         <div className="card" style={{ textAlign: 'center', padding: 60 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>레이스를 선택하세요</div>

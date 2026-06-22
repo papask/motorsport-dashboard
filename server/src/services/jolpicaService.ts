@@ -118,6 +118,7 @@ export async function getRaceResults(year: string | number, round: string | numb
       points: parseFloat(r.points),
       driver: {
         id: r.Driver.driverId,
+        number: parseInt(r.number),
         code: r.Driver.code,
         firstName: r.Driver.givenName,
         lastName: r.Driver.familyName,
@@ -155,6 +156,7 @@ export async function getLastRaceResults() {
       position: r.position,
       points: parseFloat(r.points),
       driver: {
+        number: parseInt(r.number),
         code: r.Driver.code,
         firstName: r.Driver.givenName,
         lastName: r.Driver.familyName,
@@ -166,3 +168,79 @@ export async function getLastRaceResults() {
     })),
   };
 }
+
+export async function getRawLapTimings(year: string | number, round: string | number) {
+  const url = `${BASE_URL}/${year}/${round}/laps.json?limit=100&offset=0`;
+  const firstPage: any = await cachedGet(url);
+  const total = parseInt(firstPage?.MRData?.total || '0');
+  if (total <= 100) {
+    return firstPage?.MRData?.RaceTable?.Races?.[0]?.Laps || [];
+  }
+
+  const allLaps: any[] = [];
+  const races = firstPage?.MRData?.RaceTable?.Races;
+  if (races && races[0] && races[0].Laps) {
+    // Deep clone timings array to prevent mutating cached objects
+    for (const lap of races[0].Laps) {
+      allLaps.push({
+        number: lap.number,
+        Timings: [...lap.Timings]
+      });
+    }
+  }
+
+  const promises: Promise<any>[] = [];
+  for (let offset = 100; offset < total; offset += 100) {
+    const pageUrl = `${BASE_URL}/${year}/${round}/laps.json?limit=100&offset=${offset}`;
+    promises.push(cachedGet(pageUrl));
+  }
+
+  const pages = await Promise.all(promises);
+  for (const page of pages) {
+    const pageLaps = page?.MRData?.RaceTable?.Races?.[0]?.Laps || [];
+    for (const lap of pageLaps) {
+      const existingLap = allLaps.find(l => l.number === lap.number);
+      if (existingLap) {
+        existingLap.Timings.push(...lap.Timings);
+      } else {
+        allLaps.push({
+          number: lap.number,
+          Timings: [...lap.Timings]
+        });
+      }
+    }
+  }
+
+  return allLaps;
+}
+
+export async function getRawPitStops(year: string | number, round: string | number) {
+  const url = `${BASE_URL}/${year}/${round}/pitstops.json?limit=100&offset=0`;
+  const firstPage: any = await cachedGet(url);
+  const total = parseInt(firstPage?.MRData?.total || '0');
+  if (total <= 100) {
+    return firstPage?.MRData?.RaceTable?.Races?.[0]?.PitStops || [];
+  }
+
+  const allPitStops: any[] = [];
+  const races = firstPage?.MRData?.RaceTable?.Races;
+  if (races && races[0] && races[0].PitStops) {
+    allPitStops.push(...races[0].PitStops);
+  }
+
+  const promises: Promise<any>[] = [];
+  for (let offset = 100; offset < total; offset += 100) {
+    const pageUrl = `${BASE_URL}/${year}/${round}/pitstops.json?limit=100&offset=${offset}`;
+    promises.push(cachedGet(pageUrl));
+  }
+
+  const pages = await Promise.all(promises);
+  for (const page of pages) {
+    const pagePitStops = page?.MRData?.RaceTable?.Races?.[0]?.PitStops || [];
+    allPitStops.push(...pagePitStops);
+  }
+
+  return allPitStops;
+}
+
+

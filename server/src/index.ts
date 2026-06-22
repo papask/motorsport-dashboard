@@ -4,7 +4,6 @@ import standingsRouter from './routes/standings';
 import scheduleRouter from './routes/schedule';
 import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
-import driversRouter from './routes/drivers';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +16,6 @@ app.use('/api/standings', standingsRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/telemetry', telemetryRouter);
-app.use('/api/drivers', driversRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

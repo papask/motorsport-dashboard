@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001/api',
-  timeout: 90000,
+  timeout: 120000,
 });
 
 // Standings
@@ -23,33 +23,19 @@ export const getLastRaceResults = (signal?: AbortSignal) =>
 export const getRaceResults = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/results/${year}/${round}`, { signal }).then((r) => r.data);
 
-// Telemetry (OpenF1)
-export const getSessions = (year: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/sessions/${year}`, { signal }).then((r) => r.data);
+export const getRaceTimeline = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/results/timeline/${year}/${round}`, { signal }).then((r) => r.data);
 
-export const getLaps = (sessionKey: number, driverNumber?: number, signal?: AbortSignal) => {
-  const params = driverNumber ? `?driver_number=${driverNumber}` : '';
-  return api.get(`/telemetry/laps/${sessionKey}${params}`, { signal }).then((r) => r.data);
-};
+// Telemetry (FastF1)
+export const getTelemetrySessions = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/telemetry/sessions/${year}/${round}`, { signal }).then((r) => r.data);
 
-export const getCarData = (sessionKey: number, driverNumber: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/car/${sessionKey}/${driverNumber}`, { signal }).then((r) => r.data);
+export const getTelemetryDrivers = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/telemetry/drivers/${year}/${round}`, { signal }).then((r) => r.data);
 
-export const getPositions = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/positions/${sessionKey}`, { signal }).then((r) => r.data);
+export const getDriverTelemetry = (year: number, round: number, driverNumber: number, signal?: AbortSignal) =>
+  api.get(`/telemetry/${year}/${round}/${driverNumber}`, { signal }).then((r) => r.data);
 
-export const getPitStops = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/pitstops/${sessionKey}`, { signal }).then((r) => r.data);
-
-export const getWeather = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/weather/${sessionKey}`, { signal }).then((r) => r.data);
-
-export const getDriversBySession = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/drivers/${sessionKey}`, { signal }).then((r) => r.data);
-
-export const getRaceTimeline = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/timeline/${sessionKey}`, { signal }).then((r) => r.data);
-
-export const getRaceIncidents = (sessionKey: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/incidents/${sessionKey}`, { signal }).then((r) => r.data);
-
+// Incidents (FastF1)
+export const getRaceIncidents = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/telemetry/incidents/${year}/${round}`, { signal }).then((r) => r.data);

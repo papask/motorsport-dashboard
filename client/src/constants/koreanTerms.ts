@@ -153,6 +153,7 @@ export const UI_LABELS = {
   round: '라운드',
   nextRace: '다음 레이스',
   lastRace: '최근 레이스 결과',
+  teamRadio: '팀 라디오',
   loading: '데이터 로딩 중...',
   error: '데이터를 불러올 수 없습니다',
   noData: '데이터가 없습니다',
@@ -182,6 +183,38 @@ export const TEAM_COLORS: Record<string, string> = {
   'Cadillac': '#FFD700',
 };
 
+// 서킷 이름 매핑
+export const CIRCUIT_NAMES_KR: Record<string, string> = {
+  'Sakhir': '사히르',
+  'Jeddah': '제다',
+  'Melbourne': '멜버른',
+  'Suzuka': '스즈카',
+  'Shanghai': '상하이',
+  'Miami': '마이애미',
+  'Imola': '이몰라',
+  'Monaco': '모나코',
+  'Montreal': '몬트리올',
+  'Barcelona': '바르셀로나',
+  'Spielberg': '슈필베르크',
+  'Silverstone': '실버스톤',
+  'Budapest': '부다페스트',
+  'Spa': '스파',
+  'Zandvoort': '잔드보르트',
+  'Monza': '몬차',
+  'Baku': '바쿠',
+  'Singapore': '싱가포르',
+  'Austin': '오스틴',
+  'Mexico City': '멕시코시티',
+  'Sao Paulo': '상파울루',
+  'Las Vegas': '라스베이거스',
+  'Lusail': '루사일',
+  'Yas Marina': '야스 마리나',
+  'Marina Bay': '마리나 베이',
+  'Hungaroring': '헝가로링',
+  'Interlagos': '인텔라고스',
+  'Catalunya': '카탈루냐',
+};
+
 // 유틸리티 함수
 export function getTeamNameKR(name: string): string {
   return TEAM_NAMES_KR[name] || name;
@@ -193,6 +226,10 @@ export function getDriverNameKR(driverId: string, fallbackName?: string): string
 
 export function getSessionNameKR(name: string): string {
   return SESSION_NAMES_KR[name] || name;
+}
+
+export function getCircuitNameKR(name: string): string {
+  return CIRCUIT_NAMES_KR[name] || name;
 }
 
 export function getStatusKR(status: string): string {
