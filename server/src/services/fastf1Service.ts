@@ -89,12 +89,18 @@ export async function getResults(year: string | number, round: string | number) 
   return runFastF1('results', [String(year), String(round)]);
 }
 
-export async function getTimeline(year: string | number, round: string | number) {
-  return runFastF1('timeline', [String(year), String(round)]);
+export async function getTimeline(year: string | number, round: string | number, sessionId: string = 'R') {
+  return runFastF1('timeline', [String(year), String(round), sessionId]);
 }
 
-export async function getTelemetry(year: string | number, round: string | number, driverNumber: string | number) {
-  return runFastF1('telemetry', [String(year), String(round), String(driverNumber)]);
+export async function getTimelineExtras(year: string | number, round: string | number, sessionId: string = 'R') {
+  return runFastF1('timeline_extras', [String(year), String(round), sessionId]);
+}
+
+export async function getTelemetry(year: string | number, round: string | number, driverNumber: string | number, lap?: string | number) {
+  const args = [String(year), String(round), String(driverNumber)];
+  if (lap != null && lap !== '') args.push(String(lap));
+  return runFastF1('telemetry', args);
 }
 
 export async function getIncidents(year: string | number, round: string | number) {

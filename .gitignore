@@ -1,6 +1,44 @@
-node_modules
-dist
-server/venv
-server/fastf1_cache
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Python
+venv/
+.venv/
 *.pyc
-__pycache__
+__pycache__/
+
+# FastF1 / data cache (any location)
+fastf1_cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local run / tooling artifacts
+.codex-run/
+*.pid
+.claude/dev-autostart.off
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.sw?
+*.local

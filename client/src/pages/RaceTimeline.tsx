@@ -1,21 +1,27 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
-import { getSeasonSchedule, getRaceTimeline } from '../services/api';
-import { getTeamNameKR, getDriverNameKR, UI_LABELS, getCountryNameKR } from '../constants/koreanTerms';
+import { getSeasonSchedule, getRaceTimeline, getSprintTimeline } from '../services/api';
+import { getTeamNameKR, getDriverNameKR, UI_LABELS, getCountryNameKR, getStatusKR } from '../constants/koreanTerms';
+import { getRaceDateTime } from '../utils/raceDate';
+import useIsMobile from '../hooks/useIsMobile';
+import { t, useT, type MessageKey } from '../i18n';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea, LabelList } from 'recharts';
 
-function renderCustomLabel(props: any, text: string, isEnd: boolean, dataLength: number, isDimmed: boolean) {
-  const { x, y, index } = props;
-  if (isEnd && index !== dataLength - 1) return null;
+function renderCustomLabel(props: any, text: string, isEnd: boolean, endIndex: number, isDimmed: boolean) {
+  const { x, y, index, value } = props;
+  // End label sits at the driver's own last plotted lap (so lapped finishers get
+  // labelled at their finishing position, not only the lead-lap cars).
+  if (isEnd && index !== endIndex) return null;
   if (!isEnd && index !== 0) return null;
-  
+  if (value == null || x == null || y == null) return null;
+
   return (
-    <text 
-      x={x} y={y} 
-      dx={isEnd ? 8 : -8} 
-      dy={4} 
-      fill={isDimmed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)"} 
-      fontSize={10} 
+    <text
+      x={x} y={y}
+      dx={isEnd ? 8 : -8}
+      dy={4}
+      fill={isDimmed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)"}
+      fontSize={10}
       fontWeight={800}
       textAnchor={isEnd ? "start" : "end"}
       fontFamily="var(--font-display)"
@@ -36,39 +42,74 @@ const TIRE_COLORS: Record<string, string> = {
 
 interface Props { year: number; }
 
-const EVENT_STYLES: Record<string, { color: string; bg: string; label: string; icon: string }> = {
-  pit: { color: '#fff', bg: '#555', label: '피트 스톱', icon: '🛞' },
-  yellowFlag: { color: '#000', bg: '#FFD700', label: '옐로 플래그', icon: '🟡' },
-  redFlag: { color: '#fff', bg: '#E10600', label: '레드 플래그', icon: '🔴' },
-  safetyCar: { color: '#000', bg: '#FF8C00', label: '세이프티 카', icon: '🚗' },
-  vsc: { color: '#000', bg: '#FFA500', label: '버추얼 세이프티 카', icon: '🟠' },
-  green: { color: '#fff', bg: '#00C853', label: '그린 플래그', icon: '🟢' },
-  chequered: { color: '#fff', bg: '#333', label: '체커드 플래그', icon: '🏁' },
+const EVENT_STYLES: Record<string, { color: string; bg: string; icon: string }> = {
+  pit: { color: '#fff', bg: '#555', icon: '🛞' },
+  yellowFlag: { color: '#000', bg: '#FFD700', icon: '🟡' },
+  redFlag: { color: '#fff', bg: '#E10600', icon: '🔴' },
+  safetyCar: { color: '#000', bg: '#FF8C00', icon: '🚗' },
+  vsc: { color: '#000', bg: '#FFA500', icon: '🟠' },
+  green: { color: '#fff', bg: '#00C853', icon: '🟢' },
+  chequered: { color: '#fff', bg: '#333', icon: '🏁' },
 };
+
+// Localized label for a race-control event type.
+const EVT_LABEL_KEY: Record<string, MessageKey> = {
+  pit: 'evtPit',
+  yellowFlag: 'evtYellow',
+  redFlag: 'evtRed',
+  safetyCar: 'evtSafetyCar',
+  vsc: 'evtVsc',
+  green: 'evtGreen',
+  chequered: 'evtChequered',
+};
+const evtLabel = (type: string) => t(EVT_LABEL_KEY[type] ?? 'evtPit');
+
+// Marks where a retired driver's line ends (their last completed lap) with a
+// red "DNF" badge. The retirement reason is shown in the tooltip for that lap.
+function renderDnfMarker(props: any, lastIndex: number, isDimmed: boolean) {
+  const { x, y, index } = props;
+  if (index !== lastIndex || x == null || y == null) return null;
+  const opacity = isDimmed ? 0.2 : 1;
+  return (
+    <g style={{ pointerEvents: 'none', opacity }}>
+      <circle cx={x} cy={y} r={4} fill="#E10600" stroke="#0a0a0f" strokeWidth={1.5} />
+      <text
+        x={x + 8} y={y} dy={3.5}
+        textAnchor="start"
+        fill="#ff6a5d"
+        fontSize={9}
+        fontWeight={800}
+        fontFamily="var(--font-display)"
+      >
+        DNF
+      </text>
+    </g>
+  );
+}
 
 function renderTireMarker(props: any, driverKey: string, getTireCompound: any, timelineData: any[], selectedDrivers: Set<string>) {
   const { x, y, index } = props;
   if (index === undefined || !timelineData[index]) return null;
-  
+
   // Filter: If there are selected drivers, only show markers for them
   if (selectedDrivers.size > 0 && !selectedDrivers.has(driverKey)) return null;
 
   const lap = timelineData[index].lap;
   const driverNum = parseInt(driverKey.replace('d', ''));
   const compound = getTireCompound(driverNum, lap, true);
-  
+
   if (!compound) return null;
-  
+
   const color = TIRE_COLORS[compound] || '#888';
   return (
     <g style={{ pointerEvents: 'none' }}>
       <circle cx={x} cy={y} r={7.5} fill={color} stroke="#0a0a0f" strokeWidth={2} />
-      <text 
-        x={x} y={y} 
-        dy={3.5} 
-        textAnchor="middle" 
-        fill="#000" 
-        fontSize={10} 
+      <text
+        x={x} y={y}
+        dy={3.5}
+        textAnchor="middle"
+        fill="#000"
+        fontSize={10}
         fontWeight={900}
         fontFamily="var(--font-display)"
       >
@@ -78,12 +119,12 @@ function renderTireMarker(props: any, driverKey: string, getTireCompound: any, t
   );
 }
 
-function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDrivers }: any) {
+function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDrivers, dnfByLap }: any) {
   if (!active || !payload?.length) return null;
   const lapData = payload[0]?.payload;
   const events = lapData?._events || [];
   const drivers: Record<string, any> = driverInfoMap || {};
-  
+
   const sorted = [...payload]
     .filter((p: any) => p.value != null)
     .sort((a: any, b: any) => a.value - b.value);
@@ -95,29 +136,96 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
     return false;
   });
 
-  // Deduplicate non-pit events (flags) by type on the same lap
-  const uniqueEvents = events.reduce((acc: any[], ev: any) => {
-    if (ev.type === 'pit') {
-      acc.push(ev);
-    } else if (!acc.some((existing: any) => existing.type === ev.type)) {
+  // Flag events (yellow/SC/VSC/…): dedupe by type — few per lap, keep as chips
+  const flagEvents = events.reduce((acc: any[], ev: any) => {
+    if (ev.type !== 'pit' && !acc.some((existing: any) => existing.type === ev.type)) {
       acc.push(ev);
     }
     return acc;
   }, []);
 
+  // Pit events can be many on the same lap, so group them compactly. Put any
+  // chart-selected drivers first (highlighted), then order by fastest stop.
+  const pitEvents = events.filter((ev: any) => ev.type === 'pit');
+  const isSelectedPit = (ev: any) => !!selectedDrivers?.has(`d${ev.driverNumber}`);
+  const sortedPits = [...pitEvents].sort((a: any, b: any) => {
+    const selDiff = (isSelectedPit(b) ? 1 : 0) - (isSelectedPit(a) ? 1 : 0);
+    if (selDiff !== 0) return selDiff;
+    return (a.duration || 999) - (b.duration || 999);
+  });
+  const hasSelection = !!(selectedDrivers && selectedDrivers.size > 0);
+  // When drivers are selected, focus on their stops; otherwise show all.
+  const shownPits = hasSelection ? sortedPits.filter(isSelectedPit) : sortedPits;
+  const hiddenPitCount = pitEvents.length - shownPits.length;
+
+  // Safety car / VSC chips read "시작" on the deploy lap and "종료" on the ending lap.
+  const flagLabel = (ev: any) => {
+    if (ev.type === 'safetyCar' || ev.type === 'vsc') {
+      const m = (ev.msg || '').toUpperCase();
+      const base = ev.type === 'vsc' ? t('scVirtual') : t('scNormal');
+      if (m.includes('DEPLOYED')) return t('scStart', { base });
+      if (m.includes('IN THIS LAP') || m.includes('ENDING')) return t('scEnd', { base });
+    }
+    return evtLabel(ev.type);
+  };
+
   return (
     <div style={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '12px 16px', maxHeight: 400, overflowY: 'auto', fontSize: 12, minWidth: 200 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: '#f0f0f5' }}>랩 {label}</div>
-      {uniqueEvents.length > 0 && (
+      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: '#f0f0f5' }}>{t('lapN', { n: label })}</div>
+      {flagEvents.length > 0 && (
         <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          {uniqueEvents.map((ev: any, i: number) => {
+          {flagEvents.map((ev: any, i: number) => {
             const style = EVENT_STYLES[ev.type] || EVENT_STYLES.pit;
             return (
               <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: style.bg, color: style.color, marginRight: 4, marginBottom: 4 }}>
-                {style.icon} {ev.driver || style.label}{ev.duration ? ` (${ev.duration.toFixed(1)}s)` : ''}
+                {style.icon} {flagLabel(ev)}
               </div>
             );
           })}
+        </div>
+      )}
+      {dnfByLap?.[label]?.length > 0 && (
+        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6a5d', marginBottom: 6 }}>{t('ttRetiredDnf')}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {dnfByLap[label].map((r: any, i: number) => (
+              <span key={i} style={{
+                fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+                background: 'rgba(225,6,0,0.18)', color: '#ff9b91', border: '1px solid rgba(225,6,0,0.4)',
+              }}>
+                {r.code} (#{r.driverNumber}){r.statusKR ? ` · ${r.statusKR}` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {pitEvents.length > 0 && (
+        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#c9c9d4', marginBottom: 6 }}>
+            {t('ttPitCount', { n: pitEvents.length })}
+          </div>
+          {shownPits.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, auto)', gap: 4, justifyContent: 'start' }}>
+              {shownPits.map((ev: any, i: number) => {
+                const selected = isSelectedPit(ev);
+                return (
+                  <span key={i} style={{
+                    fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', textAlign: 'center',
+                    background: selected ? '#6b6b78' : 'rgba(255,255,255,0.07)',
+                    color: selected ? '#fff' : '#b8b8c4',
+                    border: `1px solid ${selected ? 'rgba(255,255,255,0.35)' : 'transparent'}`,
+                  }}>
+                    {ev.driver}{ev.duration ? ` ${ev.duration.toFixed(1)}s` : ''}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {hasSelection && shownPits.length > 0 && hiddenPitCount > 0 && (
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+              {t('ttMorePit', { n: hiddenPitCount })}
+            </div>
+          )}
         </div>
       )}
       {displayEntries.map((entry: any) => {
@@ -125,20 +233,20 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
         return (
           <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', opacity: selectedDrivers?.has(entry.dataKey) ? 1 : 0.8 }}>
             <span style={{ width: 22, textAlign: 'right', fontWeight: 700, fontSize: 11, color: entry.value <= 3 ? '#FFD700' : '#9494a8' }}>P{entry.value}</span>
-            <div style={{ 
-              width: 8, height: 8, borderRadius: '50%', 
-              background: info?.color || '#888', 
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: info?.color || '#888',
               flexShrink: 0,
               border: info?.dashed ? '1px dashed rgba(255,255,255,0.8)' : 'none',
               boxShadow: info?.dashed ? '0 0 0 1px rgba(0,0,0,0.5)' : 'none'
             }} />
-            <span style={{ fontWeight: 600, color: '#f0f0f5', flex: 1 }}>#{info?.name || entry.dataKey}</span>
+            <span style={{ fontWeight: 600, color: '#f0f0f5', flex: 1 }}>{info?.code ? `${info.code}(#${info.name})` : `#${info?.name || entry.dataKey}`}</span>
           </div>
         );
       })}
       {sorted.length > displayEntries.length && (
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8 }}>
-          외 {sorted.length - displayEntries.length}명의 드라이버
+          {t('ttMoreDrivers', { n: sorted.length - displayEntries.length })}
         </div>
       )}
     </div>
@@ -149,6 +257,7 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
 // POSITION-STREAM RACE REPLAY
 // ===================================
 function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any }) {
+  const isMobile = useIsMobile();
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(60);
   const [simTime, setSimTime] = useState(0); // ms offset from effective race start
@@ -178,10 +287,10 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
   // Find effective race start: prefer interpolated Lap 1 start from lapStream
   const effectiveStart = useMemo(() => {
     if (lapStream && lapStream.length > 0) return lapStream[0].t;
-    
+
     const green = rcStream?.find((rc: any) => rc.type === 'green');
     if (green) return green.t;
-    
+
     return raceStartTime;
   }, [rcStream, lapStream, raceStartTime]);
 
@@ -235,7 +344,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
     return positionSnapshots[lo].t <= absTime ? positionSnapshots[lo].positions : {};
   };
 
-    // Get current lap and active flag
+  // Get current lap and active flag
   const getRaceState = (absTime: number) => {
     let lap = 1;
     let flag: any = null;
@@ -319,12 +428,12 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
     const t = effectiveStart + simTime;
     return isNaN(t) ? effectiveStart : t;
   }, [effectiveStart, simTime]);
-  
+
   // Debug periodically
   useEffect(() => {
     if (isPlaying && !isNaN(absTime)) {
       const state = getRaceState(absTime);
-      console.log(`[RaceReplay] Progress: Lap ${state.lap}, AbsTime: ${new Date(absTime).toLocaleTimeString()}, simTime: ${Math.floor(simTime/1000)}s`);
+      console.log(`[RaceReplay] Progress: Lap ${state.lap}, AbsTime: ${new Date(absTime).toLocaleTimeString()}, simTime: ${Math.floor(simTime / 1000)}s`);
     }
   }, [Math.floor(simTime / 2000), isPlaying, absTime]);
 
@@ -343,30 +452,39 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
   const sortedDrivers = Object.entries(positions)
     .map(([dn, pos]) => {
       const driverNumber = Number(dn);
+      const info = driverMap[driverNumber];
       const maxLap = maxLapsPerDriver[driverNumber] || 0;
-      const isRetired = maxLap < totalLaps && currentLap > maxLap;
+      // Retired = an actual DNF (from official status) that has already dropped out
+      // by the current replay lap. A lapped finisher (dnf=false) is NOT retired even
+      // once the leader laps past it — it keeps circulating to the flag.
+      const isRetired = !!info?.dnf && maxLap < totalLaps && currentLap > maxLap;
       const isDNS = maxLap === 0 && currentLap >= 1;
-      
+      // Once out, show the official final classification position (stable), not the
+      // now-stale on-track position.
+      const finishPosition = info?.finishPosition;
+
       return {
         driverNumber,
         position: pos,
-        info: driverMap[driverNumber],
+        info,
         prevPosition: prevPositions[driverNumber] || pos,
         isRetired,
         isDNS,
+        finishPosition,
       };
     })
     .filter(d => d.info)
     .sort((a, b) => {
       const aRet = a.isRetired || a.isDNS;
       const bRet = b.isRetired || b.isDNS;
-      
+
       if (aRet && !bRet) return 1;
       if (!aRet && bRet) return -1;
       if (aRet && bRet) {
-        const aMax = maxLapsPerDriver[a.driverNumber] || 0;
-        const bMax = maxLapsPerDriver[b.driverNumber] || 0;
-        if (aMax !== bMax) return bMax - aMax; // longer distance first
+        // Retired/DNS sit at the bottom ordered by official final classification.
+        const aFin = a.finishPosition ?? 999;
+        const bFin = b.finishPosition ?? 999;
+        if (aFin !== bFin) return aFin - bFin;
         return a.position - b.position;
       }
       return a.position - b.position;
@@ -376,32 +494,36 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
     <div className="card fade-in" style={{ padding: 0, overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
-        padding: '16px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: isMobile ? '12px 14px' : '16px 24px',
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: isMobile ? 10 : 0,
         background: activeFlag ? `${EVENT_STYLES[activeFlag.type]?.bg}15` : 'transparent',
         borderBottom: `2px solid ${activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'var(--border-color)'}`,
         transition: 'all 0.3s ease',
       }}>
         <div>
           <div className="card-title" style={{ margin: 0 }}>
-            🏎️ 레이스 리플레이
+            🏎️ {t('raceReplay')}
             {activeFlag && (
               <span style={{
                 marginLeft: 12, padding: '2px 10px', borderRadius: 4, fontSize: 12, fontWeight: 700,
                 background: EVENT_STYLES[activeFlag.type]?.bg, color: EVENT_STYLES[activeFlag.type]?.color,
               }}>
-                {EVENT_STYLES[activeFlag.type]?.icon} {EVENT_STYLES[activeFlag.type]?.label}
+                {EVENT_STYLES[activeFlag.type]?.icon} {evtLabel(activeFlag.type)}
               </span>
             )}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
-            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>랩 {currentLap}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>{t('lapN', { n: currentLap })}</span>
             <span style={{ margin: '0 10px', opacity: 0.3 }}>|</span>
-            레이스 경과 {simMin}:{simSec.toString().padStart(2, '0')}
+            {t('raceElapsed')} {simMin}:{simSec.toString().padStart(2, '0')}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isMobile ? 'space-between' : 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {[
               { label: '30x', value: 30 },
               { label: '60x', value: 60 },
@@ -460,7 +582,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
 
       {/* Pit stop banner (always rendered to maintain layout stability) */}
       <div style={{
-        padding: '6px 24px', background: 'rgba(255,255,255,0.02)',
+        padding: isMobile ? '6px 14px' : '6px 24px', background: 'rgba(255,255,255,0.02)',
         borderBottom: '1px solid var(--border-color)',
         display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
         minHeight: 37,
@@ -478,7 +600,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
             ))}
           </>
         ) : (
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', fontWeight: 500 }}>피트인 차량 없음</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', fontWeight: 500 }}>{t('noPitCars')}</span>
         )}
       </div>
 
@@ -487,7 +609,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
         {sortedDrivers.map((driver) => {
           const color = driver.info?.teamColour ? `#${driver.info.teamColour}` : '#888';
           const isPitting = pitDriverNumbers.has(driver.driverNumber);
-          const krName = getDriverNameKR(driver.info?.fullName || '');
+          const krName = getDriverNameKR(driver.info?.driverId || '', driver.info?.fullName || '');
           const krTeam = getTeamNameKR(driver.info?.teamName || '');
           const posDelta = driver.prevPosition - driver.position;
           const isRetiredOrDNS = driver.isRetired || driver.isDNS;
@@ -497,7 +619,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
               key={driver.driverNumber}
               style={{
                 display: 'flex', alignItems: 'center',
-                padding: '7px 24px',
+                padding: isMobile ? '7px 14px' : '7px 24px',
                 background: !isRetiredOrDNS && driver.position <= 3 ? `linear-gradient(90deg, ${color}18, transparent 60%)` : 'transparent',
                 borderLeft: `3px solid ${color}`,
                 transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -509,7 +631,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
                 color: isRetiredOrDNS ? 'var(--text-muted)' : (driver.position === 1 ? '#FFD700' : driver.position === 2 ? '#C0C0C0' : driver.position === 3 ? '#CD7F32' : 'var(--text-secondary)'),
                 textAlign: 'center',
               }}>
-                {driver.isDNS ? 'DNS' : (driver.isRetired ? 'DNF' : driver.position)}
+                {driver.isDNS ? 'DNS' : (driver.isRetired ? (driver.finishPosition ?? driver.position) : driver.position)}
               </div>
               <div style={{ width: 28, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>
                 {isRetiredOrDNS ? (
@@ -592,17 +714,36 @@ function getTeamColor(teamName: string, defaultColor: string) {
 // ===================================
 // MAIN PAGE
 // ===================================
+type SessionType = 'race' | 'sprint' | '';
+
 export default function RaceTimeline({ year }: Props) {
+  useT(); // re-render this subtree when the language changes
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [sessionType, setSessionType] = useState<SessionType>('');
   const [isChartOpen, setIsChartOpen] = useState(true);
   const [isReplayOpen, setIsReplayOpen] = useState(true);
   const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
 
   const { data: scheduleData } = useApi(() => getSeasonSchedule(year), [year]);
   const timeline = useApi(
-    (signal) => (selectedRound ? getRaceTimeline(year, selectedRound, signal) : Promise.resolve(null)),
-    [year, selectedRound]
+    (signal) => (selectedRound && sessionType
+      ? (sessionType === 'sprint' ? getSprintTimeline(year, selectedRound, signal) : getRaceTimeline(year, selectedRound, signal))
+      : Promise.resolve(null)),
+    [year, selectedRound, sessionType]
   );
+
+  // First page entry auto-selects the most recent round (below); switching the
+  // season afterwards resets to round 1 with no session type picked. Compare
+  // against the previous year (not a "first load" flag) so StrictMode's
+  // double-invoked mount effect doesn't misfire a reset.
+  const prevYearRef = useRef(year);
+  useEffect(() => {
+    if (prevYearRef.current !== year) {
+      prevYearRef.current = year;
+      setSelectedRound(1);
+      setSessionType('');
+    }
+  }, [year]);
 
   const toggleDriver = (driverKey: string) => {
     const next = new Set(selectedDrivers);
@@ -611,34 +752,58 @@ export default function RaceTimeline({ year }: Props) {
     setSelectedDrivers(next);
   };
 
-  const getTireCompound = (driverNumber: number, lap: number, onlyIfStart: boolean = false) => {
+  const getTireCompound = (driverNumber: number, lap: number, onlyAtChange: boolean = false) => {
     if (!timeline.data?.stints) return null;
     const driverStints = timeline.data.stints[driverNumber] || (timeline.data.stints as any)[String(driverNumber)];
     if (!driverStints || driverStints.length === 0) return null;
 
-    if (onlyIfStart) {
+    if (onlyAtChange) {
       if (lap === 0) {
-        // Always show the very first stint at Lap 0
+        // Always show the very first stint (starting tire) at Lap 0
         const firstStint = driverStints.find((s: any) => s.stintNumber === 1 || s.lapStart <= 1);
         return firstStint?.compound || null;
       }
-      
-      const stintStarting = driverStints.find((s: any) => s.lapStart === lap);
-      // If stint 1 started at lap 1, we already forced it to lap 0, so don't show it at lap 1
-      if (stintStarting && stintStarting.stintNumber === 1 && stintStarting.lapStart === 1) {
-        return null;
-      }
-      return stintStarting?.compound || null;
+
+      // Mark the new compound on the pit-in lap (where the change happened),
+      // i.e. the lap right before the new stint's first (out-)lap. A stint that
+      // starts on lap N was fitted during the pit stop on lap N-1.
+      const nextStint = driverStints.find((s: any) => s.lapStart === lap + 1);
+      return nextStint?.compound || null;
     }
 
-    // Standard lookup for non-marker use
+    // Standard lookup for non-marker use (current tire on a given lap)
     const currentStint = driverStints.find((s: any) => lap >= s.lapStart && lap <= s.lapEnd);
     return currentStint?.compound || null;
   };
 
   const races = scheduleData?.races || [];
+  const selectedRace = races.find((r: any) => r.round === selectedRound);
+  const hasSprint = !!selectedRace?.sprint;
 
-  const driverKeys: { key: string; color: string; name: string; code: string; fullName: string; driverNumber: number; dashed?: boolean }[] = [];
+  // A round is selectable once its first session has started (the sprint on a
+  // sprint weekend, otherwise the race). The race session itself stays disabled
+  // until the race has started, so a completed sprint can still be viewed.
+  const now = new Date();
+  const isRoundStarted = (r: any) => (r?.sprint?.date ? getRaceDateTime(r.sprint) : getRaceDateTime(r)) <= now;
+  const isRaceStarted = (r: any) => !!r && getRaceDateTime(r) <= now;
+  const hasTimeline = !!(timeline.data && Array.isArray(timeline.data.timeline) && timeline.data.timeline.length > 0);
+
+  // Auto-select the most recent round that has run (session still needs picking).
+  if (!selectedRound && races.length > 0) {
+    const started = races.filter((r: any) => getRaceDateTime(r) < now);
+    if (started.length > 0) {
+      const lastRound = started[started.length - 1].round;
+      setTimeout(() => setSelectedRound(lastRound), 0);
+    }
+  }
+
+  const handleRoundChange = (round: number) => {
+    setSelectedRound(round);
+    // Changing the round always requires picking the race type again.
+    setSessionType('');
+  };
+
+  const driverKeys: { key: string; color: string; name: string; code: string; fullName: string; driverId: string; driverNumber: number; dashed?: boolean; dnf?: boolean; statusKR?: string; finishPosition?: number }[] = [];
   if (timeline.data?.drivers && timeline.data?.timeline?.length > 0) {
     const keysWithData = new Set<string>();
     for (const lapData of timeline.data.timeline) {
@@ -653,15 +818,19 @@ export default function RaceTimeline({ year }: Props) {
         const teamName = driver.teamName || 'Unknown';
         const count = seenTeams.get(teamName) || 0;
         seenTeams.set(teamName, count + 1);
-        
-        driverKeys.push({ 
-          key, 
-          color: getTeamColor(teamName, driver.teamColour), 
-          name: `${driver.driverNumber}`, 
+
+        driverKeys.push({
+          key,
+          color: getTeamColor(teamName, driver.teamColour),
+          name: `${driver.driverNumber}`,
           code: driver.nameAcronym || driver.broadcastName || `${driver.driverNumber}`,
           fullName: driver.fullName,
+          driverId: driver.driverId || '',
           driverNumber: driver.driverNumber,
-          dashed: count > 0 
+          dashed: count > 0,
+          dnf: !!driver.dnf,
+          statusKR: driver.dnf ? getStatusKR(driver.status || '') : '',
+          finishPosition: driver.finishPosition
         });
       }
     }
@@ -676,11 +845,81 @@ export default function RaceTimeline({ year }: Props) {
     }
   }
 
+  // Index of each driver's last plotted lap — the lap they retired / were last recorded.
+  const lastLapIndexByDriver: Record<string, number> = {};
+  const dnfByLap: Record<number, { code: string; statusKR: string; driverNumber: number }[]> = {};
+  if (timeline.data?.timeline) {
+    for (const d of driverKeys) {
+      let lastIdx = 0;
+      for (let i = 0; i < timeline.data.timeline.length; i++) {
+        if (timeline.data.timeline[i][d.key] != null) lastIdx = i;
+      }
+      lastLapIndexByDriver[d.key] = lastIdx;
+      if (d.dnf) {
+        const lap = timeline.data.timeline[lastIdx]?.lap;
+        if (lap != null) {
+          if (!dnfByLap[lap]) dnfByLap[lap] = [];
+          dnfByLap[lap].push({ code: d.code, statusKR: d.statusKR || '', driverNumber: d.driverNumber });
+        }
+      }
+    }
+  }
+
+  // Settle every driver's line onto the official post-race classification at the
+  // final lap, so the right edge reads as the real final standings (penalties and
+  // all) and no line cuts off mid-chart:
+  //  · a DNF / lapped car holds its official finishing position from the lap after
+  //    its last recorded lap through to the end;
+  //  · a full-distance finisher keeps its on-track line and only its final point is
+  //    pinned to the official position (a post-race penalty shows as a last-lap
+  //    step). Positions are unique 1..N, so the right-edge labels never collide.
+  const filledTimeline: any[] = (() => {
+    const raw = timeline.data?.timeline;
+    if (!raw || raw.length === 0 || driverKeys.length === 0) return raw || [];
+    const lastIdx = raw.length - 1;
+
+    const filled = raw.map((row: any) => ({ ...row }));
+    for (const d of driverKeys) {
+      const finalPos = d.finishPosition;
+      if (finalPos == null || finalPos >= 99) continue; // no official position → leave as-is
+      const idx = lastLapIndexByDriver[d.key];
+      const from = idx < lastIdx ? idx + 1 : lastIdx;
+      for (let i = from; i <= lastIdx; i++) filled[i][d.key] = finalPos;
+    }
+    return filled;
+  })();
+
+  // Continuous safety-car / VSC / red-flag periods, derived from the deploy→clear
+  // sequence in the race-control stream. A period runs from its deploy lap until
+  // the next green/chequered clears it — a lone marker lap would under-represent a
+  // multi-lap event (e.g. a 13→16 safety car).
+  const flagPeriods: { start: number; end: number; type: string }[] = [];
+  {
+    const stream = timeline.data?.rcStream || [];
+    const total = timeline.data?.totalLaps || 0;
+    let active: { type: string; start: number } | null = null;
+    for (const rc of stream) {
+      if (rc.type === 'safetyCar' || rc.type === 'vsc' || rc.type === 'redFlag') {
+        if (!active) active = { type: rc.type, start: rc.lap };
+        else if (active.type !== rc.type) {
+          flagPeriods.push({ type: active.type, start: active.start, end: rc.lap });
+          active = { type: rc.type, start: rc.lap };
+        }
+      } else if (rc.type === 'green' || rc.type === 'chequered') {
+        if (active) { flagPeriods.push({ type: active.type, start: active.start, end: rc.lap }); active = null; }
+      }
+    }
+    if (active) flagPeriods.push({ type: active.type, start: active.start, end: total });
+  }
+  const inFlagPeriod = (lap: number) => flagPeriods.some((p) => lap >= p.start && lap <= p.end);
+
+  // Transient yellow-flag laps (thin markers / short areas), skipping any that
+  // fall inside a larger SC/VSC/red period already highlighted, and the grid lap.
   const eventLaps: { lap: number; type: string }[] = [];
   if (timeline.data?.timeline) {
     for (const ld of timeline.data.timeline) {
-      if (ld._events) {
-        const sig = ld._events.filter((e: any) => ['redFlag', 'safetyCar', 'vsc', 'yellowFlag'].includes(e.type));
+      if (ld._events && ld.lap > 0 && !inFlagPeriod(ld.lap)) {
+        const sig = ld._events.filter((e: any) => e.type === 'yellowFlag');
         if (sig.length > 0) eventLaps.push({ lap: ld.lap, type: sig[0].type });
       }
     }
@@ -709,70 +948,97 @@ export default function RaceTimeline({ year }: Props) {
   return (
     <div className="page-container">
       <div className="page-header fade-in">
-        <h2 className="page-title">📈 레이스 타임라인</h2>
-        <p className="page-subtitle">{year} 시즌 · 순위 변동 차트 및 레이스 리플레이</p>
+        <h2 className="page-title">📈 {t('raceTimeline')}</h2>
+        <p className="page-subtitle">{t('timelineSubtitle', { year })}</p>
       </div>
 
-      <div className="selector-group fade-in fade-in-delay-1">
-        <select className="selector" value={selectedRound || ''} onChange={(e) => setSelectedRound(Number(e.target.value))}>
-          <option value="" disabled>레이스 선택</option>
-          {races.map((r: any) => (
-            <option key={r.round} value={r.round}>
-              라운드 {r.round} - {getCountryNameKR(r.circuit.country)} ({r.raceName})
-            </option>
-          ))}
+      <div className="selector-group fade-in fade-in-delay-1" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <select className="selector" value={selectedRound || ''} onChange={(e) => handleRoundChange(Number(e.target.value))}>
+          <option value="" disabled>{t('selectRace')}</option>
+          {races.map((r: any) => {
+            const started = isRoundStarted(r);
+            return (
+              <option key={r.round} value={r.round} disabled={!started}>
+                {t('raceCountryOption', { n: r.round, country: getCountryNameKR(r.circuit.country), name: r.raceName })}{started ? '' : t('upcomingSuffix')}
+              </option>
+            );
+          })}
+        </select>
+
+        <select className="selector" value={sessionType} onChange={(e) => setSessionType(e.target.value as SessionType)}>
+          <option value="" disabled>{t('selectRaceType')}</option>
+          {hasSprint && <option value="sprint">{UI_LABELS.sprint}</option>}
+          <option value="race" disabled={!!selectedRace && !isRaceStarted(selectedRace)}>{t('race')}</option>
         </select>
       </div>
 
       {timeline.loading && (
         <div className="loading-container fade-in">
           <div className="loading-spinner" />
-          <p>데이터를 불러오는 중...</p>
+          <p>{t('loadingData')}</p>
         </div>
       )}
 
-      {timeline.data && timeline.data.timeline && (
+      {/* Selected a session but data is missing / no response — likely not run yet */}
+      {selectedRound && sessionType && !timeline.loading && !hasTimeline && (
+        <div className="card" style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🏁</div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{t('noTimelineTitle')}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13, maxWidth: 420, margin: '0 auto' }}>
+            {t('notRunYetBody')}<br />{t('checkBackAfter')}
+          </div>
+        </div>
+      )}
+
+      {hasTimeline && (
         <div className="layout-content fade-in">
           {/* Section 1: Position Change Chart */}
           <div className="accordion-item">
-            <div className="accordion-header" onClick={() => setIsChartOpen(!isChartOpen)}>
-              <div className="accordion-title">📈 순위 변동 차트</div>
-              <div className={`accordion-icon ${isChartOpen ? 'open' : ''}`}>▼</div>
+            <div className={`accordion-header ${isChartOpen ? '' : 'collapsed'}`} onClick={() => setIsChartOpen(!isChartOpen)}>
+              <div className="accordion-title">📈 {t('posChangeChart')}</div>
+              <div className="collapse-toggle">{isChartOpen ? t('collapse') : t('expand')}</div>
             </div>
             {isChartOpen && (
               <div className="accordion-content">
                 {driverKeys.length > 0 && (
                   <div className="card fade-in" style={{ padding: '24px 16px' }}>
                     <div className="card-title" style={{ paddingLeft: 8 }}>
-                      순위 변동 차트
+                      {t('posChangeChart')}
                       <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 8 }}>
-                        총 {timeline.data.totalLaps} 랩 · {driverKeys.length}명
+                        {t('totalLapsDrivers', { laps: timeline.data.totalLaps, n: driverKeys.length })}
                       </span>
                     </div>
-                    <div className="chart-container" style={{ height: Math.max(500, driverKeys.length * 26) }}>
+                    <div className="chart-container" style={{ height: Math.max(500, driverKeys.length * 26), '--chart-min-width': '800px' } as any}>
+                      <div className="chart-scroll-inner">
                       <ResponsiveContainer>
-                        <LineChart data={timeline.data.timeline} margin={{ top: 35, right: 80, bottom: 20, left: 40 }}>
+                        <LineChart data={filledTimeline} margin={{ top: 35, right: 84, bottom: 20, left: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                           <XAxis dataKey="lap" ticks={oddTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false}
                             label={{ value: UI_LABELS.lap, fill: '#5c5c72', fontSize: 11, position: 'insideBottomRight', offset: -5 }} />
                           <XAxis xAxisId="top" orientation="top" dataKey="lap" ticks={evenTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis reversed domain={[0.5, Math.min(20, driverKeys.length) + 0.5]}
+                          <YAxis reversed domain={[0.5, driverKeys.length + 0.5]}
                             tick={false} axisLine={false} tickLine={false}
                             label={{ value: UI_LABELS.position, fill: '#5c5c72', fontSize: 11, angle: -90, position: 'insideLeft' }}
-                            ticks={Array.from({ length: Math.min(20, driverKeys.length) }, (_, i) => i + 1)} />
-                          <Tooltip content={<TimelineTooltip selectedDrivers={selectedDrivers} driverInfoMap={Object.fromEntries(driverKeys.map(d => [d.key, { name: d.name, color: d.color, dashed: d.dashed }]))} />} />
-                          
+                            ticks={Array.from({ length: driverKeys.length }, (_, i) => i + 1)} />
+                          <Tooltip content={<TimelineTooltip selectedDrivers={selectedDrivers} dnfByLap={dnfByLap} driverInfoMap={Object.fromEntries(driverKeys.map(d => [d.key, { name: d.name, code: d.code, color: d.color, dashed: d.dashed }]))} />} />
+
                           {/* Zebra Stripes */}
                           {Array.from({ length: Math.ceil((timeline.data.totalLaps || 0) / 2) }, (_, i) => (
-                            <ReferenceArea 
-                              key={`stripe-${i}`} 
-                              x1={i * 2 + 1} 
-                              x2={i * 2 + 2} 
-                              fill="rgba(255,255,255,0.045)" 
-                              stroke="none" 
+                            <ReferenceArea
+                              key={`stripe-${i}`}
+                              x1={i * 2 + 1}
+                              x2={i * 2 + 2}
+                              fill="rgba(255,255,255,0.045)"
+                              stroke="none"
                             />
                           ))}
 
+                          {/* Continuous SC / VSC / red-flag periods (e.g. safety car 13→16) */}
+                          {flagPeriods.map((p, idx) => (
+                            <ReferenceArea key={`fp-${idx}`} x1={p.start} x2={p.end}
+                              fill={EVENT_STYLES[p.type]?.bg || '#FF8C00'} fillOpacity={0.16}
+                              stroke={EVENT_STYLES[p.type]?.bg || '#FF8C00'} strokeOpacity={0.4} />
+                          ))}
                           {eventAreas.map((area, idx) => (
                             <ReferenceArea key={`a-${idx}`} x1={area.start} x2={area.end}
                               fill={EVENT_STYLES[area.type]?.bg || '#FF8C00'} fillOpacity={0.08}
@@ -787,8 +1053,8 @@ export default function RaceTimeline({ year }: Props) {
                             const isSelected = selectedDrivers.has(d.key);
                             const isDimmed = selectedDrivers.size > 0 && !isSelected;
                             return (
-                              <Line key={d.key} type="monotone" dataKey={d.key} 
-                                stroke={d.color} 
+                              <Line key={d.key} type="monotone" dataKey={d.key}
+                                stroke={d.color}
                                 strokeWidth={isSelected ? 4 : 2}
                                 strokeOpacity={isDimmed ? 0.12 : 1}
                                 dot={false} connectNulls name={d.name}
@@ -796,25 +1062,27 @@ export default function RaceTimeline({ year }: Props) {
                                 onClick={() => toggleDriver(d.key)}
                                 style={{ cursor: 'pointer' }}
                                 activeDot={{ r: 4, fill: d.color, stroke: '#0a0a0f', strokeWidth: 2 }}>
-                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.code, false, timeline.data.timeline.length, isDimmed)} />
-                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, d.code, true, timeline.data.timeline.length, isDimmed)} />
+                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, `${d.code} (#${d.driverNumber})`, false, 0, isDimmed)} />
+                                <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, `${d.code} (#${d.driverNumber})`, true, filledTimeline.length - 1, isDimmed)} />
                                 <LabelList dataKey={d.key} content={(props) => renderTireMarker(props, d.key, getTireCompound, timeline.data.timeline, selectedDrivers)} />
+                                {d.dnf && <LabelList dataKey={d.key} content={(props) => renderDnfMarker(props, lastLapIndexByDriver[d.key], isDimmed)} />}
                               </Line>
                             );
                           })}
                         </LineChart>
                       </ResponsiveContainer>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
                       {driverKeys.map((d) => {
                         const isSelected = selectedDrivers.has(d.key);
                         const isDimmed = selectedDrivers.size > 0 && !isSelected;
-                        const krName = getDriverNameKR(d.fullName);
+                        const krName = getDriverNameKR(d.driverId, d.fullName);
                         return (
-                          <div key={d.key} 
+                          <div key={d.key}
                             onClick={() => toggleDriver(d.key)}
-                            style={{ 
-                              display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, 
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
                               cursor: 'pointer',
                               opacity: isDimmed ? 0.25 : 1,
                               transition: 'all 0.2s',
@@ -824,9 +1092,9 @@ export default function RaceTimeline({ year }: Props) {
                               border: `1px solid ${isSelected ? 'rgba(255,255,255,0.1)' : 'transparent'}`
                             }}
                           >
-                            <span style={{ 
-                              width: 14, height: 3, borderRadius: 2, 
-                              background: d.color, 
+                            <span style={{
+                              width: 14, height: 3, borderRadius: 2,
+                              background: d.color,
                               display: 'inline-block',
                               borderBottom: d.dashed ? '1px dashed rgba(0,0,0,0.5)' : 'none',
                               opacity: d.dashed ? 0.7 : 1,
@@ -840,7 +1108,7 @@ export default function RaceTimeline({ year }: Props) {
                               )}
                             </span>
                             <span style={{ fontWeight: isSelected ? 800 : 600, fontFamily: 'var(--font-display)', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                              {krName} (#{d.driverNumber})
+                              {krName}({d.code})
                             </span>
                           </div>
                         );
@@ -854,43 +1122,45 @@ export default function RaceTimeline({ year }: Props) {
 
           {/* Section 2: Race Replay */}
           <div className="accordion-item">
-            <div className="accordion-header" onClick={() => setIsReplayOpen(!isReplayOpen)}>
-              <div className="accordion-title">🎬 레이스 리플레이</div>
-              <div className={`accordion-icon ${isReplayOpen ? 'open' : ''}`}>▼</div>
+            <div className={`accordion-header ${isReplayOpen ? '' : 'collapsed'}`} onClick={() => setIsReplayOpen(!isReplayOpen)}>
+              <div className="accordion-title">🎬 {t('raceReplay')}</div>
+              <div className="collapse-toggle">{isReplayOpen ? t('collapse') : t('expand')}</div>
             </div>
             {isReplayOpen && (
               <div className="accordion-content">
                 {/* ... (existing legend and info) */}
                 <div className="card fade-in" style={{ marginBottom: 12, padding: '16px 24px' }}>
                   <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>범례:</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{t('legend')}</div>
                     {Object.entries(EVENT_STYLES).filter(([k]) => k !== 'green' && k !== 'chequered').map(([key, style]) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                         <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: style.bg }} />
-                        <span style={{ color: 'var(--text-secondary)' }}>{style.icon} {style.label}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{style.icon} {evtLabel(key)}</span>
                       </div>
                     ))}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: '#00C853', fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>상승</span>
+                      <span style={{ color: '#00C853', fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>{t('gained')}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: '#E10600', fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>하락</span>
+                      <span style={{ color: '#E10600', fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>{t('dropped')}</span>
                     </div>
                   </div>
                 </div>
-                <RaceReplay key={selectedRound} data={timeline.data} getTireCompound={getTireCompound} />
+                <RaceReplay key={`${selectedRound}-${sessionType}`} data={timeline.data} getTireCompound={getTireCompound} />
               </div>
             )}
           </div>
         </div>
       )}
 
-      {!selectedRound && (
+      {(!selectedRound || !sessionType) && (
         <div className="card" style={{ textAlign: 'center', padding: 60 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>레이스를 선택하세요</div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            {!selectedRound ? t('promptSelectRace') : t('promptSelectRaceType')}
+          </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: 13, maxWidth: 400, margin: '0 auto' }}>
-            레이스를 선택하고 ▶ 버튼을 누르면<br />실시간 순위 변동을 리플레이합니다.
+            {t('replayHintLine1')}<br />{t('replayHintLine2')}
           </div>
         </div>
       )}

@@ -25,18 +25,10 @@ router.get('/drivers/:year/:round', async (req, res) => {
   }
 });
 
-// GET /api/telemetry/:year/:round/:driverNumber
-router.get('/:year/:round/:driverNumber', async (req, res) => {
-  try {
-    const data = await getTelemetry(req.params.year, req.params.round, req.params.driverNumber);
-    res.json(data);
-  } catch (error: any) {
-    console.error('Telemetry error:', error.message);
-    res.status(500).json({ error: '텔레메트리 데이터를 가져올 수 없습니다.' });
-  }
-});
-
 // GET /api/telemetry/incidents/:year/:round
+// NOTE: must be declared BEFORE the generic "/:year/:round/:driverNumber" route
+// below — otherwise Express matches "incidents/2024/1" as year=incidents and
+// routes it to the telemetry handler.
 router.get('/incidents/:year/:round', async (req, res) => {
   try {
     const data = await getIncidents(req.params.year, req.params.round);
@@ -44,6 +36,17 @@ router.get('/incidents/:year/:round', async (req, res) => {
   } catch (error: any) {
     console.error('Incidents error:', error.message);
     res.status(500).json({ error: '인시던트 데이터를 가져올 수 없습니다.' });
+  }
+});
+
+// GET /api/telemetry/:year/:round/:driverNumber
+router.get('/:year/:round/:driverNumber', async (req, res) => {
+  try {
+    const data = await getTelemetry(req.params.year, req.params.round, req.params.driverNumber, req.query.lap as string | undefined);
+    res.json(data);
+  } catch (error: any) {
+    console.error('Telemetry error:', error.message);
+    res.status(500).json({ error: '텔레메트리 데이터를 가져올 수 없습니다.' });
   }
 });
 

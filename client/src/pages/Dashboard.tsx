@@ -1,57 +1,72 @@
 import { useApi } from '../hooks/useApi';
 import { getDriverStandings, getLastRaceResults, getSeasonSchedule } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, getCountryNameKR, UI_LABELS } from '../constants/koreanTerms';
-import { useState, useEffect } from 'react';
+import { getRaceDateTime, formatLocalDateTime, getNextRace } from '../utils/raceDate';
+import useCountdown from '../hooks/useCountdown';
+import PosDelta from '../components/PosDelta';
+import { useT } from '../i18n';
 
 interface DashboardProps {
   year: number;
 }
 
-function getNextRace(races: any[]) {
-  const now = new Date();
-  return races.find((r: any) => new Date(r.date) > now);
+interface ScheduleRace {
+  round: number;
+  raceName: string;
+  date: string;
+  circuit: {
+    name: string;
+    country: string;
+  };
 }
 
-function useCountdown(targetDate: string | null) {
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+interface DriverStanding {
+  position: number;
+  points: number;
+  positionDelta: number | null;
+  driver: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  constructor: {
+    name: string;
+  };
+}
 
-  useEffect(() => {
-    if (!targetDate) return;
-    const update = () => {
-      const diff = new Date(targetDate).getTime() - Date.now();
-      if (diff <= 0) {
-        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
-      setCountdown({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff % 86400000) / 3600000),
-        minutes: Math.floor((diff % 3600000) / 60000),
-        seconds: Math.floor((diff % 60000) / 1000),
-      });
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [targetDate]);
+interface LastRaceResult {
+  position: number | string;
+  time?: string;
+  driver: {
+    firstName: string;
+    lastName: string;
+  };
+  constructor?: {
+    name?: string;
+  };
+}
 
-  return countdown;
+function getPodiumClass(position: number) {
+  if (position === 1) return 'podium-first';
+  if (position === 2) return 'podium-second';
+  return 'podium-third';
 }
 
 export default function Dashboard({ year }: DashboardProps) {
+  const t = useT();
   const schedule = useApi((signal) => getSeasonSchedule(year, signal), [year]);
   const standings = useApi((signal) => getDriverStandings(year, signal), [year]);
   const lastRace = useApi((signal) => getLastRaceResults(signal), []);
 
 
   const nextRace = schedule.data ? getNextRace(schedule.data.races) : null;
-  const countdown = useCountdown(nextRace?.date || null);
+  const countdown = useCountdown(nextRace ? getRaceDateTime(nextRace).toISOString() : null);
 
   return (
     <div className="page-container">
       <div className="page-header fade-in">
         <h2 className="page-title">{UI_LABELS.dashboard}</h2>
-        <p className="page-subtitle">{year} 시즌 포뮬러 1 데이터 한눈에 보기</p>
+        <p className="page-subtitle">{t('dashboardSubtitle', { year })}</p>
       </div>
 
       {/* Next Race Countdown */}
@@ -64,19 +79,19 @@ export default function Dashboard({ year }: DashboardProps) {
             <div className="countdown-grid">
               <div className="countdown-item">
                 <div className="countdown-number">{countdown.days}</div>
-                <div className="countdown-unit">일</div>
+                <div className="countdown-unit">{t('unitDays')}</div>
               </div>
               <div className="countdown-item">
                 <div className="countdown-number">{countdown.hours}</div>
-                <div className="countdown-unit">시간</div>
+                <div className="countdown-unit">{t('unitHours')}</div>
               </div>
               <div className="countdown-item">
                 <div className="countdown-number">{countdown.minutes}</div>
-                <div className="countdown-unit">분</div>
+                <div className="countdown-unit">{t('unitMinutes')}</div>
               </div>
               <div className="countdown-item">
                 <div className="countdown-number">{countdown.seconds}</div>
-                <div className="countdown-unit">초</div>
+                <div className="countdown-unit">{t('unitSeconds')}</div>
               </div>
             </div>
             <div className="race-info">
@@ -85,12 +100,12 @@ export default function Dashboard({ year }: DashboardProps) {
                 {nextRace.circuit.name} · {getCountryNameKR(nextRace.circuit.country)}
               </div>
               <div className="race-info-detail">
-                라운드 {nextRace.round} · {new Date(nextRace.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+                {t('roundAndDate', { round: nextRace.round, datetime: formatLocalDateTime(nextRace) })}
               </div>
             </div>
           </>
         ) : (
-          <div className="loading-text">시즌이 종료되었습니다</div>
+          <div className="loading-text">{t('seasonEnded')}</div>
         )}
       </div>
 
@@ -108,23 +123,27 @@ export default function Dashboard({ year }: DashboardProps) {
                 <tr>
                   <th>{UI_LABELS.position}</th>
                   <th>{UI_LABELS.driver}</th>
-                  <th>{UI_LABELS.team}</th>
+                  <th className="col-team">{UI_LABELS.team}</th>
                   <th style={{ textAlign: 'right' }}>{UI_LABELS.points}</th>
                 </tr>
               </thead>
               <tbody>
-                {standings.data?.standings?.slice(0, 5).map((s: any) => (
+                {standings.data?.standings?.slice(0, 5).map((s: DriverStanding) => (
                   <tr key={s.driver.id}>
                     <td>
-                      <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
-                        {s.position}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
+                          {s.position}
+                        </span>
+                        <span style={{ width: 30 }}><PosDelta delta={s.positionDelta} /></span>
                       </span>
                     </td>
                     <td>
                       <span className="team-indicator" style={{ backgroundColor: getTeamColor(s.constructor.name) }} />
                       <span className="driver-name">{getDriverNameKR(s.driver.id, `${s.driver.firstName} ${s.driver.lastName}`)}</span>
+                      <span className="driver-team-sub">{getTeamNameKR(s.constructor.name)}</span>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
+                    <td className="col-team" style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
                     <td style={{ textAlign: 'right' }}><span className="points-value">{s.points}</span></td>
                   </tr>
                 ))}
@@ -142,35 +161,40 @@ export default function Dashboard({ year }: DashboardProps) {
             <div className="error-container"><div className="error-icon">⚠️</div><div className="error-message">{lastRace.error}</div></div>
           ) : lastRace.data ? (
             <>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                {lastRace.data.raceName} · 라운드 {lastRace.data.round}
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                {lastRace.data.raceName} · {t('roundN', { n: lastRace.data.round })}
               </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{UI_LABELS.position}</th>
-                    <th>{UI_LABELS.driver}</th>
-                    <th style={{ textAlign: 'right' }}>시간</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lastRace.data.results?.slice(0, 5).map((r: any, i: number) => (
-                    <tr key={i}>
-                      <td>
-                        <span className={`position-badge position-${r.position <= 3 ? r.position : 'other'}`}>
-                          {r.position}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="driver-name">{r.driver.firstName} {r.driver.lastName}</span>
-                      </td>
-                      <td style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: 13 }}>
-                        {r.time}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="podium-layout">
+                {[
+                  lastRace.data.results?.[1],
+                  lastRace.data.results?.[0],
+                  lastRace.data.results?.[2],
+                ].filter(Boolean).map((r: LastRaceResult) => {
+                  const position = Number(r.position);
+                  const driverName = `${r.driver.firstName} ${r.driver.lastName}`;
+                  const teamName = r.constructor?.name || '';
+
+                  return (
+                    <div className={`podium-driver ${getPodiumClass(position)}`} key={position}>
+                      <div className="podium-driver-card">
+                        <div className={`podium-medal position-${position}`}>
+                          {position}
+                        </div>
+                        <div
+                          className="podium-team-strip"
+                          style={{ backgroundColor: getTeamColor(teamName) }}
+                        />
+                        <div className="podium-driver-name">{driverName}</div>
+                        <div className="podium-team-name">{getTeamNameKR(teamName)}</div>
+                        <div className="podium-time">{r.time}</div>
+                      </div>
+                      <div className="podium-block">
+                        <span>{position}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           ) : (
             <div className="loading-text">{UI_LABELS.noData}</div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseApiState<T> {
   data: T | null;
@@ -7,10 +7,27 @@ interface UseApiState<T> {
   refetch: () => void;
 }
 
+function depsEqual(a: any[], b: any[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: any[] = []): UseApiState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const depsRef = useRef<any[]>(deps);
+
+  // When the query key (deps) changes, clear stale data and switch to loading
+  // synchronously — before the fetch effect runs — so previous results don't
+  // linger or flash a "no data" state during the transition.
+  if (!depsEqual(depsRef.current, deps)) {
+    depsRef.current = deps;
+    if (data !== null) setData(null);
+    if (!loading) setLoading(true);
+    if (error !== null) setError(null);
+  }
 
   const fetch = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);

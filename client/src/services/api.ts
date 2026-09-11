@@ -12,6 +12,12 @@ export const getDriverStandings = (year: number, signal?: AbortSignal) =>
 export const getConstructorStandings = (year: number, signal?: AbortSignal) =>
   api.get(`/standings/constructors/${year}`, { signal }).then((r) => r.data);
 
+export const getDriverStandingsHistory = (year: number, signal?: AbortSignal) =>
+  api.get(`/standings/drivers/${year}/history`, { signal }).then((r) => r.data);
+
+export const getConstructorStandingsHistory = (year: number, signal?: AbortSignal) =>
+  api.get(`/standings/constructors/${year}/history`, { signal }).then((r) => r.data);
+
 // Schedule
 export const getSeasonSchedule = (year: number, signal?: AbortSignal) =>
   api.get(`/schedule/${year}`, { signal }).then((r) => r.data);
@@ -23,8 +29,17 @@ export const getLastRaceResults = (signal?: AbortSignal) =>
 export const getRaceResults = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/results/${year}/${round}`, { signal }).then((r) => r.data);
 
+export const getQualifyingResults = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/results/${year}/${round}/qualifying`, { signal }).then((r) => r.data);
+
+export const getSprintResults = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/results/${year}/${round}/sprint`, { signal }).then((r) => r.data);
+
 export const getRaceTimeline = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/results/timeline/${year}/${round}`, { signal }).then((r) => r.data);
+
+export const getSprintTimeline = (year: number, round: number, signal?: AbortSignal) =>
+  api.get(`/results/timeline/${year}/${round}/sprint`, { signal }).then((r) => r.data);
 
 // Telemetry (FastF1)
 export const getTelemetrySessions = (year: number, round: number, signal?: AbortSignal) =>
@@ -33,8 +48,8 @@ export const getTelemetrySessions = (year: number, round: number, signal?: Abort
 export const getTelemetryDrivers = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/telemetry/drivers/${year}/${round}`, { signal }).then((r) => r.data);
 
-export const getDriverTelemetry = (year: number, round: number, driverNumber: number, signal?: AbortSignal) =>
-  api.get(`/telemetry/${year}/${round}/${driverNumber}`, { signal }).then((r) => r.data);
+export const getDriverTelemetry = (year: number, round: number, driverNumber: number, lap?: number | null, signal?: AbortSignal) =>
+  api.get(`/telemetry/${year}/${round}/${driverNumber}`, { params: lap ? { lap } : undefined, signal }).then((r) => r.data);
 
 // Incidents (FastF1)
 export const getRaceIncidents = (year: number, round: number, signal?: AbortSignal) =>

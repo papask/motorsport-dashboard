@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule, getRaceIncidents } from '../services/api';
-import { getDriverNameKR, getCountryNameKR } from '../constants/koreanTerms';
+import { UI_LABELS } from '../constants/koreanTerms';
+import { t, useT, type MessageKey } from '../i18n';
 
 interface Props { year: number; }
 
-const FLAG_STYLES: Record<string, { color: string; bg: string; icon: string; label: string }> = {
-  'GREEN': { color: '#000', bg: '#00C853', icon: '🟢', label: '그린 플래그' },
-  'YELLOW': { color: '#000', bg: '#FFD700', icon: '🟡', label: '옐로 플래그' },
-  'DOUBLE YELLOW': { color: '#000', bg: '#FFA500', icon: '🟡🟡', label: '더블 옐로' },
-  'RED': { color: '#fff', bg: '#E10600', icon: '🔴', label: '레드 플래그' },
-  'BLUE': { color: '#fff', bg: '#0055FF', icon: '🔵', label: '블루 플래그' },
-  'BLACK AND WHITE': { color: '#fff', bg: '#333', icon: '⚫⚪', label: '흑백 플래그' },
-  'CHEQUERED': { color: '#fff', bg: '#333', icon: '🏁', label: '체커드 플래그' },
-  'CLEAR': { color: '#000', bg: '#00C853', icon: '🟢', label: '클리어' },
+const FLAG_STYLES: Record<string, { color: string; bg: string; icon: string; labelKey: MessageKey }> = {
+  'GREEN': { color: '#000', bg: '#00C853', icon: '🟢', labelKey: 'flagGreen' },
+  'YELLOW': { color: '#000', bg: '#FFD700', icon: '🟡', labelKey: 'flagYellow' },
+  'DOUBLE YELLOW': { color: '#000', bg: '#FFA500', icon: '🟡🟡', labelKey: 'flagDoubleYellow' },
+  'RED': { color: '#fff', bg: '#E10600', icon: '🔴', labelKey: 'flagRed' },
+  'BLUE': { color: '#fff', bg: '#0055FF', icon: '🔵', labelKey: 'flagBlue' },
+  'BLACK AND WHITE': { color: '#fff', bg: '#333', icon: '⚫⚪', labelKey: 'flagBlackWhite' },
+  'CHEQUERED': { color: '#fff', bg: '#333', icon: '🏁', labelKey: 'flagChequered' },
+  'CLEAR': { color: '#000', bg: '#00C853', icon: '🟢', labelKey: 'flagClear' },
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -24,7 +25,32 @@ const CATEGORY_ICONS: Record<string, string> = {
   'CarEvent': '🏎️',
 };
 
+// Blue flags are waved repeatedly at the same lapped driver within one lap
+// (each entry differs only by its "TIMED AT hh:mm:ss" stamp). Collapse all blue
+// flags for a given driver in a lap into a single row carrying a `_count`, so
+// the timeline isn't flooded with near-identical entries.
+function mergeBlueFlags(list: any[]): any[] {
+  const result: any[] = [];
+  const blueIdxByDriver: Record<string, number> = {};
+  for (const inc of list) {
+    const isBlue = (inc.flag || '').toUpperCase().includes('BLUE') && inc.driverNumber;
+    if (isBlue) {
+      const existing = blueIdxByDriver[inc.driverNumber];
+      if (existing != null) {
+        result[existing]._count += 1;
+        continue;
+      }
+      blueIdxByDriver[inc.driverNumber] = result.length;
+      result.push({ ...inc, _count: 1 });
+    } else {
+      result.push(inc);
+    }
+  }
+  return result;
+}
+
 function RaceIncidents({ year }: Props) {
+  useT(); // re-render on language change
   const { data: schedule, loading: schedLoading } = useApi(
     (signal) => getSeasonSchedule(year, signal), [year]
   );
@@ -47,6 +73,9 @@ function RaceIncidents({ year }: Props) {
   }, [schedule]);
 
   const incidents = incidentsData?.incidents || [];
+  // number → { code, name, team } so driver-specific messages can be named.
+  const driversMap: Record<string, { code?: string; name?: string; team?: string }> =
+    incidentsData?.drivers || {};
 
   // Unique categories
   const categories = [...new Set(incidents.map((i: any) => i.category).filter(Boolean))];
@@ -76,71 +105,58 @@ function RaceIncidents({ year }: Props) {
   if (schedLoading) {
     return (
       <div className="page-container">
-        <div className="loading-spinner">
-          <div className="spinner-ring" />
-          <p>데이터 로딩 중...</p>
-        </div>
+        <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{UI_LABELS.loading}</div></div>
       </div>
     );
   }
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h2>🚩 레이스 인시던트</h2>
-        <p className="page-subtitle">레이스 컨트롤 메시지 및 인시던트 기록</p>
+      <div className="page-header fade-in">
+        <h2 className="page-title">🚩 {t('raceIncidents')}</h2>
+        <p className="page-subtitle">{t('incidentsSubtitle')}</p>
       </div>
 
       {/* Race Selector */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label className="selector-label">레이스 선택</label>
+      <div className="selector-group fade-in fade-in-delay-1" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <select
+          className="selector"
+          value={selectedRound || ''}
+          onChange={(e) => setSelectedRound(Number(e.target.value))}
+        >
+          <option value="" disabled>{t('selectRace')}</option>
+          {schedule?.races?.map((r: any) => (
+            <option key={r.round} value={r.round}>
+              {t('roundNameOption', { n: r.round, name: r.raceName })}
+            </option>
+          ))}
+        </select>
+
+        {categories.length > 0 && (
           <select
-            className="season-select"
-            value={selectedRound || ''}
-            onChange={(e) => setSelectedRound(Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="selector"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
           >
-            <option value="">레이스를 선택하세요</option>
-            {schedule?.races?.map((r: any) => (
-              <option key={r.round} value={r.round}>
-                R{r.round} - {r.raceName}
+            <option value="all">{t('all')} ({incidents.length})</option>
+            {categories.map((c: string) => (
+              <option key={c} value={c}>
+                {CATEGORY_ICONS[c] || '📋'} {c} ({incidents.filter((i: any) => i.category === c).length})
               </option>
             ))}
           </select>
-        </div>
-
-        {categories.length > 0 && (
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label className="selector-label">카테고리 필터</label>
-            <select
-              className="season-select"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              <option value="all">전체 ({incidents.length})</option>
-              {categories.map((c: string) => (
-                <option key={c} value={c}>
-                  {CATEGORY_ICONS[c] || '📋'} {c} ({incidents.filter((i: any) => i.category === c).length})
-                </option>
-              ))}
-            </select>
-          </div>
         )}
       </div>
 
       {/* Content */}
       {incLoading && (
-        <div className="loading-spinner">
-          <div className="spinner-ring" />
-          <p>인시던트 데이터 로딩 중...</p>
-        </div>
+        <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{t('incLoadingHint')}</div></div>
       )}
 
       {incError && (
-        <div className="card" style={{ borderColor: 'var(--accent-red)', padding: 24 }}>
-          <p style={{ color: 'var(--accent-red)' }}>⚠️ {incError}</p>
+        <div className="error-container">
+          <div className="error-icon">⚠️</div>
+          <div className="error-message">{incError}</div>
         </div>
       )}
 
@@ -153,18 +169,18 @@ function RaceIncidents({ year }: Props) {
                 {incidentsData.raceName}
               </span>
               <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 12 }}>
-                시즌 {incidentsData.season} • 라운드 {incidentsData.round}
+                {t('seasonRoundInline', { season: incidentsData.season, round: incidentsData.round })}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <span className="stat-badge" style={{ fontSize: 12 }}>
-                📋 총 {incidents.length}건
+                {t('totalCount', { n: incidents.length })}
               </span>
               <span className="stat-badge" style={{ fontSize: 12, background: 'rgba(255,215,0,0.15)', color: '#FFD700' }}>
-                🟡 옐로 {incidents.filter((i: any) => i.flag?.includes('YELLOW')).length}
+                {t('yellowCount', { n: incidents.filter((i: any) => i.flag?.includes('YELLOW')).length })}
               </span>
               <span className="stat-badge" style={{ fontSize: 12, background: 'rgba(225,6,0,0.15)', color: '#E10600' }}>
-                🔴 레드 {incidents.filter((i: any) => i.flag?.includes('RED')).length}
+                {t('redCount', { n: incidents.filter((i: any) => (i.flag || '').toUpperCase() === 'RED').length })}
               </span>
             </div>
           </div>
@@ -191,8 +207,13 @@ function RaceIncidents({ year }: Props) {
                     <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                   </div>
 
-                  {groupedByLap[lap].map((inc: any, i: number) => {
+                  {mergeBlueFlags(groupedByLap[lap]).map((inc: any, i: number) => {
                     const flagStyle = FLAG_STYLES[inc.flag?.toUpperCase()] || null;
+                    // For merged blue flags the per-message "TIMED AT ..." stamp is
+                    // meaningless once collapsed, so drop it from the display text.
+                    const displayMessage = inc._count > 1
+                      ? inc.message.replace(/\s*TIMED AT[\s\d:]+$/i, '')
+                      : inc.message;
                     return (
                       <div
                         key={i}
@@ -210,7 +231,7 @@ function RaceIncidents({ year }: Props) {
                           </span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
-                              {inc.message}
+                              {displayMessage}
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                               {inc.category && (
@@ -228,7 +249,16 @@ function RaceIncidents({ year }: Props) {
                                   background: flagStyle.bg, color: flagStyle.color,
                                   fontWeight: 600,
                                 }}>
-                                  {flagStyle.icon} {flagStyle.label}
+                                  {flagStyle.icon} {t(flagStyle.labelKey)}
+                                </span>
+                              )}
+                              {inc._count > 1 && (
+                                <span style={{
+                                  fontSize: 10, padding: '2px 8px', borderRadius: 4,
+                                  background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)',
+                                  fontWeight: 700,
+                                }}>
+                                  ×{inc._count}
                                 </span>
                               )}
                               {inc.scope && (
@@ -246,18 +276,27 @@ function RaceIncidents({ year }: Props) {
                                   background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)',
                                   fontWeight: 600,
                                 }}>
-                                  섹터 {inc.sector}
+                                  {t('sectorN', { n: inc.sector })}
                                 </span>
                               )}
-                              {inc.driverNumber && (
-                                <span style={{
-                                  fontSize: 10, padding: '2px 8px', borderRadius: 4,
-                                  background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)',
-                                  fontWeight: 700,
-                                }}>
-                                  #{inc.driverNumber}
-                                </span>
-                              )}
+                              {inc.driverNumber && (() => {
+                                const drv = driversMap[inc.driverNumber];
+                                const label = drv?.code
+                                  ? `#${inc.driverNumber} ${drv.code}`
+                                  : `#${inc.driverNumber}`;
+                                return (
+                                  <span
+                                    title={drv?.name || undefined}
+                                    style={{
+                                      fontSize: 10, padding: '2px 8px', borderRadius: 4,
+                                      background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {label}
+                                  </span>
+                                );
+                              })()}
                               {inc.time && (
                                 <span style={{
                                   fontSize: 10, color: 'var(--text-muted)',
@@ -277,7 +316,7 @@ function RaceIncidents({ year }: Props) {
             </div>
           ) : (
             <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>인시던트 데이터가 없습니다.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('noIncidents')}</p>
             </div>
           )}
         </>
@@ -286,9 +325,9 @@ function RaceIncidents({ year }: Props) {
       {!selectedRound && !incLoading && (
         <div className="card" style={{ padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🚩</div>
-          <h3 style={{ fontSize: 18, marginBottom: 8, fontFamily: 'var(--font-display)' }}>레이스 인시던트</h3>
+          <h3 style={{ fontSize: 18, marginBottom: 8, fontFamily: 'var(--font-display)' }}>{t('raceIncidents')}</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-            레이스를 선택하면 레이스 컨트롤 메시지와 인시던트를 확인할 수 있습니다.
+            {t('incidentsPrompt')}
           </p>
         </div>
       )}

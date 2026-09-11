@@ -1,4 +1,8 @@
-// F1 한국어 표준 용어 사전 (나무위키 기준)
+// F1 한국어 용어 사전 (국내 중계·커뮤니티에서 보편적으로 쓰는 표기 기준)
+// 영어(en) 로케일에서는 대부분 API 원문(영문)을 그대로 노출하므로 별도 사전이
+// 거의 필요 없고, 세션 이름처럼 원문 키를 다듬어야 하는 경우만 EN 맵을 둔다.
+import { getLang } from '../i18n';
+import { MESSAGES } from '../i18n/messages';
 
 // 팀명 매핑 (API 영문 → 한국어)
 export const TEAM_NAMES_KR: Record<string, string> = {
@@ -9,6 +13,7 @@ export const TEAM_NAMES_KR: Record<string, string> = {
   'Ferrari': '페라리',
   'Williams': '윌리엄스',
   'RB': '레이싱 불스',
+  'RB F1 Team': '레이싱 불스',
   'Racing Bulls': '레이싱 불스',
   'AlphaTauri': '알파타우리',
   'Aston Martin': '애스턴 마틴',
@@ -20,13 +25,14 @@ export const TEAM_NAMES_KR: Record<string, string> = {
   'Alpine F1 Team': '알핀',
   'Alpine': '알핀',
   'Cadillac': '캐딜락',
+  'Cadillac F1 Team': '캐딜락',
   'Alfa Romeo': '알파 로메오',
   'Renault': '르노',
 };
 
 // 드라이버명 매핑 (API driverId → 한국어)
 export const DRIVER_NAMES_KR: Record<string, string> = {
-  'max_verstappen': '막스 페르스타펀',
+  'max_verstappen': '막스 베르스타펜',
   'hamilton': '루이스 해밀턴',
   'norris': '랜도 노리스',
   'leclerc': '샤를 르클레르',
@@ -39,19 +45,20 @@ export const DRIVER_NAMES_KR: Record<string, string> = {
   'gasly': '피에르 가슬리',
   'ocon': '에스테반 오콘',
   'albon': '알렉산더 알본',
-  'tsunoda': '카쿠다 츠노다',
+  'tsunoda': '유키 츠노다',
   'bottas': '발테리 보타스',
   'zhou': '저우 관위',
   'magnussen': '케빈 마그누센',
-  'hulkenberg': '니코 휠켄베르그',
+  'hulkenberg': '니코 휠켄베르크',
   'ricciardo': '다니엘 리카르도',
   'sargeant': '로건 사전트',
   'lawson': '리암 로슨',
+  'arvid_lindblad': '아르비드 린드블라드',
   'bearman': '올리버 베어만',
   'colapinto': '프랑코 콜라핀토',
   'doohan': '잭 두한',
   'antonelli': '안드레아 키미 안토넬리',
-  'hadjar': '이삭 하자르',
+  'hadjar': '아이작 하자르',
   'bortoleto': '가브리엘 보르톨레토',
 };
 
@@ -65,6 +72,18 @@ export const SESSION_NAMES_KR: Record<string, string> = {
   'Sprint': '스프린트',
   'Sprint Qualifying': '스프린트 퀄리파잉',
   'Sprint Shootout': '스프린트 슈트아웃',
+};
+
+// 세션 이름 (영어) — API 원문을 방송용 약어로 다듬는다.
+export const SESSION_NAMES_EN: Record<string, string> = {
+  'Practice 1': 'Practice 1 (FP1)',
+  'Practice 2': 'Practice 2 (FP2)',
+  'Practice 3': 'Practice 3 (FP3)',
+  'Qualifying': 'Qualifying',
+  'Race': 'Race',
+  'Sprint': 'Sprint',
+  'Sprint Qualifying': 'Sprint Qualifying',
+  'Sprint Shootout': 'Sprint Shootout',
 };
 
 // 레이스 결과 상태
@@ -119,46 +138,18 @@ export const COUNTRY_NAMES_KR: Record<string, string> = {
   'Miami': '마이애미',
 };
 
-// UI 레이블
-export const UI_LABELS = {
-  dashboard: '대시보드',
-  driverStandings: '드라이버 스탠딩',
-  constructorStandings: '컨스트럭터 스탠딩',
-  raceSchedule: '레이스 스케줄',
-  raceResults: '레이스 결과',
-  telemetry: '텔레메트리',
-  season: '시즌',
-  position: '순위',
-  points: '포인트',
-  wins: '우승',
-  podium: '포디움',
-  polePosition: '폴 포지션',
-  fastestLap: '패스티스트 랩',
-  grid: '그리드',
-  gap: '갭',
-  interval: '인터벌',
-  lap: '랩',
-  lapTime: '랩타임',
-  sector: '섹터',
-  speed: '속도',
-  throttle: '스로틀',
-  brake: '브레이크',
-  rpm: 'RPM',
-  gear: '기어',
-  drs: 'DRS',
-  pitStop: '피트 스톱',
-  driver: '드라이버',
-  team: '팀',
-  circuit: '서킷',
-  round: '라운드',
-  nextRace: '다음 레이스',
-  lastRace: '최근 레이스 결과',
-  teamRadio: '팀 라디오',
-  loading: '데이터 로딩 중...',
-  error: '데이터를 불러올 수 없습니다',
-  noData: '데이터가 없습니다',
-  km_h: 'km/h',
-} as const;
+// UI 레이블 — 현재 언어의 메시지 테이블을 조회하는 프록시. `UI_LABELS.xxx`
+// 접근이 그대로 동작하면서 언어 전환에 자동으로 반응한다. (키는 messages.ts와 공유.)
+export const UI_LABELS: Record<string, string> = new Proxy(
+  {},
+  {
+    get(_target, key: string) {
+      const lang = getLang();
+      const table = MESSAGES[lang] as Record<string, string>;
+      return table[key] ?? (MESSAGES.ko as Record<string, string>)[key] ?? key;
+    },
+  },
+);
 
 // 팀 컬러 (공식 브랜드 컬러)
 export const TEAM_COLORS: Record<string, string> = {
@@ -169,6 +160,7 @@ export const TEAM_COLORS: Record<string, string> = {
   'Ferrari': '#E8002D',
   'Williams': '#64C4FF',
   'RB': '#6692FF',
+  'RB F1 Team': '#6692FF',
   'Racing Bulls': '#6692FF',
   'AlphaTauri': '#6692FF',
   'Aston Martin': '#229971',
@@ -181,6 +173,7 @@ export const TEAM_COLORS: Record<string, string> = {
   'Alpine': '#0093CC',
   'Alfa Romeo': '#C92D4B',
   'Cadillac': '#FFD700',
+  'Cadillac F1 Team': '#FFD700',
 };
 
 // 서킷 이름 매핑
@@ -215,28 +208,35 @@ export const CIRCUIT_NAMES_KR: Record<string, string> = {
   'Catalunya': '카탈루냐',
 };
 
-// 유틸리티 함수
+// 유틸리티 함수 — 함수명은 호환을 위해 유지하되 현재 언어에 따라 결과가 달라진다.
+// 영어 로케일에서는 대부분 API 원문(영문)을 그대로 반환한다.
 export function getTeamNameKR(name: string): string {
+  if (getLang() === 'en') return name;
   return TEAM_NAMES_KR[name] || name;
 }
 
 export function getDriverNameKR(driverId: string, fallbackName?: string): string {
+  if (getLang() === 'en') return fallbackName || DRIVER_NAMES_KR[driverId] || driverId;
   return DRIVER_NAMES_KR[driverId] || fallbackName || driverId;
 }
 
 export function getSessionNameKR(name: string): string {
+  if (getLang() === 'en') return SESSION_NAMES_EN[name] || name;
   return SESSION_NAMES_KR[name] || name;
 }
 
 export function getCircuitNameKR(name: string): string {
+  if (getLang() === 'en') return name;
   return CIRCUIT_NAMES_KR[name] || name;
 }
 
 export function getStatusKR(status: string): string {
+  if (getLang() === 'en') return status;
   return STATUS_KR[status] || status;
 }
 
 export function getCountryNameKR(country: string): string {
+  if (getLang() === 'en') return country;
   return COUNTRY_NAMES_KR[country] || country;
 }
 

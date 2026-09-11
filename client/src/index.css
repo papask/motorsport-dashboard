@@ -7,40 +7,40 @@
   --bg-card: #1a1a28;
   --bg-card-hover: #222236;
   --bg-sidebar: #0e0e16;
-  
+
   --text-primary: #f0f0f5;
   --text-secondary: #9494a8;
   --text-muted: #5c5c72;
-  
+
   --accent-red: #e10600;
   --accent-red-glow: rgba(225, 6, 0, 0.3);
   --accent-gold: #ffd700;
   --accent-silver: #c0c0c0;
   --accent-bronze: #cd7f32;
-  
+
   --border-color: rgba(255, 255, 255, 0.06);
   --border-glow: rgba(225, 6, 0, 0.15);
-  
+
   --gradient-red: linear-gradient(135deg, #e10600 0%, #ff3333 100%);
   --gradient-dark: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
-  --gradient-card: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
-  
+  --gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(225, 6, 0, 0.15);
-  
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
-  
+
   --sidebar-width: 260px;
   --header-height: 64px;
-  
+
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Outfit', 'Inter', sans-serif;
-  
+
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -52,7 +52,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
 }
@@ -70,13 +72,16 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--text-muted);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
@@ -107,6 +112,8 @@ body {
   display: flex;
   flex-direction: column;
   margin-right: 40px;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .top-nav-logo h1 {
@@ -135,6 +142,105 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 100%;
+}
+
+/* Desktop defaults for the mobile-only nav controls (activated under 768px) */
+.top-nav-drawer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.nav-hamburger {
+  display: none;
+}
+
+.nav-overlay {
+  display: none;
+}
+
+/* ===== HEADER NEXT-RACE COUNTDOWN ===== */
+.header-countdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 16px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.hc-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.hc-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.hc-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hc-time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== LANGUAGE TOGGLE (KO / EN) ===== */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 16px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lang-btn:hover {
+  color: var(--text-primary);
+}
+
+.lang-btn.active {
+  background: var(--f1-red, #e10600);
+  color: #fff;
+}
+
+.nav-item-container-group {
+  display: flex;
+  align-items: center;
   height: 100%;
 }
 
@@ -264,8 +370,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-left: 24px;
-  padding-left: 24px;
+  margin-left: 12px;
+  padding-left: 16px;
   border-left: 1px solid var(--border-color);
 }
 
@@ -289,7 +395,8 @@ body {
 }
 
 .season-label {
-  display: none; /* Hide in top nav */
+  display: none;
+  /* Hide in top nav */
 }
 
 /* ===== MAIN CONTENT ===== */
@@ -368,6 +475,25 @@ body {
   color: var(--accent-red);
 }
 
+/* Text expand/collapse control (used instead of a chevron across accordions) */
+.collapse-toggle {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.accordion-header:hover .collapse-toggle,
+.collapsible-title:hover .collapse-toggle {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
 .accordion-content {
   margin-top: 12px;
 }
@@ -395,14 +521,54 @@ body {
   color: var(--text-primary);
 }
 
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-body {
+  margin-top: 16px;
+}
+
+/* When collapsed, slim down the vertical padding so the bar is compact */
+.card.card-collapsed {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.accordion-header.collapsed {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
 .card-grid {
   display: grid;
   gap: 20px;
 }
 
-.card-grid-2 { grid-template-columns: repeat(2, 1fr); }
-.card-grid-3 { grid-template-columns: repeat(3, 1fr); }
-.card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+/* Grid items default to min-width:auto, which lets wide content (tables,
+   podium) push a card past its track and overflow the viewport. Pinning it to
+   0 keeps every card within its column so inner content scrolls instead. */
+.card-grid > * {
+  min-width: 0;
+}
+
+.card-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.card-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 
 /* ===== STATS CARDS ===== */
 .stat-card {
@@ -474,10 +640,25 @@ body {
   font-size: 13px;
 }
 
-.position-1 { background: rgba(255, 215, 0, 0.15); color: var(--accent-gold); }
-.position-2 { background: rgba(192, 192, 192, 0.15); color: var(--accent-silver); }
-.position-3 { background: rgba(205, 127, 50, 0.15); color: var(--accent-bronze); }
-.position-other { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
+.position-1 {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--accent-gold);
+}
+
+.position-2 {
+  background: rgba(192, 192, 192, 0.15);
+  color: var(--accent-silver);
+}
+
+.position-3 {
+  background: rgba(205, 127, 50, 0.15);
+  color: var(--accent-bronze);
+}
+
+.position-other {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
 
 .team-indicator {
   display: inline-block;
@@ -490,6 +671,18 @@ body {
 
 .driver-name {
   font-weight: 600;
+}
+
+/* Team name shown under the driver name on mobile (see responsive block); the
+   standalone team column is hidden there. Off by default on desktop. */
+.driver-team-sub {
+  display: none;
+}
+
+/* Points summary shown under the team name on mobile; the standalone points
+   columns are hidden there. Off by default on desktop. */
+.driver-points-sub {
+  display: none;
 }
 
 .driver-code {
@@ -525,7 +718,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
@@ -618,9 +813,137 @@ body {
   margin-top: 4px;
 }
 
+/* ===== PODIUM ===== */
+.podium-layout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  min-height: 294px;
+  padding-top: 8px;
+}
+
+.podium-driver {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.podium-driver-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 126px;
+  padding: 18px 10px 12px;
+  border: 1px solid var(--border-color);
+  border-bottom: 0;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.podium-first .podium-driver-card {
+  min-height: 150px;
+  border-color: rgba(255, 215, 0, 0.24);
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.08), rgba(255, 255, 255, 0.025));
+}
+
+.podium-second .podium-driver-card {
+  min-height: 136px;
+}
+
+.podium-third .podium-driver-card {
+  min-height: 118px;
+}
+
+.podium-team-strip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  margin: 12px 0 10px;
+}
+
+.podium-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
+.podium-driver-name,
+.podium-team-name,
+.podium-time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.podium-driver-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.podium-team-name {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.podium-time {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+}
+
+.podium-block {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 58px;
+  border: 1px solid var(--border-color);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018));
+}
+
+.podium-first .podium-block {
+  border-color: rgba(255, 215, 0, 0.24);
+}
+
+.podium-block span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 58px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.18);
+}
+
 /* ===== CHARTS ===== */
 .chart-container {
   margin-top: 8px;
+}
+
+/* Fills the chart container on desktop; on mobile it takes a min-width so the
+   chart overflows and the container scrolls horizontally (see responsive block). */
+.chart-scroll-inner {
+  width: 100%;
+  height: 100%;
 }
 
 .recharts-cartesian-axis-tick-value {
@@ -665,6 +988,95 @@ body {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border-color);
+}
+
+.switch-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--border-color);
+  transition: background 0.18s ease;
+  flex-shrink: 0;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease;
+}
+
+.switch-input:checked + .switch {
+  background: var(--accent-red);
+}
+
+.switch-input:checked + .switch::after {
+  transform: translateX(20px);
+}
+
+.switch-input:focus-visible + .switch {
+  outline: 2px solid var(--accent-red);
+  outline-offset: 2px;
+}
+
+.switch-field:hover .switch-field-label {
+  color: var(--text-primary);
+}
+
+.schedule-sessions {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.schedule-session-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.schedule-session-time {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .schedule-past {
@@ -719,22 +1131,304 @@ body {
   transition: border-color var(--transition-fast);
 }
 
-.selector:hover, .selector:focus {
+.selector:hover,
+.selector:focus {
   border-color: var(--accent-red);
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
-  .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .card-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .card-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .page-container { padding: 20px; }
+  .sidebar {
+    display: none;
+  }
+
+  .page-container {
+    padding: 20px;
+  }
+
   .card-grid-2,
   .card-grid-3,
-  .card-grid-4 { grid-template-columns: 1fr; }
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .podium-layout {
+    min-height: 270px;
+    gap: 8px;
+  }
+
+  .podium-driver-card {
+    min-height: 118px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .podium-first .podium-driver-card {
+    min-height: 136px;
+  }
+
+  .podium-second .podium-driver-card {
+    min-height: 126px;
+  }
+
+  .podium-third .podium-driver-card {
+    min-height: 110px;
+  }
+
+  .podium-driver-name {
+    font-size: 13px;
+  }
+
+  .podium-team-name,
+  .podium-time {
+    font-size: 10px;
+  }
+}
+
+/* ===== MOBILE NAV (HAMBURGER DRAWER) + SCROLLABLE TABLES/CHARTS ===== */
+@media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .top-nav {
+    padding: 0 16px;
+  }
+
+  .top-nav-logo {
+    margin-right: 12px;
+  }
+
+  /* Compact countdown on mobile: race location stacked above the timer */
+  .header-countdown {
+    margin-left: 8px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+
+  .hc-label {
+    display: none;
+  }
+
+  .hc-name {
+    font-size: 10px;
+    max-width: 90px;
+  }
+
+  .hc-time {
+    font-size: 13px;
+  }
+
+  /* Keep the language toggle compact and left of the hamburger on mobile */
+  .lang-toggle {
+    margin-left: 8px;
+  }
+
+  .lang-btn {
+    font-size: 11px;
+    padding: 4px 7px;
+  }
+
+  .nav-hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 42px;
+    height: 42px;
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 210;
+  }
+
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text-primary);
+    border-radius: 2px;
+    transition: transform 0.25s ease, opacity 0.2s ease;
+  }
+
+  .nav-hamburger.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .nav-hamburger.open span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .nav-hamburger.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  .nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 72px 0 0 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 150;
+  }
+
+  .top-nav-drawer {
+    position: fixed;
+    top: 72px;
+    right: 0;
+    bottom: 0;
+    width: min(82vw, 320px);
+    height: auto;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border-color);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 200;
+    display: block;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .top-nav-drawer.open {
+    transform: translateX(0);
+  }
+
+  .top-nav-links {
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    gap: 4px;
+  }
+
+  .nav-item-container-group {
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+  }
+
+  .nav-item-container {
+    height: auto;
+  }
+
+  .nav-link {
+    padding: 14px 16px;
+  }
+
+  .nav-link.active::before {
+    display: none;
+  }
+
+  .nav-chevron {
+    display: none;
+  }
+
+  /* Dropdowns are always expanded inside the drawer (hover doesn't exist on touch) */
+  .dropdown-menu {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    min-width: 0;
+    padding: 2px 0 2px 18px;
+  }
+
+  .top-nav-season {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .season-select {
+    width: 100%;
+  }
+
+  /* Wide tables scroll horizontally instead of overflowing the page */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table thead th,
+  .data-table tbody td {
+    white-space: nowrap;
+  }
+
+  /* Tighter cells so common narrow tables (e.g. TOP 5) fit without scrolling */
+  .data-table thead th {
+    padding: 10px 10px;
+    font-size: 10px;
+  }
+
+  .data-table tbody td {
+    padding: 11px 10px;
+    font-size: 13px;
+  }
+
+  /* Standings: stack the team name (and, on the full page, the points) under the
+     driver name and drop those standalone columns */
+  .col-team,
+  .col-points,
+  .col-detail {
+    display: none;
+  }
+
+  .driver-team-sub {
+    display: block;
+    padding-left: 13px;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .driver-points-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    padding-left: 13px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .driver-points-sub .gain {
+    color: var(--accent-gold);
+  }
+
+  .driver-points-sub .cur {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  /* Charts keep a legible min-width and scroll horizontally */
+  .chart-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .chart-scroll-inner {
+    width: auto;
+    min-width: var(--chart-min-width, 800px);
+  }
 }
 
 /* ===== FADE IN ANIMATION ===== */
@@ -743,6 +1437,7 @@ body {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -753,10 +1448,25 @@ body {
   animation: fadeInUp 0.4s ease-out forwards;
 }
 
-.fade-in-delay-1 { animation-delay: 0.05s; opacity: 0; }
-.fade-in-delay-2 { animation-delay: 0.1s; opacity: 0; }
-.fade-in-delay-3 { animation-delay: 0.15s; opacity: 0; }
-.fade-in-delay-4 { animation-delay: 0.2s; opacity: 0; }
+.fade-in-delay-1 {
+  animation-delay: 0.05s;
+  opacity: 0;
+}
+
+.fade-in-delay-2 {
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+
+.fade-in-delay-3 {
+  animation-delay: 0.15s;
+  opacity: 0;
+}
+
+.fade-in-delay-4 {
+  animation-delay: 0.2s;
+  opacity: 0;
+}
 
 /* ===== INCIDENTS ===== */
 .incidents-container {
@@ -782,11 +1492,35 @@ body {
   letter-spacing: 0.5px;
 }
 
-.incident-sc { background: rgba(255, 215, 0, 0.15); color: var(--accent-gold); border: 1px solid rgba(255, 215, 0, 0.2); }
-.incident-vsc { background: rgba(255, 215, 0, 0.1); color: #e5b800; border: 1px solid rgba(229, 184, 0, 0.2); }
-.incident-yellow { background: rgba(255, 215, 0, 0.05); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.1); }
-.incident-red { background: rgba(225, 6, 0, 0.15); color: var(--accent-red); border: 1px solid rgba(225, 6, 0, 0.2); }
-.incident-other { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
+.incident-sc {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.incident-vsc {
+  background: rgba(255, 215, 0, 0.1);
+  color: #e5b800;
+  border: 1px solid rgba(229, 184, 0, 0.2);
+}
+
+.incident-yellow {
+  background: rgba(255, 215, 0, 0.05);
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.incident-red {
+  background: rgba(225, 6, 0, 0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(225, 6, 0, 0.2);
+}
+
+.incident-other {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 .empty-state {
   text-align: center;
@@ -900,7 +1634,8 @@ body {
 .radio-player {
   width: 100%;
   height: 36px;
-  filter: invert(100%) hue-rotate(180deg) brightness(1.2); /* Make default audio player look better in dark mode */
+  filter: invert(100%) hue-rotate(180deg) brightness(1.2);
+  /* Make default audio player look better in dark mode */
 }
 
 .no-audio {

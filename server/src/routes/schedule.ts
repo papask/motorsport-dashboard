@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getSeasonSchedule } from '../services/jolpicaService';
+import { sendRouteError } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.get('/:year', async (req, res) => {
     res.json(data);
   } catch (error: any) {
     console.error('Schedule error:', error.message);
-    res.status(500).json({ error: '레이스 스케줄 데이터를 가져올 수 없습니다.' });
+    sendRouteError(res, error, '레이스 스케줄 데이터를 가져올 수 없습니다.');
   }
 });
 

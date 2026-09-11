@@ -1,13 +1,16 @@
 import { useApi } from '../hooks/useApi';
-import { getDriverStandings } from '../services/api';
+import { getDriverStandingsHistory } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, UI_LABELS } from '../constants/koreanTerms';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import StandingsPositionChart from '../components/StandingsPositionChart';
+import PosDelta from '../components/PosDelta';
+import CollapsibleCard from '../components/CollapsibleCard';
+import { useT } from '../i18n';
 
 interface Props { year: number; }
 
 export default function DriverStandings({ year }: Props) {
-  const { data, loading, error, refetch } = useApi((signal) => getDriverStandings(year, signal), [year]);
-
+  const t = useT();
+  const { data, loading, error, refetch } = useApi((signal) => getDriverStandingsHistory(year, signal), [year]);
 
   if (loading) return (
     <div className="page-container">
@@ -20,80 +23,87 @@ export default function DriverStandings({ year }: Props) {
       <div className="error-container">
         <div className="error-icon">⚠️</div>
         <div className="error-message">{error}</div>
-        <button className="retry-btn" onClick={refetch}>다시 시도</button>
+        <button className="retry-btn" onClick={refetch}>{t('retry')}</button>
       </div>
     </div>
   );
 
   const standings = data?.standings || [];
-  const chartData = standings.slice(0, 10).map((s: any) => ({
-    name: s.driver.code,
-    points: s.points,
-    color: getTeamColor(s.constructor.name),
-    fullName: getDriverNameKR(s.driver.id, `${s.driver.firstName} ${s.driver.lastName}`),
-    team: getTeamNameKR(s.constructor.name),
-  }));
+  const history = data?.history || [];
+  const hasSprint = !!data?.hasSprint;
+
+  // Within a team, the first driver (by standings order) stays solid and the
+  // second becomes dashed so teammates sharing a colour are distinguishable.
+  const teamSeen: Record<string, number> = {};
+  const chartItems = standings.map((s: any) => {
+    const seen = teamSeen[s.constructor.name] || 0;
+    teamSeen[s.constructor.name] = seen + 1;
+    return {
+      id: s.driver.id,
+      code: s.driver.code,
+      color: getTeamColor(s.constructor.name),
+      dashed: seen > 0,
+      number: s.driver.number != null ? Number(s.driver.number) : undefined,
+    };
+  });
 
   return (
     <div className="page-container">
       <div className="page-header fade-in">
         <h2 className="page-title">🏆 {UI_LABELS.driverStandings}</h2>
-        <p className="page-subtitle">{year} 시즌 · 라운드 {data?.round || '-'}</p>
+        <p className="page-subtitle">{t('seasonRound', { year, round: data?.round || '-' })}</p>
       </div>
 
-      {/* Points Bar Chart */}
-      <div className="card fade-in fade-in-delay-1" style={{ marginBottom: 20 }}>
-        <div className="card-title">{UI_LABELS.points} 분포 (TOP 10)</div>
-        <div className="chart-container" style={{ height: 320 }}>
-          <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-              <XAxis dataKey="name" tick={{ fill: '#9494a8', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#5c5c72', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 13 }}
-                labelStyle={{ color: '#f0f0f5', fontWeight: 600 }}
-                formatter={(value, _, props) => [`${value} ${UI_LABELS.points}`, (props as any).payload.fullName]}
-                labelFormatter={(label) => chartData.find((d: any) => d.name === label)?.team || String(label)}
-              />
-              <Bar dataKey="points" radius={[6, 6, 0, 0]} maxBarSize={48}>
-                {chartData.map((entry: any, index: number) => (
-                  <Cell key={index} fill={entry.color} fillOpacity={0.85} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      {/* Championship position over rounds */}
+      <CollapsibleCard title={t('posChangeByRound')} className="fade-in fade-in-delay-1" style={{ marginBottom: 20 }}>
+        <StandingsPositionChart history={history} items={chartItems} showTooltip={false} />
+      </CollapsibleCard>
 
       {/* Full Standings Table */}
       <div className="card fade-in fade-in-delay-2">
-        <div className="card-title">전체 드라이버 스탠딩</div>
+        <div className="card-title">{t('fullDriverStandings')}</div>
         <table className="data-table">
           <thead>
             <tr>
               <th>{UI_LABELS.position}</th>
               <th>{UI_LABELS.driver}</th>
-              <th>{UI_LABELS.team}</th>
-              <th style={{ textAlign: 'center' }}>{UI_LABELS.wins}</th>
-              <th style={{ textAlign: 'right' }}>{UI_LABELS.points}</th>
+              <th className="col-team">{UI_LABELS.team}</th>
+              <th className="col-points" style={{ textAlign: 'right' }}>{t('thBeforeRace')}</th>
+              <th className="col-points" style={{ textAlign: 'right' }}>{t('thThisGain')}</th>
+              <th className="col-points" style={{ textAlign: 'right' }}>{t('thCurrentPoints')}</th>
             </tr>
           </thead>
           <tbody>
             {standings.map((s: any) => (
               <tr key={s.driver.id}>
                 <td>
-                  <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
-                    {s.position}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
+                      {s.position}
+                    </span>
+                    <span style={{ width: 30 }}><PosDelta delta={s.positionDelta} /></span>
                   </span>
                 </td>
                 <td>
                   <span className="team-indicator" style={{ backgroundColor: getTeamColor(s.constructor.name) }} />
                   <span className="driver-name">{getDriverNameKR(s.driver.id, `${s.driver.firstName} ${s.driver.lastName}`)}</span>
                   <span className="driver-code" style={{ marginLeft: 8, color: 'var(--text-muted)' }}>{s.driver.code}</span>
+                  <span className="driver-team-sub">{getTeamNameKR(s.constructor.name)}</span>
+                  <span className="driver-points-sub">
+                    <span>{t('subPrev', { n: s.prevPoints })}</span>
+                    <span className="gain">{t('subGain', { n: s.racePoints })}{hasSprint && s.sprintPoints > 0 ? ` (🏁+${s.sprintPoints})` : ''}</span>
+                    <span className="cur">{t('subCur', { n: s.points })}</span>
+                  </span>
                 </td>
-                <td style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
-                <td style={{ textAlign: 'center' }}>{s.wins}</td>
-                <td style={{ textAlign: 'right' }}><span className="points-value">{s.points}</span></td>
+                <td className="col-team" style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
+                <td className="col-points" style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{s.prevPoints}</td>
+                <td className="col-points" style={{ textAlign: 'right' }}>
+                  <span style={{ fontWeight: 700 }}>+{s.racePoints}</span>
+                  {hasSprint && s.sprintPoints > 0 && (
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--accent-gold)' }}>{t('sprintGain', { n: s.sprintPoints })}</span>
+                  )}
+                </td>
+                <td className="col-points" style={{ textAlign: 'right' }}><span className="points-value">{s.points}</span></td>
               </tr>
             ))}
           </tbody>
