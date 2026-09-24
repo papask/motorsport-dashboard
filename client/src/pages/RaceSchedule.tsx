@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule } from '../services/api';
 import { getCountryNameKR, UI_LABELS } from '../constants/koreanTerms';
@@ -20,6 +20,11 @@ export default function RaceSchedule({ year }: Props) {
   const [expanded, setExpanded] = useState(false);
   const showSkeleton = useDeferredLoading(loading);
 
+  // Land on the next race instead of round 1 once the schedule arrives.
+  useEffect(() => {
+    const next = data?.races?.find((r: any) => getRaceDateTime(r) > new Date());
+    if (next) document.getElementById(`round-${next.round}`)?.scrollIntoView({ block: 'start' });
+  }, [data]);
 
   if (loading) return (
     <div className="page-container">

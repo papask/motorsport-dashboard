@@ -7,7 +7,7 @@
 export const MESSAGES = {
   ko: {
     // ── Brand / nav ─────────────────────────────────────────
-    logoTitle: 'F1 온더리밋',
+    logoTitle: '온더리밋',
     logoSubtitle: '모터스포츠 데이터',
     navSchedule: '스케줄',
     navStandings: '스탠딩',
@@ -285,7 +285,7 @@ export const MESSAGES = {
 
   en: {
     // ── Brand / nav ─────────────────────────────────────────
-    logoTitle: 'F1 OnTheLimit',
+    logoTitle: 'OnTheLimit',
     logoSubtitle: 'Motorsport Data',
     navSchedule: 'Schedule',
     navStandings: 'Standings',
