@@ -708,6 +708,15 @@ def get_incidents(year, round_num):
                     'lap': int(msg.get('Lap', 0)) if pd.notna(msg.get('Lap')) else None,
                     'driverNumber': str(msg.get('RacingNumber', '')) if pd.notna(msg.get('RacingNumber')) else None,
                 }
+                # The feed's own Category/Flag are kept as-is (the UI filters on
+                # them), but they under-report: a red flag arrives as a plain
+                # race-control announcement — Category 'Other' with an empty Flag
+                # — because 'Flag' is reserved for sector/track status messages.
+                # This adds the same normalised type the timeline already derives,
+                # so both screens agree on what counts as a red flag.
+                incident['eventType'] = _classify_rc_message(
+                    incident['message'], incident['flag'], incident['category']
+                )
                 incidents.append(incident)
 
     # Map racing number -> driver code/name so the UI can name driver-specific
@@ -765,6 +774,73 @@ def get_sessions(year, round_num):
         'eventName': str(event.get('EventName', '')),
         'sessions': sessions,
     }
+
+
+def get_availability(year, round_num, session_id='R'):
+    """Report what data exists for a session, without loading car telemetry.
+
+    The telemetry endpoint pulls car traces, which on a cold cache costs one to
+    two minutes. Sending someone into that wait only to tell them the session
+    has no telemetry is the worst outcome, so this answers the question first.
+
+    It loads laps only (telemetry=False), which is an order of magnitude cheaper
+    and — because FastF1 writes its own cache — is not wasted work: the full
+    telemetry call that may follow reuses what this warmed.
+
+    Returns three independent flags rather than one, because a session can have
+    classified results with no lap data, or laps with no car traces, and the UI
+    disables tabs accordingly.
+    """
+    year = int(year)
+    round_num = int(round_num)
+
+    result = {
+        'year': year,
+        'round': round_num,
+        'session': session_id,
+        'results': False,
+        'lapTimes': False,
+        'telemetry': False,
+        'reason': None,
+    }
+
+    try:
+        session = fastf1.get_session(year, round_num, session_id)
+    except Exception as exc:
+        # Asking for a sprint on a conventional weekend lands here.
+        result['reason'] = f'session_not_found: {exc}'
+        return result
+
+    try:
+        session.load(laps=True, telemetry=False, weather=False, messages=False)
+    except Exception as exc:
+        result['reason'] = f'load_failed: {exc}'
+        return result
+
+    try:
+        result['results'] = session.results is not None and len(session.results) > 0
+    except Exception:
+        result['results'] = False
+
+    laps = None
+    try:
+        laps = session.laps
+        result['lapTimes'] = laps is not None and len(laps) > 0 and laps['LapTime'].notna().any()
+    except Exception:
+        result['lapTimes'] = False
+
+    # Car telemetry only exists for sessions the F1 live timing API covers
+    # (2018 onward). FastF1 exposes that as a session flag, so we can answer
+    # without touching the car data itself.
+    api_support = bool(getattr(session, 'f1_api_support', False))
+    result['telemetry'] = bool(api_support and result['lapTimes'])
+    if not result['telemetry'] and result['reason'] is None:
+        if not api_support:
+            result['reason'] = 'no_f1_api_support'
+        elif not result['lapTimes']:
+            result['reason'] = 'no_lap_data'
+
+    return result
 
 
 def get_drivers(year, round_num):
@@ -838,6 +914,11 @@ def main():
             year = sys.argv[2]
             round_num = sys.argv[3]
             result = get_sessions(year, round_num)
+        elif action == 'availability':
+            year = sys.argv[2]
+            round_num = sys.argv[3]
+            session_id = sys.argv[4] if len(sys.argv) > 4 else 'R'
+            result = get_availability(year, round_num, session_id)
         elif action == 'drivers':
             year = sys.argv[2]
             round_num = sys.argv[3]

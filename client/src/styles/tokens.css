@@ -1,0 +1,401 @@
+/* =============================================================================
+   DESIGN TOKENS — single source of truth for every colour in the app.
+   =============================================================================
+
+   Values and names come from the "00 컬러 팔레트" artboard of the Claude Design
+   canvas (Wireframes - Final B). Every text-bearing colour there is annotated
+   with its measured contrast: ≥ 4.5:1 in light, ≥ 6.5:1 in dark.
+
+   Nothing outside this file should contain a raw hex or rgba() literal. CSS
+   reads these directly; TypeScript reads them through `src/theme/tokens.ts`,
+   which exports the same names as `var(--…)` strings (SVG presentation
+   attributes and inline styles both resolve custom properties, so Recharts
+   works unchanged).
+
+   THEMING
+     `:root` carries the light palette, so light is what you get with no
+     media query and no attribute. The dark palette is applied twice:
+     once under `prefers-color-scheme: dark` (guarded so an explicit light
+     choice still wins) and once under `[data-theme="dark"]` (so an explicit
+     dark choice wins over a light OS). Setting no attribute at all follows
+     the OS — that is the product default.
+
+     Theme blocks carry ONLY the raw palette plus `--rgb-ink`. Everything
+     derived (overlays, borders, gradients, shadows) is declared once in
+     `:root` in terms of those, because custom properties resolve at use time.
+     Adding a third theme means adding one more raw block.
+
+   COLOUR RULES (from the canvas — these are semantic, not decorative)
+     · Red is reserved for race control (red flag, SC/VSC). Selected and
+       active states use `--control-selected-*` / `--surface-inverse` (ink
+       fill), never red.
+     · Disabled is never opacity. It is sunken background + secondary text
+       (still ≥ 4.5:1) + dashed border + `cursor: not-allowed`.
+     · Position deltas are a lightness ladder, not red/green:
+       ▲ primary · ▼ secondary · – muted.
+     · Tyre compound is carried by the LETTER (S/M/H/I/W); colour is only a
+       secondary cue (badge underline, chart marker fill).
+   ========================================================================== */
+
+/* ==========================================================================
+   RAW PALETTE — light (default)
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Ink channel: every translucent token below is mixed from this, so a theme
+     only has to state it once. */
+  --rgb-ink: 32 30 29;
+
+  /* Surfaces */
+  --surface-base: #f3f2f2;
+  --surface-raised: #eae9e9;
+  --surface-sunken: #e0dedd;
+  --surface-inverse: #201e1d;
+
+  /* Text */
+  --text-primary: #201e1d;
+  --text-secondary: #514c4a;
+  --text-muted: #6d6765;
+  --text-on-inverse: #f3f2f2;
+
+  /* Controls */
+  --control-selected-bg: #201e1d;
+  --control-selected-fg: #f3f2f2;
+  --action-primary-bg: #201e1d;
+  --action-primary-fg: #f3f2f2;
+  --focus-ring: #201e1d;
+
+  /* Race control & status */
+  --status-red-flag: #d02e1e;
+  --status-red-flag-tint: #edd3d0;
+  --status-safety-car: #a25c01;
+  --status-safety-car-tint: #e6dacb;
+  --status-vsc: #94640d;
+  --status-yellow-flag: #896900;
+  --status-fastest-lap: #8757b7;
+  --status-dnf: #514c4a;
+  --status-pit: #514c4a;
+
+  /* Data / chart chrome */
+  --data-series-a: #201e1d;
+  --data-series-b: #514c4a;
+  --data-progress: #201e1d;
+  --data-track: #e0dedd;
+  --data-bar: #514c4a;
+
+  /* Tyre compounds — letter is primary, colour is the secondary cue.
+     SOFT is a desaturated rose, separated from race-control red by chroma. */
+  --tyre-soft: #9e5a60;
+  --tyre-medium: #8c6802;
+  --tyre-hard: #676e76;
+  --tyre-inter: #577646;
+  --tyre-wet: #5a6c9d;
+
+  /* Podium — light gold is darkened to reach AA; bright yellow gold cannot
+     pass on a light ground. Told apart from Cadillac gold by weight/size. */
+  --podium-p1: #8b6801;
+  --podium-p2: #686e74;
+  --podium-p3: #986139;
+
+  /* Telemetry traces (single-driver mode). Kept ≥ 15° away in hue from every
+     team colour, since panels are separate and confusion with a livery colour
+     matters more than separation from each other. */
+  --trace-speed: var(--text-primary);
+  --trace-rpm: #a94f7d;
+  --trace-gear: #5d69af;
+  --trace-throttle: #67741d;
+  --trace-brake: #936250;
+  --trace-drs: #007984;
+
+  /* Sectors — only in the sector table and lap tooltip. */
+  --sector-1: #9356a1;
+  --sector-2: #41738f;
+  --sector-3: #67741d;
+
+  /* Constructors */
+  --team-mclaren: #b15201;
+  --team-ferrari: #d52137;
+  --team-mercedes: #017c6c;
+  --team-red-bull: #3c6bc5;
+  --team-williams: #0774aa;
+  --team-racing-bulls: #6f60bd;
+  --team-audi: #157f0a;
+  --team-aston-martin: #1e7c5b;
+  --team-haas: #736c67;
+  --team-alpine: #0c7793;
+  --team-cadillac: #7c6e04;
+}
+
+/* ==========================================================================
+   RAW PALETTE — dark
+   Applied on a dark OS unless the user explicitly chose light, and always
+   when the user explicitly chose dark.
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --rgb-ink: 241 239 237;
+
+    --surface-base: #151413;
+    --surface-raised: #1f1d1c;
+    --surface-sunken: #0e0d0c;
+    --surface-inverse: #f1efed;
+
+    --text-primary: #f1efed;
+    --text-secondary: #aca6a4;
+    --text-muted: #8b8583;
+    --text-on-inverse: #151413;
+
+    --control-selected-bg: #f1efed;
+    --control-selected-fg: #151413;
+    --action-primary-bg: #f1efed;
+    --action-primary-fg: #151413;
+    --focus-ring: #f1efed;
+
+    --status-red-flag: #f7705d;
+    --status-red-flag-tint: #341e1b;
+    --status-safety-car: #dd8420;
+    --status-safety-car-tint: #2f2212;
+    --status-vsc: #cd8d18;
+    --status-yellow-flag: #be9402;
+    --status-fastest-lap: #b286e3;
+    --status-dnf: #aca6a4;
+    --status-pit: #aca6a4;
+
+    --data-series-a: #f1efed;
+    --data-series-b: #aca6a4;
+    --data-progress: #f1efed;
+    --data-track: #0e0d0c;
+    --data-bar: #aca6a4;
+
+    --tyre-soft: #cf868b;
+    --tyre-medium: #bd9335;
+    --tyre-hard: #939aa3;
+    --tyre-inter: #7fa46b;
+    --tyre-wet: #8299d3;
+
+    --podium-p1: #c29205;
+    --podium-p2: #949aa1;
+    --podium-p3: #cc8b5e;
+
+    --trace-rpm: #da7baa;
+    --trace-gear: #8795df;
+    --trace-throttle: #91a144;
+    --trace-brake: #c78b76;
+    --trace-drs: #37a8b4;
+
+    --sector-1: #c282d0;
+    --sector-2: #65a1c3;
+    --sector-3: #91a144;
+
+    --team-mclaren: #f67f2f;
+    --team-ferrari: #ff7474;
+    --team-mercedes: #00b49e;
+    --team-red-bull: #739ff1;
+    --team-williams: #4fa8e1;
+    --team-racing-bulls: #9f96e9;
+    --team-audi: #4db544;
+    --team-aston-martin: #59b08c;
+    --team-haas: #a69e99;
+    --team-alpine: #16add4;
+    --team-cadillac: #b5a006;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --rgb-ink: 241 239 237;
+
+  --surface-base: #151413;
+  --surface-raised: #1f1d1c;
+  --surface-sunken: #0e0d0c;
+  --surface-inverse: #f1efed;
+
+  --text-primary: #f1efed;
+  --text-secondary: #aca6a4;
+  --text-muted: #8b8583;
+  --text-on-inverse: #151413;
+
+  --control-selected-bg: #f1efed;
+  --control-selected-fg: #151413;
+  --action-primary-bg: #f1efed;
+  --action-primary-fg: #151413;
+  --focus-ring: #f1efed;
+
+  --status-red-flag: #f7705d;
+  --status-red-flag-tint: #341e1b;
+  --status-safety-car: #dd8420;
+  --status-safety-car-tint: #2f2212;
+  --status-vsc: #cd8d18;
+  --status-yellow-flag: #be9402;
+  --status-fastest-lap: #b286e3;
+  --status-dnf: #aca6a4;
+  --status-pit: #aca6a4;
+
+  --data-series-a: #f1efed;
+  --data-series-b: #aca6a4;
+  --data-progress: #f1efed;
+  --data-track: #0e0d0c;
+  --data-bar: #aca6a4;
+
+  --tyre-soft: #cf868b;
+  --tyre-medium: #bd9335;
+  --tyre-hard: #939aa3;
+  --tyre-inter: #7fa46b;
+  --tyre-wet: #8299d3;
+
+  --podium-p1: #c29205;
+  --podium-p2: #949aa1;
+  --podium-p3: #cc8b5e;
+
+  --trace-rpm: #da7baa;
+  --trace-gear: #8795df;
+  --trace-throttle: #91a144;
+  --trace-brake: #c78b76;
+  --trace-drs: #37a8b4;
+
+  --sector-1: #c282d0;
+  --sector-2: #65a1c3;
+  --sector-3: #91a144;
+
+  --team-mclaren: #f67f2f;
+  --team-ferrari: #ff7474;
+  --team-mercedes: #00b49e;
+  --team-red-bull: #739ff1;
+  --team-williams: #4fa8e1;
+  --team-racing-bulls: #9f96e9;
+  --team-audi: #4db544;
+  --team-aston-martin: #59b08c;
+  --team-haas: #a69e99;
+  --team-alpine: #16add4;
+  --team-cadillac: #b5a006;
+}
+
+/* ==========================================================================
+   DERIVED TOKENS — declared once, in terms of the raw palette above.
+   Custom properties resolve at use time, so these follow the active theme
+   without being repeated per theme.
+   ========================================================================== */
+
+:root {
+  /* --- Translucent ink, lightest to heaviest --------------------------- */
+  --ink-02: rgb(var(--rgb-ink) / 0.02);
+  --ink-04: rgb(var(--rgb-ink) / 0.04);
+  --ink-06: rgb(var(--rgb-ink) / 0.06);
+  --ink-08: rgb(var(--rgb-ink) / 0.08);
+  --ink-09: rgb(var(--rgb-ink) / 0.09);
+  --ink-10: rgb(var(--rgb-ink) / 0.1);
+  --ink-18: rgb(var(--rgb-ink) / 0.18);
+  --ink-20: rgb(var(--rgb-ink) / 0.2);
+  --ink-40: rgb(var(--rgb-ink) / 0.4);
+  --ink-70: rgb(var(--rgb-ink) / 0.7);
+
+  /* --- Borders --------------------------------------------------------- */
+  --border-subtle: var(--ink-18);
+  --border-strong: var(--ink-40);
+  --border-faint: var(--ink-08);
+
+  /* --- Control surfaces ------------------------------------------------ */
+  --control-hover-bg: var(--ink-08);
+  --surface-chrome: var(--surface-sunken);
+  --surface-menu: var(--surface-raised);
+  --surface-tooltip: var(--surface-raised);
+  --surface-scrim: rgb(0 0 0 / 0.55);
+  /* Thin veil marking a neutralised/inactive chart region */
+  --surface-veil: rgb(var(--rgb-ink) / 0.6);
+
+  /* --- Focus ------------------------------------------------------------
+     2px ring with a 2px gap in the background colour, so it stays visible on
+     top of an ink-filled (selected) control as well as on plain surfaces. */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* --- Disabled ---------------------------------------------------------
+     Never opacity: a sunken ground with secondary text still clears AA. */
+  --disabled-bg: var(--surface-sunken);
+  --disabled-fg: var(--text-secondary);
+  --disabled-border: var(--border-subtle);
+
+  /* --- Charts ---------------------------------------------------------- */
+  --data-grid: var(--ink-10);
+  --placeholder-hatch: var(--ink-09);
+  --chart-gridline: var(--ink-10);
+  --chart-reference-line: var(--ink-20);
+  --chart-dot-stroke: var(--surface-base);
+  --chart-zebra: var(--surface-base);
+  --chart-zebra-stripe: var(--ink-04);
+  --chart-series-label: var(--ink-70);
+  --chart-series-label-dimmed: var(--ink-10);
+  --chart-axis-tick: var(--text-secondary);
+  --chart-axis-label: var(--text-muted);
+  --marker-dashed-border: var(--ink-70);
+  --marker-ring: rgb(0 0 0 / 0.5);
+
+  /* Area fill under the DRS trace — the trace colour at low alpha, so it
+     tracks whatever the active theme set. */
+  --trace-drs-fill: color-mix(in srgb, var(--trace-drs) 20%, transparent);
+
+  /* --- Position delta ---------------------------------------------------
+     A lightness ladder rather than red/green, so it survives both themes and
+     red-green colour blindness. */
+  --delta-up: var(--text-primary);
+  --delta-down: var(--text-secondary);
+  --delta-none: var(--text-muted);
+
+  /* --- Row tints ------------------------------------------------------- */
+  --row-hover: var(--ink-04);
+  --row-personal-best: var(--ink-06);
+  --row-neutralised: var(--status-safety-car-tint);
+  --row-retired: var(--surface-sunken);
+
+  /* --- Incident badges ------------------------------------------------- */
+  --incident-sc-bg: var(--status-safety-car-tint);
+  --incident-red-bg: var(--status-red-flag-tint);
+  --dnf-bg: var(--surface-sunken);
+
+  /* --- Team fallback --------------------------------------------------- */
+  --team-unknown: var(--text-muted);
+
+  /* --- Gradients ------------------------------------------------------- */
+  --gradient-page: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface-base) 100%);
+  --gradient-card: linear-gradient(145deg, var(--ink-04) 0%, var(--ink-02) 100%);
+  --gradient-podium-block: linear-gradient(180deg, var(--ink-06), var(--ink-02));
+
+  /* ======================================================================
+     NON-COLOUR TOKENS
+     ====================================================================== */
+
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.18);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.22);
+  --shadow-lg: 0 8px 32px rgb(0 0 0 / 0.28);
+  --shadow-menu: var(--shadow-lg);
+  --shadow-switch-knob: 0 1px 3px rgb(0 0 0 / 0.35);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  /* The canvas calls these body/heading; keep both spellings resolvable. */
+  --font-body: var(--font-primary);
+  --font-heading: var(--font-display);
+
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-width: 260px;
+  --header-height: 64px;
+}
+
+/* A shared focus treatment, so every interactive element gets the same ring
+   without restating it. */
+:where(a, button, select, input, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
