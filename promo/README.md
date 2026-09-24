@@ -1,6 +1,43 @@
-# F1 온더리밋 홍보 영상
+# 온더리밋 홍보 영상
 
-## v3 — `f1-onthelimit-promo-90s.mp4` (최신 · 90초 · 모바일 우선)
+## v4 — `onthelimit-promo-v4.mp4` (최신 · 90초)
+
+![poster](poster-v4.jpg)
+
+[`RULES.md`](RULES.md)를 그대로 따른 첫 영상입니다. main `6d6a4eb` 기준으로 모든 장면을 다시 녹화했습니다.
+
+- **길이·형식:** 1920×1080, 30fps, **정확히 90.00초**
+- **녹화:** 라이트 테마, 실제 2026 시즌 데이터(14라운드 스페인 GP)
+- **브랜드:** 서비스명은 **온더리밋**이고, 타이틀과 아웃트로에 배지 로고를 씁니다. 영상 어디에도 "F1" 표기가 없고, 주소창에는 "온더리밋"이 나옵니다.
+- **서체:** 한글 제목은 여기어때 잘난체 2, 영문 강조는 Barlow Condensed ExtraBold Italic, 본문은 Pretendard입니다.
+- **아웃트로:** 기술 스택을 넣지 않고, 크레딧은 출처 표기가 필요한 CC BY 사진만 적었습니다.
+
+| 시간 | 내용 |
+| --- | --- |
+| 0:00–0:03 | **라이브 타이밍 오프닝.** 앱이 받은 실제 데이터로 만든 중계 스타일 화면입니다. 스페인 GP 최종 순위·격차가 담긴 타이밍 타워 옆에서, 안토넬리의 최속랩(57랩) 텔레메트리 중 가장 긴 풀스로틀 직선을 재생합니다. 3단에서 8단까지 실제 변속 시점마다 변속음이 나고, 속도와 RPM이 오르며 시프트 라이트가 차오릅니다. 리미터에 닿으면 라이트가 파랗게 깜빡이고 **ON THE LIMIT**이 뜹니다. |
+| 0:03–0:11 | 리미터 컷과 함께 음악이 시작 → 2비트마다 넘어가는 F1 사진 몽타주 → 배지 로고 타이틀 |
+| 0:11–0:51 | **모바일:** 손 안의 온더리밋 → 스케줄(다음 레이스로 이동) → 스탠딩 → 결과 → 타임라인·리플레이 → 텔레메트리 → 인시던트 |
+| 0:51–0:54 | "데스크탑에서는 더 넓게, 한눈에." 전환 |
+| 0:54–1:17 | **데스크탑:** 드라이버 스탠딩 → 타임라인·리플레이 → 텔레메트리 → 스케줄 |
+| 1:17–1:22 | 같은 스탠딩을 모바일과 데스크탑에서 비교 |
+| 1:22–1:30 | 아웃트로: 로고, 기능 목록, 사진 크레딧 |
+
+**소스:** 음악은 Mixkit "Infected Mushroom Vibes"입니다. 효과음은 Mixkit의 Racing motorcycle speeding up, Motorcycle changing gears, 휘시, 임팩트를 썼습니다. 사진은 아래 v2 표에 있는 것 중 franpe, polarjez, Michael Elleray, nan palmero, Nick J Webb, Ben Sutherland의 사진입니다. 아날로그 계기판 스톡 영상은 쓰지 않았습니다.
+
+**다시 만드는 방법:** 서버 구성은 v2와 같습니다.
+1. `node scripts/v4/record4.cjs` → `rec4/`, `python3 scripts/v4/toclip4.py` → `clips4/`
+2. 오프닝 데이터를 받아 `v4/`에 저장합니다.
+   - `/api/results/2026/14` → `results.json`
+   - `/api/telemetry/2026/14/12` → `tel_ant.json`
+   - `/api/telemetry/drivers/2026/14` → `drivers.json`
+3. `node scripts/v4/logo_png.cjs`로 로고 PNG를 만듭니다.
+4. `python3 scripts/v4/make_video4.py`
+   - v1–v3 스크립트를 헬퍼로 가져다 씁니다.
+   - 서체 3종이 `~/.fonts/`에 설치되어 있어야 합니다.
+
+---
+
+## v3 — `f1-onthelimit-promo-90s.mp4` (90초 · 모바일 우선)
 
 ![poster](poster-v3.jpg)
 
