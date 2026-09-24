@@ -97,7 +97,7 @@ function RaceIncidents({ year }: Props) {
     incidentsData?.drivers || {};
 
   // Unique categories
-  const categories = [...new Set(incidents.map((i: any) => i.category).filter(Boolean))];
+  const categories: string[] = [...new Set<string>(incidents.map((i: any) => i.category).filter(Boolean))];
 
   // Filtered incidents
   const filtered = filterCategory === 'all'

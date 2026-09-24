@@ -88,10 +88,10 @@ The Express server exposes a REST API under `/api`. Lightweight data (standings,
    venv\Scripts\activate
    # macOS / Linux
    source venv/bin/activate
-   pip install fastf1 pandas numpy
+   pip install -r requirements.txt
    ```
 
-   The server expects the virtual environment at `server/venv/`. On Windows it invokes `server/venv/Scripts/python.exe`. FastF1's own cache is stored under `server/fastf1_cache/` (auto-created, git-ignored).
+   The server uses `server/venv/` when it exists (`Scripts/python.exe` on Windows, `bin/python` on macOS/Linux), otherwise the system `python3`. Set `PYTHON_PATH` to use another interpreter. FastF1's own cache is stored under `server/fastf1_cache/` (auto-created, git-ignored; override with `FASTF1_CACHE_DIR`).
 
 ## Running
 
@@ -106,6 +106,8 @@ npm run dev
 
 You can also run them individually with `npm run dev:server` or `npm run dev:client`.
 
+The client calls the API at `/api`; in development Vite proxies it to the Express server on port 3001.
+
 ## Build
 
 ```bash
@@ -115,6 +117,26 @@ cd server && npm run build   # → dist/, run with npm start
 # Client
 cd client && npm run build   # → dist/ (static assets)
 ```
+
+When `client/dist` exists, the Express server serves it together with the API, so `cd server && npm start` runs the whole app at http://localhost:3001.
+
+## Deployment
+
+The app deploys as a single Docker container: Express serves the built client and the API from one origin, with Python and FastF1 installed alongside. It needs a host that runs long-lived containers (Render, Railway, Fly.io, a VPS, …); serverless platforms can't run the Python helper.
+
+```bash
+docker build -t onthelimit .
+docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
+```
+
+| Variable | Default (in the image) | Purpose |
+| --- | --- | --- |
+| `PORT` | `3001` | HTTP port. Most hosts set it for you. |
+| `FASTF1_CACHE_DIR` | `/data/fastf1_cache` | FastF1 cache. Mount a volume at `/data` to keep it across restarts. |
+| `PYTHON_PATH` | `/opt/venv/bin/python` | Python interpreter with FastF1 installed |
+| `CLIENT_DIST` | `../client/dist` | Built client served by Express |
+
+FastF1 loads whole sessions into memory, so give the container at least 1 GB of RAM.
 
 > **Note:** The current UI is in Korean.
 
@@ -206,10 +228,10 @@ Express 서버는 `/api` 아래에 REST API를 제공합니다. 가벼운 데이
    venv\Scripts\activate
    # macOS / Linux
    source venv/bin/activate
-   pip install fastf1 pandas numpy
+   pip install -r requirements.txt
    ```
 
-   서버는 가상환경이 `server/venv/`에 있다고 가정하며, Windows에서는 `server/venv/Scripts/python.exe`를 실행합니다. FastF1 자체 캐시는 `server/fastf1_cache/`에 저장됩니다(자동 생성, git 무시).
+   서버는 `server/venv/`가 있으면 그 파이썬을 쓰고(Windows는 `Scripts/python.exe`, macOS/Linux는 `bin/python`), 없으면 시스템의 `python3`를 씁니다. 다른 파이썬을 쓰려면 `PYTHON_PATH`를 지정합니다. FastF1 자체 캐시는 `server/fastf1_cache/`에 저장됩니다(자동 생성, git 무시, `FASTF1_CACHE_DIR`로 변경 가능).
 
 ## 실행
 
@@ -224,6 +246,8 @@ npm run dev
 
 `npm run dev:server` 또는 `npm run dev:client`로 개별 실행도 가능합니다.
 
+클라이언트는 `/api`로 API를 호출하고, 개발 중에는 Vite가 이 요청을 3001번 포트의 Express 서버로 넘겨줍니다.
+
 ## 빌드
 
 ```bash
@@ -233,5 +257,25 @@ cd server && npm run build   # → dist/, npm start 로 실행
 # 클라이언트
 cd client && npm run build   # → dist/ (정적 파일)
 ```
+
+`client/dist`가 있으면 Express 서버가 API와 함께 화면도 제공합니다. 그래서 `cd server && npm start`만 실행해도 http://localhost:3001 에서 앱 전체가 뜹니다.
+
+## 배포
+
+앱은 Docker 컨테이너 하나로 배포합니다. Express가 빌드된 화면과 API를 같은 주소에서 제공하고, 같은 이미지에 Python과 FastF1이 함께 설치됩니다. 컨테이너를 계속 띄워 두는 호스팅(Render, Railway, Fly.io, VPS 등)이 필요합니다. 서버리스 플랫폼에서는 파이썬 헬퍼를 실행할 수 없습니다.
+
+```bash
+docker build -t onthelimit .
+docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
+```
+
+| 변수 | 기본값(이미지) | 용도 |
+| --- | --- | --- |
+| `PORT` | `3001` | HTTP 포트. 대부분의 호스팅이 알아서 지정합니다. |
+| `FASTF1_CACHE_DIR` | `/data/fastf1_cache` | FastF1 캐시. `/data`에 볼륨을 붙이면 재시작해도 유지됩니다. |
+| `PYTHON_PATH` | `/opt/venv/bin/python` | FastF1이 설치된 파이썬 |
+| `CLIENT_DIST` | `../client/dist` | Express가 제공할 빌드된 화면 |
+
+FastF1은 세션 데이터를 통째로 메모리에 올리므로 컨테이너 메모리는 1 GB 이상을 권장합니다.
 
 > **참고:** 현재 UI는 한국어로 되어 있습니다.

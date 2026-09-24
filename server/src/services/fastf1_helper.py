@@ -30,7 +30,7 @@ import pandas as pd
 import numpy as np
 
 # Enable caching in a directory relative to this script
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'fastf1_cache')
+CACHE_DIR = os.environ.get('FASTF1_CACHE_DIR') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'fastf1_cache')
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
 

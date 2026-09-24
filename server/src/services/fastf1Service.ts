@@ -1,19 +1,30 @@
 import { spawn } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import NodeCache from 'node-cache';
 
 // Cache FastF1 results for 10 minutes (FastF1 has its own file cache, but this avoids re-spawning Python helper)
 const cache = new NodeCache({ stdTTL: 600 });
 
-// Resolve the Python executable inside the virtual environment
-const VENV_PYTHON = path.resolve(
-  __dirname, '..', '..', 'venv', 'Scripts', 'python.exe'
-);
+const SERVER_ROOT = path.resolve(__dirname, '..', '..');
 
-// Resolve the helper script path
-const HELPER_SCRIPT = path.resolve(
-  __dirname, 'fastf1_helper.py'
-);
+// Resolve the Python executable: PYTHON_PATH if set, then the local venv
+// (server/venv on Windows or macOS/Linux), then the system Python.
+function resolvePython(): string {
+  if (process.env.PYTHON_PATH) return process.env.PYTHON_PATH;
+  const candidates = [
+    path.join(SERVER_ROOT, 'venv', 'Scripts', 'python.exe'),
+    path.join(SERVER_ROOT, 'venv', 'bin', 'python'),
+  ];
+  const venv = candidates.find((p) => fs.existsSync(p));
+  if (venv) return venv;
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
+const PYTHON = resolvePython();
+
+// The helper stays in src/ so the compiled server (dist/) finds it too
+const HELPER_SCRIPT = path.join(SERVER_ROOT, 'src', 'services', 'fastf1_helper.py');
 
 /**
  * Spawn the FastF1 Python helper and parse JSON output.
@@ -24,7 +35,7 @@ function runFastF1(action: string, args: string[]): Promise<any> {
   if (cached) return Promise.resolve(cached);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(VENV_PYTHON, [HELPER_SCRIPT, action, ...args], {
+    const child = spawn(PYTHON, [HELPER_SCRIPT, action, ...args], {
       env: { ...process.env },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

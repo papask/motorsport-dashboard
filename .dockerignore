@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/venv
+**/fastf1_cache
+.git
+promo
+brand
+.playwright-mcp
+*.log
+.env
+.env.*

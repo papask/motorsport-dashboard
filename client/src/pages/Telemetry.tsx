@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule, getTelemetryDrivers, getDriverTelemetry, getTelemetryAvailability } from '../services/api';
-import { getTeamNameKR, getDriverNameKR, getCountryNameKR, UI_LABELS } from '../constants/koreanTerms';
+import { getTeamNameKR, getDriverNameKR, UI_LABELS } from '../constants/koreanTerms';
 import { useT } from '../i18n';
 import PageMasthead from '../components/PageMasthead';
 import RoundSelector from '../components/RoundSelector';
@@ -9,7 +9,7 @@ import StateBlock from '../components/StateBlock';
 import LongLoad from '../components/LongLoad';
 import LapList from '../components/LapList';
 import { TIRE_COLORS, tireColor, telemetry, chart, delta as deltaToken, text as textToken, ink, border, surface, rowTint, tooltipSurface } from '../theme/tokens';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Cell, Area, AreaChart, ComposedChart, ReferenceLine, ReferenceArea } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Bar, Cell, Area, AreaChart, ComposedChart, ReferenceLine, ReferenceArea } from 'recharts';
 
 interface Props { year: number; }
 
@@ -906,7 +906,7 @@ function Telemetry({ year }: Props) {
                   ))}
                   <Tooltip
                     contentStyle={tooltipSurface}
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: any, name) => {
                       if (name === 'time') return [formatLapTime(value), t('lapTimeColon')];
                       return [formatLapTime(value), name];
                     }}
@@ -916,7 +916,7 @@ function Telemetry({ year }: Props) {
                       const d = payload[0]?.payload;
                       return (
                         <div style={{ ...tooltipSurface, padding: '10px 14px' }}>
-                          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('lapN', { n: label })}</div>
+                          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('lapN', { n: label ?? '' })}</div>
                           {comparing ? (
                             <>
                               <div style={{ color: DRIVER_A_COLOR }}>{nameA}: <b>{formatLapTime(d.time)}</b>{d.neutral ? ' *' : ''}</div>
