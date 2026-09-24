@@ -76,11 +76,37 @@ body {
 }
 
 .top-nav-logo h1 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--text-primary);
+  line-height: 0;
+}
+
+/* Brand logo: both theme variants are in the DOM and the active palette picks
+   one, mirroring how tokens.css resolves system / light / dark. */
+.brand-logo {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+
+.brand-logo--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .brand-logo--light {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .brand-logo--dark {
+    display: block;
+  }
+}
+
+:root[data-theme='dark'] .brand-logo--light {
+  display: none;
+}
+
+:root[data-theme='dark'] .brand-logo--dark {
+  display: block;
 }
 
 .top-nav-logo span {
@@ -1804,9 +1830,8 @@ body {
     display: none;
   }
 
-  .top-nav-logo h1 {
-    font-size: 16px;
-    white-space: nowrap;
+  .brand-logo {
+    height: 28px;
   }
 
   .nav-link {
