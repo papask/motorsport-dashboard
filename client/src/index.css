@@ -1325,6 +1325,15 @@ body {
 }
 
 /* Pinned next race, so it is reachable without scanning the whole grid. */
+.schedule-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 0;
+  margin: -8px 0 8px;
+  background: var(--surface-base);
+}
+
 .next-race-pin {
   display: flex;
   align-items: baseline;

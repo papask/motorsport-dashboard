@@ -55,27 +55,29 @@ export default function RaceSchedule({ year }: Props) {
         kicker={t('scheduleSubtitle', { year, count: races.length, tz: getLocalTZLabel() })}
         title={UI_LABELS.raceSchedule}
         subtitle="Race Schedule"
-        aside={
-          <div className="seg" role="group" aria-label={t('showAllSessions')}>
-            <button
-              type="button"
-              className={`seg-opt ${!expanded ? 'active' : ''}`}
-              aria-pressed={!expanded}
-              onClick={() => setExpanded(false)}
-            >
-              {t('segRaceOnly')}
-            </button>
-            <button
-              type="button"
-              className={`seg-opt ${expanded ? 'active' : ''}`}
-              aria-pressed={expanded}
-              onClick={() => setExpanded(true)}
-            >
-              {t('segAllSessions')}
-            </button>
-          </div>
-        }
       />
+
+      {/* Outside the masthead so it can stay pinned while the grid scrolls. */}
+      <div className="schedule-toolbar">
+        <div className="seg" role="group" aria-label={t('showAllSessions')}>
+          <button
+            type="button"
+            className={`seg-opt ${!expanded ? 'active' : ''}`}
+            aria-pressed={!expanded}
+            onClick={() => setExpanded(false)}
+          >
+            {t('segRaceOnly')}
+          </button>
+          <button
+            type="button"
+            className={`seg-opt ${expanded ? 'active' : ''}`}
+            aria-pressed={expanded}
+            onClick={() => setExpanded(true)}
+          >
+            {t('segAllSessions')}
+          </button>
+        </div>
+      </div>
 
       {/* On a narrow screen the next race is easy to lose in a long grid, so it
           is pinned above it with a jump link. */}

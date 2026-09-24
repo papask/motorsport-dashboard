@@ -140,7 +140,7 @@ export const MESSAGES = {
     unitSeconds: '초',
 
     // ── Dashboard ───────────────────────────────────────────
-    dashboardSubtitle: '{year} 시즌 포뮬러 1 데이터 한눈에 보기',
+    dashboardSubtitle: '{year} 시즌 데이터 한눈에 보기',
     top5: 'TOP 5',
     seasonEnded: '시즌이 종료되었습니다',
     roundAndDate: '라운드 {round} · {datetime}',
@@ -418,7 +418,7 @@ export const MESSAGES = {
     unitSeconds: 'sec',
 
     // ── Dashboard ───────────────────────────────────────────
-    dashboardSubtitle: '{year} Formula 1 season at a glance',
+    dashboardSubtitle: '{year} season at a glance',
     top5: 'TOP 5',
     seasonEnded: 'The season has ended',
     roundAndDate: 'Round {round} · {datetime}',
