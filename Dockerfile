@@ -34,8 +34,9 @@ COPY --from=client /app/client/dist /app/client/dist
 ENV NODE_ENV=production \
     PORT=3001 \
     PYTHON_PATH=/opt/venv/bin/python \
-    FASTF1_CACHE_DIR=/data/fastf1_cache
-# Mount a volume at /data to keep the FastF1 cache across restarts
+    FASTF1_CACHE_DIR=/data/fastf1_cache \
+    DATA_DIR=/data
+# Mount a volume at /data to keep the FastF1 cache and FIA summaries across restarts
 VOLUME /data
 EXPOSE 3001
 CMD ["node", "dist/index.js"]

@@ -71,3 +71,7 @@ export const getTelemetryAvailability = (year: number, round: number, session = 
 // Incidents (FastF1)
 export const getRaceIncidents = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/telemetry/incidents/${year}/${round}`, { signal }).then((r) => r.data);
+
+// FIA documents (auto-summarized by the server)
+export const getFiaDocuments = (signal?: AbortSignal) =>
+  api.get('/fia/documents', { signal }).then((r) => r.data);

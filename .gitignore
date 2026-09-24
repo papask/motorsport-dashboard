@@ -42,3 +42,6 @@ Thumbs.db
 *.suo
 *.sw?
 *.local
+
+# FIA document summaries (server/data/fia-documents.json)
+server/data/

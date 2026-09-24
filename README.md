@@ -48,6 +48,7 @@ The Express server exposes a REST API under `/api`. Lightweight data (standings,
 - **Timeline** — lap-by-lap race timeline compiled from lap timings and pit stops
 - **Telemetry** — driver telemetry charts (speed, throttle, etc.) via FastF1
 - **Incidents** — race incident / flag review
+- **FIA Documents** — the latest Grand Prix's FIA documents, checked every 30 minutes and summarized in Korean and English by Claude (needs `ANTHROPIC_API_KEY`)
 - Season selector (2023–2026)
 
 ## API Endpoints
@@ -65,6 +66,7 @@ The Express server exposes a REST API under `/api`. Lightweight data (standings,
 | GET | `/api/telemetry/drivers/:year/:round` | Drivers in a session |
 | GET | `/api/telemetry/:year/:round/:driverNumber` | Driver telemetry |
 | GET | `/api/telemetry/incidents/:year/:round` | Race incidents |
+| GET | `/api/fia/documents` | Summarized FIA documents |
 
 ## Prerequisites
 
@@ -135,6 +137,8 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `FASTF1_CACHE_DIR` | `/data/fastf1_cache` | FastF1 cache. Mount a volume at `/data` to keep it across restarts. |
 | `PYTHON_PATH` | `/opt/venv/bin/python` | Python interpreter with FastF1 installed |
 | `CLIENT_DIST` | `../client/dist` | Built client served by Express |
+| `ANTHROPIC_API_KEY` | — | Claude API key for FIA document summaries. Locally, put it in `server/.env`. |
+| `DATA_DIR` | `/data` | Where the FIA summaries are stored (`fia-documents.json`) |
 
 FastF1 loads whole sessions into memory, so give the container at least 1 GB of RAM.
 
@@ -188,6 +192,7 @@ Express 서버는 `/api` 아래에 REST API를 제공합니다. 가벼운 데이
 - **타임라인** — 랩 타이밍과 피트스톱으로 구성한 랩 단위 타임라인
 - **텔레메트리** — FastF1 기반 드라이버 텔레메트리 차트(속도, 스로틀 등)
 - **인시던트** — 레이스 인시던트 / 플래그 리뷰
+- **FIA 문서** — 최신 그랑프리의 FIA 문서를 30분마다 확인해 Claude로 한국어·영어 요약 (`ANTHROPIC_API_KEY` 필요)
 - 시즌 선택기 (2023–2026)
 
 ## API 엔드포인트
@@ -205,6 +210,7 @@ Express 서버는 `/api` 아래에 REST API를 제공합니다. 가벼운 데이
 | GET | `/api/telemetry/drivers/:year/:round` | 세션 참가 드라이버 |
 | GET | `/api/telemetry/:year/:round/:driverNumber` | 드라이버 텔레메트리 |
 | GET | `/api/telemetry/incidents/:year/:round` | 레이스 인시던트 |
+| GET | `/api/fia/documents` | 요약된 FIA 문서 |
 
 ## 사전 요구사항
 
@@ -275,6 +281,8 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `FASTF1_CACHE_DIR` | `/data/fastf1_cache` | FastF1 캐시. `/data`에 볼륨을 붙이면 재시작해도 유지됩니다. |
 | `PYTHON_PATH` | `/opt/venv/bin/python` | FastF1이 설치된 파이썬 |
 | `CLIENT_DIST` | `../client/dist` | Express가 제공할 빌드된 화면 |
+| `ANTHROPIC_API_KEY` | — | FIA 문서 요약용 Claude API 키. 로컬에서는 `server/.env`에 넣습니다. |
+| `DATA_DIR` | `/data` | FIA 요약 저장 위치(`fia-documents.json`) |
 
 FastF1은 세션 데이터를 통째로 메모리에 올리므로 컨테이너 메모리는 1 GB 이상을 권장합니다.
 

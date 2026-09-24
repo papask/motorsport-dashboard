@@ -8,6 +8,7 @@ import RaceResults from './pages/RaceResults';
 import RaceTimeline from './pages/RaceTimeline';
 import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
+import FiaDocuments from './pages/FiaDocuments';
 import HeaderCountdown from './components/HeaderCountdown';
 import { useLang, useT, type Lang } from './i18n';
 import { useTheme, type ThemePref } from './theme/useTheme';
@@ -40,6 +41,7 @@ function getNavItems(t: (k: any) => string) {
       children: [
         { path: '/telemetry', label: t('navTelemetry') },
         { path: '/incidents', label: t('navIncidents') },
+        { path: '/fia', label: t('navFia') },
       ],
     },
   ];
@@ -273,6 +275,7 @@ function App() {
             <Route path="/timeline" element={<RaceTimeline year={selectedYear} />} />
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
+            <Route path="/fia" element={<FiaDocuments />} />
           </Routes>
         </main>
       </div>

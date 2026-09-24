@@ -6,6 +6,14 @@ import standingsRouter from './routes/standings';
 import scheduleRouter from './routes/schedule';
 import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
+import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
+
+// Local secrets (ANTHROPIC_API_KEY) live in server/.env; hosts set real env vars
+try {
+  process.loadEnvFile(path.resolve(__dirname, '..', '.env'));
+} catch {
+  // no .env file
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,6 +26,9 @@ app.use('/api/standings', standingsRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/telemetry', telemetryRouter);
+app.get('/api/fia/documents', (_req, res) => {
+  res.json({ documents: getFiaDocuments() });
+});
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -37,6 +48,7 @@ if (fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
 
 app.listen(PORT, () => {
   console.log(`🏎️  F1 Dashboard Server running on http://localhost:${PORT}`);
+  startFiaWatcher();
 });
 
 export default app;
