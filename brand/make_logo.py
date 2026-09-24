@@ -1,7 +1,7 @@
 """OnTheLimit logo generator: outlined SVGs (no font dependency) + PNG exports.
 
 Concept: a rev gauge whose needle sits in the red zone -- "on the limit" --
-paired with a heavy italic wordmark in ink + racing red.
+set on a slanted racing-red plate with the wordmark knocked out in white.
 """
 import math, os
 from fontTools.ttLib import TTFont
@@ -105,67 +105,94 @@ def write(name, content):
 
 
 # ---------------------------------------------------------------- lockups
-def lockup_en(theme):
-    """Mark + ONTHELIMIT wordmark + tagline (desktop header / hero)."""
-    ink = INK if theme == 'light' else PAPER
-    muted = MUTED_L if theme == 'light' else MUTED_D
-    H = 120
-    ms = 120
-    x = ms + 26
-    size = 76
-    base = 78
-    d1, w1, _ = text_path('ONTHE', 'Black', size, x, base, tracking=-1.5)
-    d2, w2, _ = text_path('LIMIT', 'Black', size, x + w1 + 4, base, tracking=-1.5)
-    wm_w = w1 + 4 + w2
-    # speed bar under the wordmark, parallelogram matching the slant
-    by = base + 12
-    bar = (f'<path d="M{x - 2:.1f} {by + 9:.1f} L{x + wm_w * 0.62:.1f} {by + 9:.1f} L{x + wm_w * 0.62 + 9 * SKEW:.1f} {by:.1f} '
-           f'L{x + 7:.1f} {by:.1f} Z" fill="{ink}"/>'
-           f'<path d="M{x + wm_w * 0.64:.1f} {by + 9:.1f} L{x + wm_w + 4:.1f} {by + 9:.1f} L{x + wm_w + 4 + 9 * SKEW:.1f} {by:.1f} '
-           f'L{x + wm_w * 0.64 + 9 * SKEW:.1f} {by:.1f} Z" fill="{RED}"/>')
-    W = x + wm_w + 16
-    body = (f'<g>{mark_group(ms, tile=True, border=theme == "dark")}</g>\n  '
-            f'<path d="{d1}" fill="{ink}"/>\n  <path d="{d2}" fill="{RED}"/>\n  {bar}')
-    return W, H, body
+# Badge lockup: round gauge emblem riding on a slanted red plate with the
+# wordmark knocked out in white, trailed by three speed stripes.
+def emblem(cx, cy, R, ring=PAPER, ring_w=None, disk=TILE):
+    """Round gauge emblem: dark disk, outer ring, white→red arc, red needle."""
+    ring_w = ring_w if ring_w is not None else R * 0.075
+    p = [f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{R - ring_w / 2:.1f}" fill="{disk}" stroke="{ring}" stroke-width="{ring_w:.1f}"/>']
+    gx, gy, gr = cx, cy + R * 0.10, R * 0.58
+    sw = R * 0.15
+    start, end = 215, -35
+    red_from = -35 + 250 * 0.32
+    p.append(f'<path d="{arc_d(gx, gy, gr, start, red_from + 4)}" fill="none" stroke="{PAPER}" stroke-width="{sw:.1f}" stroke-linecap="round"/>')
+    p.append(f'<path d="{arc_d(gx, gy, gr, red_from - 4, end)}" fill="none" stroke="{RED}" stroke-width="{sw:.1f}" stroke-linecap="round"/>')
+    nd = -35 + 250 * 0.12
+    nx, ny = polar(gx, gy, gr - sw * 0.35, nd)
+    bx, by = polar(gx, gy, R * 0.12, nd + 180)
+    p.append(f'<line x1="{bx:.1f}" y1="{by:.1f}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{RED}" stroke-width="{R * 0.11:.1f}" stroke-linecap="round"/>')
+    p.append(f'<circle cx="{gx:.1f}" cy="{gy:.1f}" r="{R * 0.14:.1f}" fill="{PAPER}"/>')
+    p.append(f'<circle cx="{gx:.1f}" cy="{gy:.1f}" r="{R * 0.06:.1f}" fill="{RED}"/>')
+    return '\n  '.join(p)
 
 
-def lockup_ko(theme, tagline=True):
-    """Mark + F1 온더리밋 (+ F1 RACE DATA tagline). Desktop and mobile headers."""
-    ink = INK if theme == 'light' else PAPER
-    muted = MUTED_L if theme == 'light' else MUTED_D
+def para(x0, y0, x1, h, fill, extra=''):
+    """Right-leaning parallelogram: bottom-left (x0, y0+h) .. top-right (x1+s, y0)."""
+    s = h * SKEW
+    return f'<path d="M{x0 + s:.1f} {y0:.1f} L{x1 + s:.1f} {y0:.1f} L{x1:.1f} {y0 + h:.1f} L{x0:.1f} {y0 + h:.1f} Z" fill="{fill}"{extra}/>'
+
+
+def badge(text, theme, size=58, weight='Black', tracking=-1.5, tagline=None):
+    """Emblem + red plate with the wordmark knocked out + trailing speed stripes.
+
+    The plate reads on both backgrounds; only the stripes (ink on light, white
+    on dark) and the tagline colour change with the theme.
+    """
     H = 120
-    ms = 120
-    x = ms + 24
-    size = 70
-    base = 72 if tagline else 84
-    # red "F1" tag (rounded parallelogram) + wordmark
-    tag_h = 56
-    tag_top = base - 52
-    df, wf, bf = text_path('F1', 'Black', 50, x + 14, base - 6, tracking=-1)
-    tag_w = wf + 30
-    sk = tag_h * SKEW
-    tag = (f'<path d="M{x + sk:.1f} {tag_top:.1f} L{x + tag_w + sk:.1f} {tag_top:.1f} L{x + tag_w:.1f} {tag_top + tag_h:.1f} '
-           f'L{x:.1f} {tag_top + tag_h:.1f} Z" fill="{RED}"/>')
-    dk, wk, _ = text_path('온더리밋', 'Black', size, x + tag_w + 18, base, tracking=-2)
-    W = x + tag_w + 18 + wk + 14
-    body = f'<g>{mark_group(ms, tile=True, border=theme == "dark")}</g>\n  {tag}\n  <path d="{df}" fill="{PAPER}"/>\n  <path d="{dk}" fill="{ink}"/>'
+    R = 58
+    cx, cy = 60, 60
+    plate_y, plate_h = 27, 66
+    tx = cx + R + 14
+    if isinstance(text, str):
+        # measure the text to size the plate and centre it vertically
+        _, tw, bb = text_path(text, weight, size, 0, 0, tracking)
+        th = bb[3] - bb[1]
+        base = plate_y + plate_h / 2 + th / 2 - bb[3] - 0.5
+        d, tw, _ = text_path(text, weight, size, tx, base, tracking)
+    else:
+        # stacked lines [(text, size), ...], block centred in the plate; each
+        # line is shifted left by the slant so the stack keeps the italic edge
+        gap = 7
+        heights = [size_ * 0.72 for _, size_ in text]
+        y = plate_y + (plate_h - (sum(heights) + gap * (len(text) - 1))) / 2
+        d, tw = '', 0.0
+        for (line, size_), h in zip(text, heights):
+            y += h
+            dl, wl, _ = text_path(line, weight, size_, tx + (plate_y + plate_h - y) * SKEW - 6, y, tracking)
+            d += dl
+            tw = max(tw, wl)
+            y += gap
+    plate_x1 = tx + tw + 22
+    dark = theme == 'dark'
+    parts = [para(cx, plate_y, plate_x1, plate_h, RED)]
+    x = plate_x1 + 8
+    for w in (12, 8, 5):
+        parts.append(para(x, plate_y, x + w, plate_h, PAPER if dark else INK))
+        x += w + 7
+    W = x + 6
+    parts.append(emblem(cx, cy, R, ring_w=R * 0.08))
+    parts.append(f'<path d="{d}" fill="{PAPER}"/>')
     if tagline:
-        dt, wt, _ = text_path('ONTHELIMIT  ·  F1 RACE DATA', 'Bold', 19, x + 2, base + 34, tracking=3.2, italic=False)
-        body += f'\n  <path d="{dt}" fill="{muted}"/>'
-        W = max(W, x + wt + 14)
-    return W, H, body
+        dt, wt, _ = text_path(tagline, 'Bold', 17, tx + 4, H + 16, tracking=3.4, italic=False)
+        parts.append(f'<path d="{dt}" fill="{MUTED_D if dark else MUTED_L}"/>')
+        H += 30
+        W = max(W, tx + wt + 10)
+    return W, H, '\n  '.join(parts)
 
 
 def main():
     write('onthelimit-mark.svg', svg(512, 512, mark_group(512), 'OnTheLimit'))
     write('favicon.svg', svg(64, 64, mark_group(64, simple=True), 'OnTheLimit'))
     for theme in ('light', 'dark'):
-        W, H, body = lockup_en(theme)
+        W, H, body = badge('온더리밋', theme, size=58)
+        write(f'onthelimit-logo-ko-{theme}.svg', svg(W, H, body, '온더리밋'))
+        W, H, body = badge('온더리밋', theme, size=58, tagline='ONTHELIMIT  ·  RACE DATA')
+        write(f'onthelimit-logo-ko-tagline-{theme}.svg', svg(W, H, body, '온더리밋'))
+        W, H, body = badge('ONTHELIMIT', theme, size=56)
         write(f'onthelimit-logo-en-{theme}.svg', svg(W, H, body, 'OnTheLimit'))
-        W, H, body = lockup_ko(theme, tagline=True)
-        write(f'onthelimit-logo-ko-{theme}.svg', svg(W, H, body, 'F1 온더리밋'))
-        W, H, body = lockup_ko(theme, tagline=False)
-        write(f'onthelimit-logo-compact-{theme}.svg', svg(W, H, body, 'F1 온더리밋'))
+        # narrow stacked version for phone headers
+        W, H, body = badge([('ON THE', 25), ('LIMIT', 36)], theme, tracking=-1)
+        write(f'onthelimit-logo-en-stacked-{theme}.svg', svg(W, H, body, 'OnTheLimit'))
     print('\n'.join(sorted(os.listdir(OUT))))
 
 

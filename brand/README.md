@@ -1,48 +1,48 @@
-# F1 온더리밋 (OnTheLimit) 로고
+# 온더리밋 (OnTheLimit) 로고
 
 ![preview](preview.png)
 
 ## 콘셉트
 
-- **심볼:** 회전계 바늘이 레드존에 들어가 있는 모습입니다. "한계에서(On the limit)" 달린다는 이름을 그대로 그림으로 옮겼습니다.
-- **워드마크:** 두꺼운 이탤릭체로 속도감을 줬습니다. 영문판은 `ONTHE`를 검정, `LIMIT`를 빨강으로 쓰고, 그 아래 같은 기울기의 속도 바를 넣었습니다. 국문판은 빨간 `F1` 태그 옆에 `온더리밋`을 붙였습니다.
+- **엠블럼:** 원형 회전계 안에서 바늘이 레드존에 들어가 있습니다. "한계에서(On the limit)" 달린다는 이름을 그대로 그림으로 옮겼습니다.
+- **플레이트:** 기울어진 빨간 번호판 위에 워드마크를 흰색으로 넣고, 뒤쪽에 스피드 스트라이프 세 줄을 붙였습니다. 엠블럼이 플레이트 앞쪽에 겹쳐 올라가서, 글자를 나열한 모양이 아니라 한 덩어리의 배지로 읽힙니다.
 - **색상**
 
   | 이름 | 값 | 쓰는 곳 |
   | --- | --- | --- |
-  | Racing Red | `#D9101A` | 레드존, 바늘, `LIMIT`, `F1` 태그 |
-  | Ink | `#111114` | 라이트 배경의 글자 |
-  | Tile | `#0E0E11` | 심볼 배경 |
-  | Paper | `#FFFFFF` | 다크 배경의 글자, 게이지 |
+  | Racing Red | `#D9101A` | 플레이트, 레드존, 바늘 |
+  | Ink | `#111114` | 스트라이프 (라이트 배경) |
+  | Tile | `#0E0E11` | 엠블럼 바탕, 앱 아이콘 |
+  | Paper | `#FFFFFF` | 워드마크, 엠블럼 테두리, 스트라이프 (다크 배경) |
 
-  빨강은 F1 공식 브랜드 컬러와 일부러 다르게 잡았습니다. 서체도 F1 공식 로고체가 아닌 Pretendard를 씁니다.
+  빨강은 F1 공식 브랜드 컬러와 일부러 다르게 잡았습니다. 로고에는 "F1" 글자를 쓰지 않습니다.
 - **서체:** Pretendard Black / Bold (SIL OFL 1.1). 글자를 모두 윤곽선 경로로 바꿔 두었기 때문에, 이 서체가 설치되지 않은 환경에서도 똑같이 보입니다.
 
 ## 파일 (`client/public/brand/`)
 
 | 파일 | 용도 |
 | --- | --- |
-| `onthelimit-logo-ko-{light,dark}.svg` | **데스크탑용.** 태그라인(ONTHELIMIT · F1 RACE DATA)이 들어간 가로형입니다. 랜딩 화면이나 푸터처럼 48px 이상으로 표시할 때 씁니다. |
-| `onthelimit-logo-compact-{light,dark}.svg` | **헤더용** (데스크탑과 모바일 공통). 태그라인이 없고, 높이 32–40px에 맞춘 버전입니다. |
-| `onthelimit-logo-en-{light,dark}.svg` | 영문 UI, SNS, 발표 자료에 쓰는 영문 워드마크입니다. |
+| `onthelimit-logo-ko-{light,dark}.svg` | **기본 로고.** 앱 헤더(데스크탑 48px, 모바일 52px)에 씁니다. |
+| `onthelimit-logo-ko-tagline-{light,dark}.svg` | 태그라인(ONTHELIMIT · RACE DATA)이 들어간 버전. 랜딩 화면, 푸터, 발표 자료처럼 크게 쓸 때 씁니다. |
+| `onthelimit-logo-en-{light,dark}.svg` | 영문 UI(데스크탑), SNS |
+| `onthelimit-logo-en-stacked-{light,dark}.svg` | 영문 UI의 **모바일 헤더용**. `ON THE / LIMIT`을 두 줄로 쌓아서 폭이 좁습니다. |
 | `onthelimit-mark.svg`, `onthelimit-mark-{512,192}.png`, `apple-touch-icon.png` | 앱 아이콘, PWA 아이콘, SNS 프로필 이미지 |
 | `favicon.svg`, `favicon-{32,16}.png` | 파비콘. 작은 크기에서도 보이도록 눈금을 빼고 선을 굵게 만들었습니다. |
 | `*@2x.png` | SVG를 쓸 수 없는 곳에 넣는 2배 해상도 PNG |
 
-`light`는 밝은 배경용(검정 글자), `dark`는 어두운 배경용(흰 글자)입니다. `dark` 버전은 심볼 타일에 얇은 테두리가 있어서, 어두운 배경에서도 심볼의 모양이 보입니다.
+`light`와 `dark`는 스트라이프 색만 다릅니다. 밝은 배경용은 검정, 어두운 배경용은 흰색입니다. 빨간 플레이트와 엠블럼은 두 버전이 같습니다.
 
-### 쓰는 방법
+### 앱에 적용된 방식
 
-앱 헤더에서는 테마에 맞춰 두 파일을 번갈아 보여 주면 됩니다.
+- 헤더(`client/src/App.tsx`)에는 테마별로 `<picture>`를 하나씩 두고, CSS가 현재 테마(시스템/라이트/다크)에 맞는 쪽만 보여 줍니다.
+- 화면 폭이 768px 이하일 때는 모바일용 파일을 씁니다. 영문 UI라면 두 줄 버전이 나옵니다.
+- 모바일 헤더(72px)에서는 위아래에 10px씩 여백을 두고, 로고가 높이 52px로 헤더를 꽉 채웁니다.
 
-```html
-<img class="logo-light" src="/brand/onthelimit-logo-compact-light.svg" alt="F1 온더리밋" height="36">
-<img class="logo-dark"  src="/brand/onthelimit-logo-compact-dark.svg"  alt="F1 온더리밋" height="36">
-```
+### 사용 규칙
 
-- 로고 둘레에는 심볼 높이의 1/4 이상 여백을 둡니다.
-- 로고를 늘이거나 색을 바꾸지 않습니다.
-- 헤더에 넣을 때는 높이 32px 미만으로 줄이지 않습니다.
+- 로고 둘레에는 엠블럼 지름의 1/4 이상 여백을 둡니다.
+- 로고를 늘이거나, 색을 바꾸거나, 엠블럼과 플레이트를 따로 떼어 쓰지 않습니다.
+- 높이 32px 미만으로 줄여야 하는 곳에는 로고 대신 앱 아이콘이나 파비콘을 씁니다.
 
 ## 다시 만들기
 
