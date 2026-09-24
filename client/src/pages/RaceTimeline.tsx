@@ -6,6 +6,11 @@ import { getRaceDateTime } from '../utils/raceDate';
 import useIsMobile from '../hooks/useIsMobile';
 import { t, useT, type MessageKey } from '../i18n';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea, LabelList } from 'recharts';
+import PageMasthead from '../components/PageMasthead';
+import RoundSelector from '../components/RoundSelector';
+import { SkeletonRegion, SkeletonChart } from '../components/Skeleton';
+import useDeferredLoading from '../hooks/useDeferredLoading';
+import { EVENT_COLORS, tireColor, podiumColor, getTeamColor, chart, status, podium, delta as deltaToken, text as textToken, ink, border, control, incident, tooltipSurface, TEAM_UNKNOWN } from '../theme/tokens';
 
 function renderCustomLabel(props: any, text: string, isEnd: boolean, endIndex: number, isDimmed: boolean) {
   const { x, y, index, value } = props;
@@ -20,7 +25,7 @@ function renderCustomLabel(props: any, text: string, isEnd: boolean, endIndex: n
       x={x} y={y}
       dx={isEnd ? 8 : -8}
       dy={4}
-      fill={isDimmed ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.7)"}
+      fill={isDimmed ? chart.seriesLabelDimmed : chart.seriesLabel}
       fontSize={10}
       fontWeight={800}
       textAnchor={isEnd ? "start" : "end"}
@@ -32,24 +37,17 @@ function renderCustomLabel(props: any, text: string, isEnd: boolean, endIndex: n
   );
 }
 
-const TIRE_COLORS: Record<string, string> = {
-  'SOFT': '#E10600',
-  'MEDIUM': '#FFD700',
-  'HARD': '#FFFFFF',
-  'INTERMEDIATE': '#00C853',
-  'WET': '#0091FF',
-};
-
 interface Props { year: number; }
 
+// Event fills come from the design tokens; only the icon lives here.
 const EVENT_STYLES: Record<string, { color: string; bg: string; icon: string }> = {
-  pit: { color: '#fff', bg: '#555', icon: '🛞' },
-  yellowFlag: { color: '#000', bg: '#FFD700', icon: '🟡' },
-  redFlag: { color: '#fff', bg: '#E10600', icon: '🔴' },
-  safetyCar: { color: '#000', bg: '#FF8C00', icon: '🚗' },
-  vsc: { color: '#000', bg: '#FFA500', icon: '🟠' },
-  green: { color: '#fff', bg: '#00C853', icon: '🟢' },
-  chequered: { color: '#fff', bg: '#333', icon: '🏁' },
+  pit: { ...EVENT_COLORS.pit, icon: '🛞' },
+  yellowFlag: { ...EVENT_COLORS.yellowFlag, icon: '🟡' },
+  redFlag: { ...EVENT_COLORS.redFlag, icon: '🔴' },
+  safetyCar: { ...EVENT_COLORS.safetyCar, icon: '🚗' },
+  vsc: { ...EVENT_COLORS.vsc, icon: '🟠' },
+  green: { ...EVENT_COLORS.green, icon: '🟢' },
+  chequered: { ...EVENT_COLORS.chequered, icon: '🏁' },
 };
 
 // Localized label for a race-control event type.
@@ -66,17 +64,20 @@ const evtLabel = (type: string) => t(EVT_LABEL_KEY[type] ?? 'evtPit');
 
 // Marks where a retired driver's line ends (their last completed lap) with a
 // red "DNF" badge. The retirement reason is shown in the tooltip for that lap.
-function renderDnfMarker(props: any, lastIndex: number, isDimmed: boolean) {
+// `stackIndex` separates two cars that retire on the same lap: without it their
+// labels land on the same point and read as one.
+function renderDnfMarker(props: any, lastIndex: number, isDimmed: boolean, stackIndex = 0) {
   const { x, y, index } = props;
   if (index !== lastIndex || x == null || y == null) return null;
   const opacity = isDimmed ? 0.2 : 1;
+  const dy = stackIndex * 4;
   return (
-    <g style={{ pointerEvents: 'none', opacity }}>
-      <circle cx={x} cy={y} r={4} fill="#E10600" stroke="#0a0a0f" strokeWidth={1.5} />
+    <g style={{ pointerEvents: 'none', opacity }} transform={`translate(0 ${dy})`}>
+      <circle cx={x} cy={y} r={4} fill={deltaToken.down} stroke={chart.dotStroke} strokeWidth={1.5} />
       <text
         x={x + 8} y={y} dy={3.5}
         textAnchor="start"
-        fill="#ff6a5d"
+        fill={status.dnf}
         fontSize={9}
         fontWeight={800}
         fontFamily="var(--font-display)"
@@ -100,15 +101,15 @@ function renderTireMarker(props: any, driverKey: string, getTireCompound: any, t
 
   if (!compound) return null;
 
-  const color = TIRE_COLORS[compound] || '#888';
+  const color = tireColor(compound);
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <circle cx={x} cy={y} r={7.5} fill={color} stroke="#0a0a0f" strokeWidth={2} />
+      <circle cx={x} cy={y} r={7.5} fill={color} stroke={chart.dotStroke} strokeWidth={2} />
       <text
         x={x} y={y}
         dy={3.5}
         textAnchor="middle"
-        fill="#000"
+        fill={textToken.onInverse}
         fontSize={10}
         fontWeight={900}
         fontFamily="var(--font-display)"
@@ -170,10 +171,10 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
   };
 
   return (
-    <div style={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '12px 16px', maxHeight: 400, overflowY: 'auto', fontSize: 12, minWidth: 200 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: '#f0f0f5' }}>{t('lapN', { n: label })}</div>
+    <div style={{ ...tooltipSurface, borderRadius: 10, padding: '12px 16px', maxHeight: 400, overflowY: 'auto', minWidth: 200 }}>
+      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: textToken.tooltipHeading }}>{t('lapN', { n: label })}</div>
       {flagEvents.length > 0 && (
-        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${border.strong}` }}>
           {flagEvents.map((ev: any, i: number) => {
             const style = EVENT_STYLES[ev.type] || EVENT_STYLES.pit;
             return (
@@ -185,13 +186,13 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
         </div>
       )}
       {dnfByLap?.[label]?.length > 0 && (
-        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6a5d', marginBottom: 6 }}>{t('ttRetiredDnf')}</div>
+        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${border.strong}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: status.dnf, marginBottom: 6 }}>{t('ttRetiredDnf')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {dnfByLap[label].map((r: any, i: number) => (
               <span key={i} style={{
                 fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-                background: 'rgba(225,6,0,0.18)', color: '#ff9b91', border: '1px solid rgba(225,6,0,0.4)',
+                background: incident.dnfBg, color: status.dnf, border: `1px solid ${incident.dnfBorder}`,
               }}>
                 {r.code} (#{r.driverNumber}){r.statusKR ? ` · ${r.statusKR}` : ''}
               </span>
@@ -200,8 +201,8 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
         </div>
       )}
       {pitEvents.length > 0 && (
-        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#c9c9d4', marginBottom: 6 }}>
+        <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${border.strong}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: textToken.tooltipLabel, marginBottom: 6 }}>
             {t('ttPitCount', { n: pitEvents.length })}
           </div>
           {shownPits.length > 0 && (
@@ -211,9 +212,9 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
                 return (
                   <span key={i} style={{
                     fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', textAlign: 'center',
-                    background: selected ? '#6b6b78' : 'rgba(255,255,255,0.07)',
-                    color: selected ? '#fff' : '#b8b8c4',
-                    border: `1px solid ${selected ? 'rgba(255,255,255,0.35)' : 'transparent'}`,
+                    background: selected ? control.selectedBg : ink.a08,
+                    color: selected ? textToken.onInverse : textToken.tooltipMuted,
+                    border: `1px solid ${selected ? border.strong : 'transparent'}`,
                   }}>
                     {ev.driver}{ev.duration ? ` ${ev.duration.toFixed(1)}s` : ''}
                   </span>
@@ -232,20 +233,20 @@ function TimelineTooltip({ active, payload, label, driverInfoMap, selectedDriver
         const info = drivers[entry.dataKey];
         return (
           <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', opacity: selectedDrivers?.has(entry.dataKey) ? 1 : 0.8 }}>
-            <span style={{ width: 22, textAlign: 'right', fontWeight: 700, fontSize: 11, color: entry.value <= 3 ? '#FFD700' : '#9494a8' }}>P{entry.value}</span>
+            <span style={{ width: 22, textAlign: 'right', fontWeight: 700, fontSize: 11, color: entry.value <= 3 ? podium.p1 : textToken.secondary }}>P{entry.value}</span>
             <div style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: info?.color || '#888',
+              background: info?.color || TEAM_UNKNOWN,
               flexShrink: 0,
-              border: info?.dashed ? '1px dashed rgba(255,255,255,0.8)' : 'none',
-              boxShadow: info?.dashed ? '0 0 0 1px rgba(0,0,0,0.5)' : 'none'
+              border: info?.dashed ? `1px dashed ${chart.markerDashedBorder}` : 'none',
+              boxShadow: info?.dashed ? `0 0 0 1px ${chart.markerRing}` : 'none'
             }} />
-            <span style={{ fontWeight: 600, color: '#f0f0f5', flex: 1 }}>{info?.code ? `${info.code}(#${info.name})` : `#${info?.name || entry.dataKey}`}</span>
+            <span style={{ fontWeight: 600, color: textToken.tooltipHeading, flex: 1 }}>{info?.code ? `${info.code}(#${info.name})` : `#${info?.name || entry.dataKey}`}</span>
           </div>
         );
       })}
       {sorted.length > displayEntries.length && (
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', borderTop: `1px solid ${chart.gridline}`, paddingTop: 8 }}>
           {t('ttMoreDrivers', { n: sorted.length - displayEntries.length })}
         </div>
       )}
@@ -490,6 +491,32 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
       return a.position - b.position;
     });
 
+  // Rank by car number, so a row can be placed by transform while its position
+  // in the DOM never changes — that is what makes the movement continuous
+  // instead of a re-flow jump.
+  const replayRowHeight = isMobile ? 34 : 30;
+  const boardRank = new Map(sortedDrivers.map((d, i) => [d.driverNumber, i]));
+  const boardByCarNumber = [...sortedDrivers].sort((a, b) => a.driverNumber - b.driverNumber);
+
+  // One short sentence per lap for screen readers: the podium, plus whoever
+  // gained or lost the most. Reading 22 rows on every lap would be unusable.
+  const replayAnnouncement = useMemo(() => {
+    const running = sortedDrivers.filter((d) => !d.isRetired && !d.isDNS);
+    if (running.length === 0) return '';
+    const podiumText = running
+      .slice(0, 3)
+      .map((d) => `P${d.position} ${d.info?.nameAcronym || `#${d.driverNumber}`}`)
+      .join(', ');
+    const movers = running
+      .map((d) => ({ code: d.info?.nameAcronym || `#${d.driverNumber}`, diff: d.prevPosition - d.position }))
+      .filter((m) => m.diff !== 0)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
+      .slice(0, 2)
+      .map((m) => t(m.diff > 0 ? 'srGained' : 'srLost', { code: m.code, n: Math.abs(m.diff) }))
+      .join(', ');
+    return t('srReplayLap', { lap: currentLap, podium: podiumText }) + (movers ? ` ${movers}` : '');
+  }, [currentLap, sortedDrivers]);
+
   return (
     <div className="card fade-in" style={{ padding: 0, overflow: 'hidden' }}>
       {/* Header */}
@@ -501,7 +528,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
         justifyContent: 'space-between',
         gap: isMobile ? 10 : 0,
         background: activeFlag ? `${EVENT_STYLES[activeFlag.type]?.bg}15` : 'transparent',
-        borderBottom: `2px solid ${activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'var(--border-color)'}`,
+        borderBottom: `2px solid ${activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'var(--border-subtle)'}`,
         transition: 'all 0.3s ease',
       }}>
         <div>
@@ -537,8 +564,8 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
                 style={{
                   padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
                   fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
-                  background: speed === opt.value ? 'var(--f1-red)' : 'rgba(255,255,255,0.08)',
-                  color: speed === opt.value ? '#fff' : 'var(--text-secondary)',
+                  background: speed === opt.value ? control.selectedBg : ink.a08,
+                  color: speed === opt.value ? textToken.onInverse : textToken.secondary,
                   transition: 'all 0.2s',
                 }}
               >
@@ -553,10 +580,10 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
             }}
             style={{
               width: 44, height: 44, borderRadius: '50%', border: 'none',
-              background: isPlaying ? 'var(--f1-red)' : 'var(--accent-green)',
-              color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: isPlaying ? control.selectedBg : deltaToken.up,
+              color: textToken.onInverse, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 18, transition: 'all 0.2s ease',
-              boxShadow: `0 0 20px ${isPlaying ? 'rgba(225,6,0,0.3)' : 'rgba(0,200,83,0.3)'}`,
+              boxShadow: `0 0 20px ${isPlaying ? chart.progress : chart.progress}`,
             }}
           >
             {isPlaying ? '⏸' : '▶'}
@@ -566,7 +593,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
 
       {/* Progress bar */}
       <div
-        style={{ height: 5, background: 'rgba(255,255,255,0.05)', cursor: 'pointer' }}
+        style={{ height: 5, background: chart.gridline, cursor: 'pointer' }}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const pct = (e.clientX - rect.left) / rect.width;
@@ -575,15 +602,15 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
       >
         <div style={{
           height: '100%', width: `${progress}%`,
-          background: activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'linear-gradient(90deg, var(--accent-green), var(--f1-red))',
+          background: activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : `linear-gradient(90deg, ${deltaToken.up}, ${control.selectedBg})`,
           transition: isPlaying ? 'none' : 'width 0.3s ease',
         }} />
       </div>
 
       {/* Pit stop banner (always rendered to maintain layout stability) */}
       <div style={{
-        padding: isMobile ? '6px 14px' : '6px 24px', background: 'rgba(255,255,255,0.02)',
-        borderBottom: '1px solid var(--border-color)',
+        padding: isMobile ? '6px 14px' : '6px 24px', background: ink.a02,
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
         minHeight: 37,
         boxSizing: 'border-box',
@@ -593,123 +620,119 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
             <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>🛞 PIT:</span>
             {activePits.map((pit: any, i: number) => (
               <span key={i} style={{
-                padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#555', color: '#fff',
+                padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: EVENT_COLORS.pit.bg, color: EVENT_COLORS.pit.color,
               }}>
                 {driverMap[pit.dn]?.nameAcronym || `#${pit.dn}`} {pit.dur ? `(${pit.dur.toFixed(1)}s)` : ''}
               </span>
             ))}
           </>
         ) : (
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.15)', fontWeight: 500 }}>{t('noPitCars')}</span>
+          <span style={{ fontSize: 11, color: textToken.disabled, fontWeight: 500 }}>{t('noPitCars')}</span>
         )}
       </div>
 
-      {/* Leaderboard */}
-      <div style={{ padding: '8px 0' }}>
-        {sortedDrivers.map((driver) => {
-          const color = driver.info?.teamColour ? `#${driver.info.teamColour}` : '#888';
+      {/* Leaderboard.
+
+          Rows are absolutely positioned and moved by transform rather than
+          re-flowed, so a car climbing the order slides continuously — including
+          across the 10↔11 boundary, which a two-column board could not show.
+          The DOM order is stable (by car number) so React keeps each node and
+          only the transform changes. */}
+      <div
+        className="replay-board"
+        style={{ height: sortedDrivers.length * replayRowHeight }}
+      >
+        {boardByCarNumber.map((driver) => {
+          const color = getTeamColor(driver.info?.teamName, driver.info?.teamColour);
           const isPitting = pitDriverNumbers.has(driver.driverNumber);
           const krName = getDriverNameKR(driver.info?.driverId || '', driver.info?.fullName || '');
           const krTeam = getTeamNameKR(driver.info?.teamName || '');
           const posDelta = driver.prevPosition - driver.position;
           const isRetiredOrDNS = driver.isRetired || driver.isDNS;
+          const rank = boardRank.get(driver.driverNumber) ?? 0;
+          const compound = isRetiredOrDNS ? null : getTireCompound(driver.driverNumber, currentLap);
 
           return (
             <div
               key={driver.driverNumber}
+              className="replay-row"
               style={{
-                display: 'flex', alignItems: 'center',
-                padding: isMobile ? '7px 14px' : '7px 24px',
-                background: !isRetiredOrDNS && driver.position <= 3 ? `linear-gradient(90deg, ${color}18, transparent 60%)` : 'transparent',
+                height: replayRowHeight,
+                transform: `translateY(${rank * replayRowHeight}px)`,
+                padding: isMobile ? '0 14px' : '0 24px',
                 borderLeft: `3px solid ${color}`,
-                transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                opacity: isRetiredOrDNS ? 0.35 : (isPitting ? 0.55 : 1),
+                /* Retired and pitting cars are dimmed by ground, not opacity —
+                   the text has to stay readable. */
+                background: isRetiredOrDNS
+                  ? 'var(--row-retired)'
+                  : isPitting
+                    ? 'var(--row-hover)'
+                    : 'transparent',
               }}
             >
-              <div style={{
-                width: 30, fontWeight: 800, fontSize: isRetiredOrDNS ? 11 : 17, fontFamily: 'var(--font-display)',
-                color: isRetiredOrDNS ? 'var(--text-muted)' : (driver.position === 1 ? '#FFD700' : driver.position === 2 ? '#C0C0C0' : driver.position === 3 ? '#CD7F32' : 'var(--text-secondary)'),
-                textAlign: 'center',
+              <span style={{
+                width: 30, fontWeight: 800, fontSize: isRetiredOrDNS ? 11 : 16, fontFamily: 'var(--font-display)',
+                color: isRetiredOrDNS ? textToken.muted : (podiumColor(driver.position) ?? textToken.secondary),
+                textAlign: 'center', flexShrink: 0,
               }}>
                 {driver.isDNS ? 'DNS' : (driver.isRetired ? (driver.finishPosition ?? driver.position) : driver.position)}
-              </div>
-              <div style={{ width: 28, textAlign: 'center', fontSize: 12, fontWeight: 700 }}>
-                {isRetiredOrDNS ? (
-                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>–</span>
+              </span>
+              <span style={{ width: 28, textAlign: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                {isRetiredOrDNS || posDelta === 0 ? (
+                  <span style={{ color: deltaToken.none }}>–</span>
                 ) : posDelta > 0 ? (
-                  <span style={{ color: '#00C853' }}>▲{posDelta}</span>
-                ) : posDelta < 0 ? (
-                  <span style={{ color: '#E10600' }}>▼{Math.abs(posDelta)}</span>
+                  <span style={{ color: deltaToken.up }}>▲{posDelta}</span>
                 ) : (
-                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>–</span>
+                  <span style={{ color: deltaToken.down }}>▼{Math.abs(posDelta)}</span>
                 )}
-              </div>
-              <div style={{ width: 4, height: 26, background: color, borderRadius: 2, margin: '0 10px' }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {driver.info?.nameAcronym || '???'}
-                  {!isRetiredOrDNS && (() => {
-                    const compound = getTireCompound(driver.driverNumber, currentLap);
-                    if (!compound) return null;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: TIRE_COLORS[compound] || '#888' }} />
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>{compound.charAt(0)}</span>
-                      </div>
-                    );
-                  })()}
-                  <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {krName !== driver.info?.fullName ? krName : driver.info?.fullName}
+              </span>
+              <strong style={{
+                width: 44, fontSize: 13, fontFamily: 'var(--font-display)', letterSpacing: '0.02em',
+                color: isRetiredOrDNS ? textToken.secondary : 'var(--text-primary)', flexShrink: 0,
+              }}>
+                {driver.info?.nameAcronym || '???'}
+              </strong>
+              {/* Compound letter carries the meaning; the dot is the second cue. */}
+              <span style={{ width: 34, flexShrink: 0 }}>
+                {compound && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: tireColor(compound), display: 'inline-block' }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>{compound.charAt(0)}</span>
                   </span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {krTeam || driver.info?.teamName}
-                </div>
-              </div>
-              {isPitting && !isRetiredOrDNS && (
-                <div style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#555', color: '#fff' }}>
-                  🛞 PIT
-                </div>
-              )}
-              <div style={{ width: 36, textAlign: 'right', fontSize: 12, fontWeight: 600, color, fontFamily: 'var(--font-display)' }}>
+                )}
+              </span>
+              <span style={{
+                flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                color: isRetiredOrDNS ? textToken.secondary : 'var(--text-primary)',
+              }}>
+                {krName !== driver.info?.fullName ? krName : driver.info?.fullName}
+                <span style={{ color: 'var(--text-muted)' }}> · {krTeam || driver.info?.teamName}</span>
+              </span>
+              {isRetiredOrDNS ? (
+                <span className="replay-tag replay-tag-outline">{driver.isDNS ? 'DNS' : 'DNF'}</span>
+              ) : isPitting ? (
+                <span className="replay-tag" style={{ background: EVENT_COLORS.pit.bg, color: EVENT_COLORS.pit.color }}>PIT</span>
+              ) : null}
+              <span style={{ width: 34, textAlign: 'right', fontSize: 11, fontWeight: 600, color, fontFamily: 'var(--font-display)', flexShrink: 0 }}>
                 #{driver.driverNumber}
-              </div>
+              </span>
             </div>
           );
         })}
       </div>
+
+      {/* Screen readers get the standings as text rather than as 22 moving rows:
+          only the podium and who moved, announced politely on each lap change. */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {replayAnnouncement}
+      </p>
     </div>
   );
 }
 
-// Team Colors Optimization
-const TEAM_COLORS_OVERRIDE: Record<string, string> = {
-  'Red Bull Racing': '#4781D7',
-  'Red Bull': '#4781D7',
-  'Mercedes': '#00D7B6',
-  'Ferrari': '#ED1131',
-  'McLaren': '#F47600',
-  'Aston Martin': '#229971',
-  'Alpine': '#00A1E8',
-  'Williams': '#1868DB',
-  'RB': '#6C98FF',
-  'Racing Bulls': '#6C98FF',
-  'Visa Cash App RB': '#6C98FF',
-  'Kick Sauber': '#F50537',
-  'Stake F1 Team': '#F50537',
-  'Audi': '#F50537',
-  'Haas F1 Team': '#9C9FA2',
-  'Haas': '#9C9FA2',
-  'Cadillac': '#909090',
-};
-
-function getTeamColor(teamName: string, defaultColor: string) {
-  if (!teamName) return `#${defaultColor}` || '#888';
-  for (const [key, color] of Object.entries(TEAM_COLORS_OVERRIDE)) {
-    if (teamName.includes(key)) return color;
-  }
-  return defaultColor ? `#${defaultColor}` : '#888';
-}
+// Team colours come from the shared palette in theme/tokens.ts. This page used
+// to carry its own override table with different values, so the same
+// constructor was drawn in one colour here and another on every other page.
 
 // ===================================
 // MAIN PAGE
@@ -720,7 +743,11 @@ export default function RaceTimeline({ year }: Props) {
   useT(); // re-render this subtree when the language changes
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [sessionType, setSessionType] = useState<SessionType>('');
-  const [isChartOpen, setIsChartOpen] = useState(true);
+  // On a phone the 22-line chart is not readable upright, so the replay is what
+  // the page opens on and the chart starts collapsed — one tap away, with a
+  // rotate hint inside it. On a wide screen both are open.
+  const isMobileViewport = useIsMobile();
+  const [isChartOpen, setIsChartOpen] = useState(!isMobileViewport);
   const [isReplayOpen, setIsReplayOpen] = useState(true);
   const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
 
@@ -731,6 +758,7 @@ export default function RaceTimeline({ year }: Props) {
       : Promise.resolve(null)),
     [year, selectedRound, sessionType]
   );
+  const showSkeleton = useDeferredLoading(timeline.loading);
 
   // First page entry auto-selects the most recent round (below); switching the
   // season afterwards resets to round 1 with no session type picked. Compare
@@ -848,6 +876,7 @@ export default function RaceTimeline({ year }: Props) {
   // Index of each driver's last plotted lap — the lap they retired / were last recorded.
   const lastLapIndexByDriver: Record<string, number> = {};
   const dnfByLap: Record<number, { code: string; statusKR: string; driverNumber: number }[]> = {};
+  const dnfStackIndex: Record<string, number> = {};
   if (timeline.data?.timeline) {
     for (const d of driverKeys) {
       let lastIdx = 0;
@@ -859,6 +888,9 @@ export default function RaceTimeline({ year }: Props) {
         const lap = timeline.data.timeline[lastIdx]?.lap;
         if (lap != null) {
           if (!dnfByLap[lap]) dnfByLap[lap] = [];
+          // Position within this lap's retirements, so the markers can be
+          // offset apart instead of stacking on the same coordinate.
+          dnfStackIndex[d.key] = dnfByLap[lap].length;
           dnfByLap[lap].push({ code: d.code, statusKR: d.statusKR || '', driverNumber: d.driverNumber });
         }
       }
@@ -947,36 +979,57 @@ export default function RaceTimeline({ year }: Props) {
 
   return (
     <div className="page-container">
-      <div className="page-header fade-in">
-        <h2 className="page-title">📈 {t('raceTimeline')}</h2>
-        <p className="page-subtitle">{t('timelineSubtitle', { year })}</p>
-      </div>
+      <PageMasthead
+        kicker={
+          selectedRace
+            ? `${t('seasonRound', { year, round: selectedRace.round })} · ${getCountryNameKR(selectedRace.circuit.country)}`
+            : t('timelineSubtitle', { year })
+        }
+        title={t('raceTimeline')}
+        subtitle="Race Timeline"
+        aside={
+          <div className="masthead-controls">
+            <RoundSelector
+              rounds={races.map((r: any) => ({
+                round: r.round,
+                raceName: r.raceName,
+                locality: r.circuit?.locality,
+                available: isRoundStarted(r),
+              }))}
+              value={selectedRound}
+              onChange={handleRoundChange}
+              placeholder={t('selectRace')}
+            />
+            <div className="seg" role="group" aria-label={t('selectRaceType')}>
+              <button
+                type="button"
+                className={`seg-opt ${sessionType === 'race' ? 'active' : ''}`}
+                aria-pressed={sessionType === 'race'}
+                aria-disabled={!!selectedRace && !isRaceStarted(selectedRace)}
+                disabled={!!selectedRace && !isRaceStarted(selectedRace)}
+                onClick={() => setSessionType('race')}
+              >
+                {t('race')}
+              </button>
+              <button
+                type="button"
+                className={`seg-opt ${sessionType === 'sprint' ? 'active' : ''}`}
+                aria-pressed={sessionType === 'sprint'}
+                aria-disabled={!hasSprint}
+                disabled={!hasSprint}
+                onClick={() => setSessionType('sprint')}
+              >
+                {UI_LABELS.sprint}
+              </button>
+            </div>
+          </div>
+        }
+      />
 
-      <div className="selector-group fade-in fade-in-delay-1" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <select className="selector" value={selectedRound || ''} onChange={(e) => handleRoundChange(Number(e.target.value))}>
-          <option value="" disabled>{t('selectRace')}</option>
-          {races.map((r: any) => {
-            const started = isRoundStarted(r);
-            return (
-              <option key={r.round} value={r.round} disabled={!started}>
-                {t('raceCountryOption', { n: r.round, country: getCountryNameKR(r.circuit.country), name: r.raceName })}{started ? '' : t('upcomingSuffix')}
-              </option>
-            );
-          })}
-        </select>
-
-        <select className="selector" value={sessionType} onChange={(e) => setSessionType(e.target.value as SessionType)}>
-          <option value="" disabled>{t('selectRaceType')}</option>
-          {hasSprint && <option value="sprint">{UI_LABELS.sprint}</option>}
-          <option value="race" disabled={!!selectedRace && !isRaceStarted(selectedRace)}>{t('race')}</option>
-        </select>
-      </div>
-
-      {timeline.loading && (
-        <div className="loading-container fade-in">
-          <div className="loading-spinner" />
-          <p>{t('loadingData')}</p>
-        </div>
+      {timeline.loading && showSkeleton && (
+        <SkeletonRegion>
+          <SkeletonChart height={560} />
+        </SkeletonRegion>
       )}
 
       {/* Selected a session but data is missing / no response — likely not run yet */}
@@ -1008,17 +1061,59 @@ export default function RaceTimeline({ year }: Props) {
                         {t('totalLapsDrivers', { laps: timeline.data.totalLaps, n: driverKeys.length })}
                       </span>
                     </div>
-                    <div className="chart-container" style={{ height: Math.max(500, driverKeys.length * 26), '--chart-min-width': '800px' } as any}>
-                      <div className="chart-scroll-inner">
+                    {isMobileViewport && (
+                      <p className="rotate-hint">{t('rotateHint')}</p>
+                    )}
+                    <div
+                      className="chart-container"
+                      style={{ height: Math.max(500, driverKeys.length * 26), '--chart-min-width': '800px' } as any}
+                      role="img"
+                      aria-label={t('srTimelineSummary', {
+                        race: timeline.data.raceName ?? '',
+                        laps: timeline.data.totalLaps,
+                        n: driverKeys.length,
+                      })}
+                      aria-describedby="timeline-chart-table"
+                    >
+                      {/* 22 lines are unreadable to a screen reader; the same
+                          grid as a hidden table is not. */}
+                      <table id="timeline-chart-table" className="sr-only">
+                        <caption>
+                          {t('srTimelineSummary', {
+                            race: timeline.data.raceName ?? '',
+                            laps: timeline.data.totalLaps,
+                            n: driverKeys.length,
+                          })}
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">{UI_LABELS.lap}</th>
+                            {driverKeys.map((d) => (
+                              <th scope="col" key={d.key}>{d.code}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filledTimeline.map((row: any) => (
+                            <tr key={row.lap}>
+                              <th scope="row">{row.lap}</th>
+                              {driverKeys.map((d) => (
+                                <td key={d.key}>{row[d.key] ?? '–'}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="chart-scroll-inner" aria-hidden="true">
                       <ResponsiveContainer>
                         <LineChart data={filledTimeline} margin={{ top: 35, right: 84, bottom: 20, left: 40 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                          <XAxis dataKey="lap" ticks={oddTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false}
-                            label={{ value: UI_LABELS.lap, fill: '#5c5c72', fontSize: 11, position: 'insideBottomRight', offset: -5 }} />
-                          <XAxis xAxisId="top" orientation="top" dataKey="lap" ticks={evenTicks} tick={{ fill: '#9494a8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.gridline} />
+                          <XAxis dataKey="lap" ticks={oddTicks} tick={{ fill: chart.axisTick, fontSize: 11 }} axisLine={false} tickLine={false}
+                            label={{ value: UI_LABELS.lap, fill: chart.axisLabel, fontSize: 11, position: 'insideBottomRight', offset: -5 }} />
+                          <XAxis xAxisId="top" orientation="top" dataKey="lap" ticks={evenTicks} tick={{ fill: chart.axisTick, fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis reversed domain={[0.5, driverKeys.length + 0.5]}
                             tick={false} axisLine={false} tickLine={false}
-                            label={{ value: UI_LABELS.position, fill: '#5c5c72', fontSize: 11, angle: -90, position: 'insideLeft' }}
+                            label={{ value: UI_LABELS.position, fill: chart.axisLabel, fontSize: 11, angle: -90, position: 'insideLeft' }}
                             ticks={Array.from({ length: driverKeys.length }, (_, i) => i + 1)} />
                           <Tooltip content={<TimelineTooltip selectedDrivers={selectedDrivers} dnfByLap={dnfByLap} driverInfoMap={Object.fromEntries(driverKeys.map(d => [d.key, { name: d.name, code: d.code, color: d.color, dashed: d.dashed }]))} />} />
 
@@ -1028,7 +1123,7 @@ export default function RaceTimeline({ year }: Props) {
                               key={`stripe-${i}`}
                               x1={i * 2 + 1}
                               x2={i * 2 + 2}
-                              fill="rgba(255,255,255,0.045)"
+                              fill={chart.zebraStripe}
                               stroke="none"
                             />
                           ))}
@@ -1036,18 +1131,18 @@ export default function RaceTimeline({ year }: Props) {
                           {/* Continuous SC / VSC / red-flag periods (e.g. safety car 13→16) */}
                           {flagPeriods.map((p, idx) => (
                             <ReferenceArea key={`fp-${idx}`} x1={p.start} x2={p.end}
-                              fill={EVENT_STYLES[p.type]?.bg || '#FF8C00'} fillOpacity={0.16}
-                              stroke={EVENT_STYLES[p.type]?.bg || '#FF8C00'} strokeOpacity={0.4} />
+                              fill={EVENT_STYLES[p.type]?.bg || EVENT_COLORS.safetyCar.bg} fillOpacity={0.16}
+                              stroke={EVENT_STYLES[p.type]?.bg || EVENT_COLORS.safetyCar.bg} strokeOpacity={0.4} />
                           ))}
                           {eventAreas.map((area, idx) => (
                             <ReferenceArea key={`a-${idx}`} x1={area.start} x2={area.end}
-                              fill={EVENT_STYLES[area.type]?.bg || '#FF8C00'} fillOpacity={0.08}
-                              stroke={EVENT_STYLES[area.type]?.bg || '#FF8C00'} strokeOpacity={0.2} />
+                              fill={EVENT_STYLES[area.type]?.bg || EVENT_COLORS.safetyCar.bg} fillOpacity={0.08}
+                              stroke={EVENT_STYLES[area.type]?.bg || EVENT_COLORS.safetyCar.bg} strokeOpacity={0.2} />
                           ))}
                           {eventLaps.filter(el => !eventAreas.some(a => a.start <= el.lap && el.lap <= a.end && a.start !== a.end))
                             .map((el, idx) => (
                               <ReferenceLine key={`l-${idx}`} x={el.lap}
-                                stroke={EVENT_STYLES[el.type]?.bg || '#FFD700'} strokeDasharray="4 4" strokeOpacity={0.5} />
+                                stroke={EVENT_STYLES[el.type]?.bg || EVENT_COLORS.yellowFlag.bg} strokeDasharray="4 4" strokeOpacity={0.5} />
                             ))}
                           {driverKeys.map((d) => {
                             const isSelected = selectedDrivers.has(d.key);
@@ -1061,11 +1156,11 @@ export default function RaceTimeline({ year }: Props) {
                                 strokeDasharray={d.dashed ? "5 5" : "0"}
                                 onClick={() => toggleDriver(d.key)}
                                 style={{ cursor: 'pointer' }}
-                                activeDot={{ r: 4, fill: d.color, stroke: '#0a0a0f', strokeWidth: 2 }}>
+                                activeDot={{ r: 4, fill: d.color, stroke: chart.dotStroke, strokeWidth: 2 }}>
                                 <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, `${d.code} (#${d.driverNumber})`, false, 0, isDimmed)} />
                                 <LabelList dataKey={d.key} content={(props) => renderCustomLabel(props, `${d.code} (#${d.driverNumber})`, true, filledTimeline.length - 1, isDimmed)} />
                                 <LabelList dataKey={d.key} content={(props) => renderTireMarker(props, d.key, getTireCompound, timeline.data.timeline, selectedDrivers)} />
-                                {d.dnf && <LabelList dataKey={d.key} content={(props) => renderDnfMarker(props, lastLapIndexByDriver[d.key], isDimmed)} />}
+                                {d.dnf && <LabelList dataKey={d.key} content={(props) => renderDnfMarker(props, lastLapIndexByDriver[d.key], isDimmed, dnfStackIndex[d.key] ?? 0)} />}
                               </Line>
                             );
                           })}
@@ -1073,7 +1168,7 @@ export default function RaceTimeline({ year }: Props) {
                       </ResponsiveContainer>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
                       {driverKeys.map((d) => {
                         const isSelected = selectedDrivers.has(d.key);
                         const isDimmed = selectedDrivers.size > 0 && !isSelected;
@@ -1086,24 +1181,24 @@ export default function RaceTimeline({ year }: Props) {
                               cursor: 'pointer',
                               opacity: isDimmed ? 0.25 : 1,
                               transition: 'all 0.2s',
-                              background: isSelected ? 'rgba(255,255,255,0.08)' : 'transparent',
+                              background: isSelected ? ink.a08 : 'transparent',
                               padding: '4px 10px',
                               borderRadius: 6,
-                              border: `1px solid ${isSelected ? 'rgba(255,255,255,0.1)' : 'transparent'}`
+                              border: `1px solid ${isSelected ? border.strong : 'transparent'}`
                             }}
                           >
                             <span style={{
                               width: 14, height: 3, borderRadius: 2,
                               background: d.color,
                               display: 'inline-block',
-                              borderBottom: d.dashed ? '1px dashed rgba(0,0,0,0.5)' : 'none',
+                              borderBottom: d.dashed ? `1px dashed ${chart.markerRing}` : 'none',
                               opacity: d.dashed ? 0.7 : 1,
                               position: 'relative'
                             }}>
                               {d.dashed && (
                                 <span style={{
                                   position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                  background: `repeating-linear-gradient(90deg, transparent, transparent 3px, #0a0a0f 3px, #0a0a0f 6px)`
+                                  background: `repeating-linear-gradient(90deg, transparent, transparent 3px, ${chart.zebra} 3px, ${chart.zebra} 6px)`
                                 }} />
                               )}
                             </span>
@@ -1139,10 +1234,10 @@ export default function RaceTimeline({ year }: Props) {
                       </div>
                     ))}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: '#00C853', fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>{t('gained')}</span>
+                      <span style={{ color: deltaToken.up, fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>{t('gained')}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: '#E10600', fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>{t('dropped')}</span>
+                      <span style={{ color: deltaToken.down, fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>{t('dropped')}</span>
                     </div>
                   </div>
                 </div>

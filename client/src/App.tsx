@@ -10,29 +10,36 @@ import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import HeaderCountdown from './components/HeaderCountdown';
 import { useLang, useT, type Lang } from './i18n';
+import { useTheme, type ThemePref } from './theme/useTheme';
 import './index.css';
 
 // Nav labels are resolved per-language; `id` is a stable key used for layout
 // decisions (e.g. where the season selector attaches) so it survives translation.
 function getNavItems(t: (k: any) => string) {
   return [
-    { id: 'schedule', path: '/schedule', label: t('navSchedule'), icon: '📅' },
+    { id: 'schedule', path: '/schedule', label: t('navSchedule') },
     {
       id: 'standings',
       label: t('navStandings'),
-      icon: '🏆',
       children: [
-        { path: '/drivers', label: t('navDrivers'), icon: '👤' },
-        { path: '/constructors', label: t('navConstructors'), icon: '🏎️' },
+        { path: '/drivers', label: t('navDrivers') },
+        { path: '/constructors', label: t('navConstructors') },
       ],
     },
     {
       id: 'review',
       label: t('navReview'),
-      icon: '🔍',
       children: [
-        { path: '/results', label: t('navResults'), icon: '🏁' },
-        { path: '/timeline', label: t('navTimeline'), icon: '📈' },
+        { path: '/results', label: t('navResults') },
+        { path: '/timeline', label: t('navTimeline') },
+      ],
+    },
+    {
+      id: 'analysis',
+      label: t('navAnalysis'),
+      children: [
+        { path: '/telemetry', label: t('navTelemetry') },
+        { path: '/incidents', label: t('navIncidents') },
       ],
     },
   ];
@@ -83,10 +90,42 @@ function LangToggle() {
   );
 }
 
+// System / light / dark. "System" sets no attribute, so the palette follows
+// prefers-color-scheme — that is the default the design calls for.
+function ThemeToggle() {
+  const { pref, setPref } = useTheme();
+  const t = useT();
+  const options: { value: ThemePref; label: string }[] = [
+    { value: 'system', label: t('themeSystem') },
+    { value: 'light', label: t('themeLight') },
+    { value: 'dark', label: t('themeDark') },
+  ];
+  return (
+    <div className="theme-toggle" role="group" aria-label={t('themeToggleAria')}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          className={`theme-btn ${pref === o.value ? 'active' : ''}`}
+          onClick={() => setPref(o.value)}
+          aria-pressed={pref === o.value}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; setSelectedYear: (y: number) => void }) {
   const location = useLocation();
   const t = useT();
   const navItems = getNavItems(t);
+
+  // Picking an item should dismiss its menu straight away. Hover alone cannot:
+  // after the click the pointer is still inside the menu, so it would stay open
+  // until the user moved away. This marks the group as dismissed until the
+  // pointer or focus actually leaves it.
+  const [dismissed, setDismissed] = useState<string | null>(null);
 
   return (
     <nav className="top-nav-links">
@@ -95,27 +134,56 @@ function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; s
           const isChildActive = item.children.some((child) => location.pathname === child.path);
           return (
             <div key={item.id} className="nav-item-container-group">
-              <div className="nav-item-container">
-                <div className={`nav-link ${isChildActive ? 'active' : ''}`} style={{ cursor: 'default' }}>
-                  <span className="nav-icon">{item.icon}</span>
+              <div
+                className={`nav-item-container ${dismissed === item.id ? 'is-dismissed' : ''}`}
+                onFocus={(e) => {
+                  // Only a keyboard arrival re-opens a dismissed menu. Testing
+                  // :focus-visible is what separates that from the focus a mouse
+                  // click leaves behind, which must not re-open it.
+                  if ((e.target as HTMLElement).matches(':focus-visible')) {
+                    setDismissed((d) => (d === item.id ? null : d));
+                  }
+                }}
+              >
+                {/* A button, not a div: the dropdown opens on focus as well as
+                    hover, so the group is reachable by keyboard.
+
+                    Re-entering the trigger is what clears a dismissal. Clearing
+                    it on the container's mouseleave would loop: hiding the menu
+                    moves the pointer out of the container, which would clear the
+                    dismissal and re-open the menu under the same pointer. */}
+                <button
+                  type="button"
+                  className={`nav-link nav-group-trigger ${isChildActive ? 'active' : ''}`}
+                  aria-expanded={undefined}
+                  onMouseEnter={() => setDismissed((d) => (d === item.id ? null : d))}
+                >
                   {item.label}
                   <span className="nav-chevron">▼</span>
-                </div>
+                </button>
                 <div className="dropdown-menu">
                   {item.children.map((child) => (
                     <NavLink
                       key={child.path}
                       to={child.path}
                       className={({ isActive }) => `dropdown-item ${isActive ? 'active' : ''}`}
+                      onClick={() => setDismissed(item.id)}
                     >
-                      <span className="dropdown-icon">{child.icon}</span>
                       {child.label}
                     </NavLink>
                   ))}
                 </div>
               </div>
-              {item.id === 'review' && (
-                <YearSelect selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
+              {item.id === 'analysis' && (
+                <div className="nav-tail">
+                  <YearSelect selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
+                  {/* Below 768px the header has no room for these, so the
+                      drawer carries them at its foot — as the canvas shows. */}
+                  <div className="drawer-only">
+                    <LangToggle />
+                    <ThemeToggle />
+                  </div>
+                </div>
               )}
             </div>
           );
@@ -128,7 +196,6 @@ function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; s
             end={item.path === '/'}
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <span className="nav-icon">{item.icon}</span>
             {item.label}
           </NavLink>
         );
@@ -149,13 +216,15 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
     <header className="top-nav">
       <Link to="/" className="top-nav-logo" aria-label={t('homeAria')}>
         <h1>{t('logoTitle')}</h1>
-        <span>{t('logoSubtitle')}</span>
       </Link>
       <div className={`top-nav-drawer ${menuOpen ? 'open' : ''}`}>
         <NavContent selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
       </div>
       <HeaderCountdown year={selectedYear} />
-      <LangToggle />
+      <div className="header-only">
+        <LangToggle />
+        <ThemeToggle />
+      </div>
       <button
         className={`nav-hamburger ${menuOpen ? 'open' : ''}`}
         aria-label={t('menuAria')}

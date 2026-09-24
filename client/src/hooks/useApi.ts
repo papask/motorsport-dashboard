@@ -5,6 +5,11 @@ interface UseApiState<T> {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  /**
+   * Consecutive failures for the current query key, reset by any success.
+   * Lets the UI tell a blip apart from an outage and escalate what it offers.
+   */
+  failures: number;
 }
 
 function depsEqual(a: any[], b: any[]) {
@@ -17,6 +22,7 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failures, setFailures] = useState(0);
   const depsRef = useRef<any[]>(deps);
 
   // When the query key (deps) changes, clear stale data and switch to loading
@@ -27,6 +33,7 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
     if (data !== null) setData(null);
     if (!loading) setLoading(true);
     if (error !== null) setError(null);
+    if (failures !== 0) setFailures(0);
   }
 
   const fetch = useCallback(async (signal?: AbortSignal) => {
@@ -36,9 +43,11 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
       const result = await fetchFn(signal);
       if (signal?.aborted) return;
       setData(result);
+      setFailures(0);
     } catch (err: any) {
       if (signal?.aborted || err.name === 'AbortError') return;
       setError(err.response?.data?.error || err.message || '데이터를 불러올 수 없습니다');
+      setFailures((n) => n + 1);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -50,7 +59,7 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
     return () => controller.abort();
   }, [fetch]);
 
-  return { data, loading, error, refetch: () => fetch() };
+  return { data, loading, error, refetch: () => fetch(), failures };
 }
 
 

@@ -151,30 +151,9 @@ export const UI_LABELS: Record<string, string> = new Proxy(
   },
 );
 
-// 팀 컬러 (공식 브랜드 컬러)
-export const TEAM_COLORS: Record<string, string> = {
-  'McLaren': '#FF8000',
-  'Mercedes': '#27F4D2',
-  'Red Bull': '#3671C6',
-  'Red Bull Racing': '#3671C6',
-  'Ferrari': '#E8002D',
-  'Williams': '#64C4FF',
-  'RB': '#6692FF',
-  'RB F1 Team': '#6692FF',
-  'Racing Bulls': '#6692FF',
-  'AlphaTauri': '#6692FF',
-  'Aston Martin': '#229971',
-  'Haas F1 Team': '#B6BABD',
-  'Haas': '#B6BABD',
-  'Kick Sauber': '#52E252',
-  'Sauber': '#52E252',
-  'Audi': '#52E252',
-  'Alpine F1 Team': '#0093CC',
-  'Alpine': '#0093CC',
-  'Alfa Romeo': '#C92D4B',
-  'Cadillac': '#FFD700',
-  'Cadillac F1 Team': '#FFD700',
-};
+// 팀 컬러는 디자인 토큰(theme/tokens.ts)에 있다. 기존 import 경로를 유지하기
+// 위해 여기서 다시 내보낸다.
+export { TEAM_COLORS, getTeamColor } from '../theme/tokens';
 
 // 서킷 이름 매핑
 export const CIRCUIT_NAMES_KR: Record<string, string> = {
@@ -238,8 +217,4 @@ export function getStatusKR(status: string): string {
 export function getCountryNameKR(country: string): string {
   if (getLang() === 'en') return country;
   return COUNTRY_NAMES_KR[country] || country;
-}
-
-export function getTeamColor(teamName: string): string {
-  return TEAM_COLORS[teamName] || '#888888';
 }

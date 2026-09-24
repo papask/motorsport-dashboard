@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule, getRaceResults, getQualifyingResults, getSprintResults } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, getStatusKR, UI_LABELS } from '../constants/koreanTerms';
+import { status, podiumColor } from '../theme/tokens';
+import PageMasthead from '../components/PageMasthead';
+import RoundSelector from '../components/RoundSelector';
+import StateBlock from '../components/StateBlock';
+import { SkeletonRegion, SkeletonTable } from '../components/Skeleton';
+import useDeferredLoading from '../hooks/useDeferredLoading';
 import { getRaceDateTime, formatLocalDateTime } from '../utils/raceDate';
 import { useT } from '../i18n';
 
@@ -39,6 +45,7 @@ export default function RaceResults({ year }: Props) {
   );
 
 
+  const showSkeleton = useDeferredLoading(results.loading);
   const races = schedule.data?.races || [];
   const now = new Date();
 
@@ -76,67 +83,84 @@ export default function RaceResults({ year }: Props) {
     setSessionType('');
   };
 
+  // Land on the race itself rather than an empty prompt: the canvas shows a
+  // session on entry, and the race is the one people come for.
+  useEffect(() => {
+    if (selectedRound && !sessionType && selectedRace && isSessionStarted(selectedRace, 'race')) {
+      setSessionType('race');
+    }
+  }, [selectedRound, sessionType, selectedRace]);
+
+  const sessionOptions: { value: SessionType; label: string; enabled: boolean }[] = [
+    { value: 'race', label: UI_LABELS.raceResults, enabled: !selectedRace || isSessionStarted(selectedRace, 'race') },
+    { value: 'qualifying', label: UI_LABELS.qualifying, enabled: !selectedRace || isSessionStarted(selectedRace, 'qualifying') },
+    ...(hasSprint
+      ? [{ value: 'sprint' as SessionType, label: UI_LABELS.sprint, enabled: isSessionStarted(selectedRace, 'sprint') }]
+      : []),
+  ];
+
   return (
     <div className="page-container">
-      <div className="page-header fade-in">
-        <h2 className="page-title">🏁 {UI_LABELS.raceResults}</h2>
-        <p className="page-subtitle">{t('raceResultsSubtitle', { year })}</p>
-      </div>
-
-      <div className="selector-group fade-in fade-in-delay-1" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <select
-          className="selector"
-          value={selectedRound || ''}
-          onChange={(e) => handleRoundChange(Number(e.target.value))}
-        >
-          <option value="" disabled>{t('selectGP')}</option>
-          {races.map((r: any) => {
-            const started = isRoundStarted(r);
-            return (
-              <option key={r.round} value={r.round} disabled={!started}>
-                {t('roundNameOption', { n: r.round, name: r.raceName })}{started ? '' : t('upcomingSuffix')}
-              </option>
-            );
-          })}
-        </select>
-
-        <select
-          className="selector"
-          value={sessionType}
-          onChange={(e) => setSessionType(e.target.value as SessionType)}
-        >
-          <option value="" disabled>{t('selectSession')}</option>
-          <option value="race" disabled={!!selectedRace && !isSessionStarted(selectedRace, 'race')}>{UI_LABELS.raceResults}</option>
-          <option value="qualifying" disabled={!!selectedRace && !isSessionStarted(selectedRace, 'qualifying')}>{UI_LABELS.qualifying}</option>
-          {hasSprint && <option value="sprint" disabled={!isSessionStarted(selectedRace, 'sprint')}>{UI_LABELS.sprint}</option>}
-        </select>
-      </div>
+      <PageMasthead
+        kicker={
+          selectedRace
+            ? `${t('seasonRound', { year, round: selectedRace.round })} · ${selectedRace.circuit?.locality ?? ''}`
+            : t('raceResultsSubtitle', { year })
+        }
+        title={selectedRace ? selectedRace.raceName : UI_LABELS.raceResults}
+        subtitle={
+          results.data
+            ? `${results.data.circuit?.name ?? ''} · ${formatLocalDateTime(results.data)}`
+            : 'Race Results'
+        }
+        aside={
+          <div className="masthead-controls">
+            <RoundSelector
+              rounds={races.map((r: any) => ({
+                round: r.round,
+                raceName: r.raceName,
+                locality: r.circuit?.locality,
+                available: isRoundStarted(r),
+              }))}
+              value={selectedRound}
+              onChange={handleRoundChange}
+            />
+            <div className="seg" role="group" aria-label={t('selectSession')}>
+              {sessionOptions.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  className={`seg-opt ${sessionType === o.value ? 'active' : ''}`}
+                  aria-pressed={sessionType === o.value}
+                  aria-disabled={!o.enabled}
+                  disabled={!o.enabled}
+                  onClick={() => setSessionType(o.value)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      />
 
       {(!selectedRound || !sessionType) ? (
-        <div className="card" style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🏁</div>
-          <div style={{ color: 'var(--text-secondary)' }}>
-            {!selectedRound ? t('promptSelectGP') : t('promptSelectSession')}
-          </div>
-        </div>
+        <StateBlock
+          title={!selectedRound ? t('promptSelectGP') : t('promptSelectSession')}
+          reason={t('promptSelectReason')}
+        />
       ) : results.loading ? (
-        <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{UI_LABELS.loading}</div></div>
+        showSkeleton ? <SkeletonRegion><SkeletonTable rows={14} columns={6} /></SkeletonRegion> : null
       ) : (results.error || !hasResults) ? (
-        <div className="card" style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🏁</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{t('noResultsTitle')}</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13, maxWidth: 420, margin: '0 auto' }}>
-            {t('notRunYetBody')}<br />{t('checkBackAfter')}
-          </div>
-        </div>
+        <StateBlock
+          title={t('noResultsTitle')}
+          reason={`${t('notRunYetBody')} ${t('checkBackAfter')}`}
+          detail={results.error || undefined}
+          tone={results.error ? 'error' : 'empty'}
+          actions={results.error ? [{ label: t('retry'), onClick: results.refetch, primary: true }] : undefined}
+        />
       ) : hasResults ? (
-        <div className="card fade-in fade-in-delay-2">
-          <div className="card-title">
-            {results.data.raceName}
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', marginLeft: 12, fontWeight: 400 }}>
-              {results.data.circuit?.name} · {formatLocalDateTime(results.data)}
-            </span>
-          </div>
+        <div className="fade-in fade-in-delay-2">
           {sessionType === 'qualifying' ? (
             <table className="data-table">
               <thead>
@@ -177,6 +201,29 @@ export default function RaceResults({ year }: Props) {
               </tbody>
             </table>
           ) : (
+            <>
+            {/* Podium strip: the three results people came for, read before the
+                table rather than found inside it. */}
+            <div className="podium-strip">
+              {results.data.results?.slice(0, 3).map((r: any) => (
+                <div className="podium-slot" key={r.position}>
+                  <span className="num podium-slot-pos" style={{ color: podiumColor(r.position) ?? 'var(--text-primary)' }}>
+                    {r.position}
+                  </span>
+                  <span className="podium-slot-body">
+                    <strong className="podium-slot-name">
+                      {getDriverNameKR(r.driver.id, `${r.driver.firstName} ${r.driver.lastName}`)}
+                    </strong>
+                    <span className="en">
+                      {getTeamNameKR(r.constructor.name)}
+                      {r.time ? ` · ${r.time}` : ''}
+                      {r.points > 0 ? ` · ${t('subPts', { n: r.points })}` : ''}
+                      {r.fastestLap?.rank === 1 ? ' · FL' : ''}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
             <table className="data-table">
               <thead>
                 <tr>
@@ -207,7 +254,7 @@ export default function RaceResults({ year }: Props) {
                         <span>{t('subLaps', { n: r.laps })}</span>
                         <span>{r.time || getStatusKR(r.status)}</span>
                         {r.fastestLap?.rank === 1 && (
-                          <span style={{ color: '#a855f7', fontWeight: 700 }}>⚡ {UI_LABELS.fastestLap}</span>
+                          <span style={{ color: status.fastestLap, fontWeight: 700 }}>⚡ {UI_LABELS.fastestLap}</span>
                         )}
                         <span className="cur">{t('subPts', { n: r.points })}</span>
                       </span>
@@ -218,7 +265,7 @@ export default function RaceResults({ year }: Props) {
                     <td className="col-detail" style={{ fontSize: 13 }}>
                       {r.time || getStatusKR(r.status)}
                       {r.fastestLap?.rank === 1 && (
-                        <span style={{ color: '#a855f7', marginLeft: 8, fontSize: 11, fontWeight: 700 }}>⚡ {UI_LABELS.fastestLap}</span>
+                        <span style={{ color: status.fastestLap, marginLeft: 8, fontSize: 11, fontWeight: 700 }}>⚡ {UI_LABELS.fastestLap}</span>
                       )}
                     </td>
                     <td className="col-detail" style={{ textAlign: 'right' }}><span className="points-value">{r.points}</span></td>
@@ -226,6 +273,7 @@ export default function RaceResults({ year }: Props) {
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
       ) : null}

@@ -8,16 +8,30 @@ import { useT } from '../i18n';
 
 const pad = (n: number) => n.toString().padStart(2, '0');
 
-// Compact next-race countdown for the header. Hidden on the dashboard (which
-// already shows the full countdown card) and when there is no upcoming race.
+interface ScheduleRace {
+  round: number;
+  raceName: string;
+  date: string;
+  time?: string;
+  circuit: { name: string; country: string };
+}
+
+// Screens where a countdown to the *next* race is still relevant. The dashboard
+// carries its own in the masthead, and the review/analysis screens are about a
+// race that already happened — a live timer there is noise, so the canvas
+// leaves it off.
+const COUNTDOWN_ROUTES = new Set(['/drivers', '/constructors']);
+
+// Compact next-race countdown for the header.
 export default function HeaderCountdown({ year }: { year: number }) {
   const location = useLocation();
   const t = useT();
   const schedule = useApi((signal) => getSeasonSchedule(year, signal), [year]);
-  const nextRace = schedule.data?.races ? getNextRace(schedule.data.races) : null;
+  const races: ScheduleRace[] = schedule.data?.races ?? [];
+  const nextRace = races.length ? getNextRace(races) : null;
   const countdown = useCountdown(nextRace ? getRaceDateTime(nextRace).toISOString() : null);
 
-  if (location.pathname === '/' || !nextRace) return null;
+  if (!COUNTDOWN_ROUTES.has(location.pathname) || !nextRace) return null;
 
   return (
     <div className="header-countdown" title={nextRace.raceName}>
