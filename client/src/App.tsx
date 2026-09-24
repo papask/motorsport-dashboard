@@ -209,8 +209,11 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
   const location = useLocation();
   const t = useT();
   const { lang } = useLang();
-  // Korean UI shows the "F1 온더리밋" lockup, English the ONTHELIMIT wordmark.
-  const logoVariant = lang === 'en' ? 'en' : 'compact';
+  // Korean UI shows the 온더리밋 badge, English the ONTHELIMIT one. The
+  // English wordmark is too wide for a phone header, so phones get the
+  // stacked ON THE / LIMIT cut instead.
+  const logoVariant = lang === 'en' ? 'en' : 'ko';
+  const logoPhoneVariant = lang === 'en' ? 'en-stacked' : 'ko';
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setMenuOpen(false); }, [location]);
@@ -221,8 +224,12 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
         {/* Both theme variants are rendered; CSS shows the one matching the
             active palette, so it follows system/light/dark like the tokens. */}
         <h1>
-          <img className="brand-logo brand-logo--light" src={`/brand/onthelimit-logo-${logoVariant}-light.svg`} alt={t('logoTitle')} />
-          <img className="brand-logo brand-logo--dark" src={`/brand/onthelimit-logo-${logoVariant}-dark.svg`} alt={t('logoTitle')} />
+          {(['light', 'dark'] as const).map((theme) => (
+            <picture key={theme} className={`brand-logo brand-logo--${theme}`}>
+              <source media="(max-width: 768px)" srcSet={`/brand/onthelimit-logo-${logoPhoneVariant}-${theme}.svg`} />
+              <img src={`/brand/onthelimit-logo-${logoVariant}-${theme}.svg`} alt={t('logoTitle')} />
+            </picture>
+          ))}
         </h1>
       </Link>
       <div className={`top-nav-drawer ${menuOpen ? 'open' : ''}`}>

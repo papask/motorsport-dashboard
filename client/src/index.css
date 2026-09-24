@@ -83,7 +83,11 @@ body {
    one, mirroring how tokens.css resolves system / light / dark. */
 .brand-logo {
   display: block;
-  height: 36px;
+}
+
+.brand-logo img {
+  display: block;
+  height: 48px;
   width: auto;
 }
 
@@ -1830,8 +1834,9 @@ body {
     display: none;
   }
 
-  .brand-logo {
-    height: 28px;
+  /* Fill the 72px header, leaving 10px above and below. */
+  .brand-logo img {
+    height: 52px;
   }
 
   .nav-link {
