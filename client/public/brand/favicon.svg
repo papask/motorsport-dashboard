@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="OnTheLimit">
+  <title>OnTheLimit</title>
+  <rect width="64" height="64" rx="14.0" fill="#0E0E11"/>
+  <path d="M14.80 48.55 A21.0 21.0 0 0 1 47.36 22.18" fill="none" stroke="#FFFFFF" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M48.77 23.86 A21.0 21.0 0 0 1 49.20 48.55" fill="none" stroke="#D9101A" stroke-width="6.5" stroke-linecap="round"/>
+  <line x1="28.3" y1="36.2" x2="51.6" y2="38.2" stroke="#D9101A" stroke-width="3.8" stroke-linecap="round"/>
+  <circle cx="32.0" cy="36.5" r="5.0" fill="#FFFFFF"/>
+  <circle cx="32.0" cy="36.5" r="2.0" fill="#D9101A"/>
+</svg>
