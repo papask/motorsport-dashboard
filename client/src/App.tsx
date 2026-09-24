@@ -208,6 +208,9 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const t = useT();
+  const { lang } = useLang();
+  // Korean UI shows the "F1 온더리밋" lockup, English the ONTHELIMIT wordmark.
+  const logoVariant = lang === 'en' ? 'en' : 'compact';
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setMenuOpen(false); }, [location]);
@@ -215,7 +218,12 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
   return (
     <header className="top-nav">
       <Link to="/" className="top-nav-logo" aria-label={t('homeAria')}>
-        <h1>{t('logoTitle')}</h1>
+        {/* Both theme variants are rendered; CSS shows the one matching the
+            active palette, so it follows system/light/dark like the tokens. */}
+        <h1>
+          <img className="brand-logo brand-logo--light" src={`/brand/onthelimit-logo-${logoVariant}-light.svg`} alt={t('logoTitle')} />
+          <img className="brand-logo brand-logo--dark" src={`/brand/onthelimit-logo-${logoVariant}-dark.svg`} alt={t('logoTitle')} />
+        </h1>
       </Link>
       <div className={`top-nav-drawer ${menuOpen ? 'open' : ''}`}>
         <NavContent selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
