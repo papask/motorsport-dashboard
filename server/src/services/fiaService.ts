@@ -20,7 +20,7 @@ export interface FiaDocument {
   url: string;
   event: string;
   title: string;
-  published: string; // as printed by the FIA, "24.09.26 18:05" (CET)
+  published: string; // UTC ISO, e.g. "2026-09-24T16:05:00Z"
   status: 'summarized' | 'skipped' | 'failed';
   summary?: {
     title_ko: string;
@@ -30,9 +30,26 @@ export interface FiaDocument {
   };
 }
 
+/**
+ * The FIA prints Paris wall-clock time ("24.09.26 18:05", labelled CET even in
+ * summer). Convert it to UTC so the client can show the viewer's local time.
+ */
+function parisToUtc(printed: string) {
+  const m = printed.match(/^(\d\d)\.(\d\d)\.(\d\d) (\d\d):(\d\d)$/);
+  if (!m) return printed; // already ISO, or unparseable
+  const wall = Date.UTC(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+  // ponytail: offset taken at the wall time itself; off by an hour only inside the DST switch hour
+  const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', timeZoneName: 'longOffset' })
+    .formatToParts(wall).find((p) => p.type === 'timeZoneName')!.value; // "GMT+02:00"
+  const [, sign, h, min] = offset.match(/([+-])(\d\d):(\d\d)/) ?? ['', '+', '00', '00'];
+  const offsetMs = (sign === '-' ? -1 : 1) * (+h * 60 + +min) * 60000;
+  return new Date(wall - offsetMs).toISOString().replace('.000Z', 'Z');
+}
+
 let documents: FiaDocument[] = [];
 try {
   documents = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  documents.forEach((d) => { d.published = parisToUtc(d.published); }); // files saved before UTC
 } catch {
   // first run: nothing stored yet
 }
@@ -71,7 +88,7 @@ async function listDocuments() {
       url: FIA + href,
       event,
       title: clean(title),
-      published: clean(row.match(/date-display-single"[^>]*>([^<]*)</)?.[1] ?? ''),
+      published: parisToUtc(clean(row.match(/date-display-single"[^>]*>([^<]*)</)?.[1] ?? '')),
     }];
   });
 }
@@ -148,11 +165,8 @@ export async function checkFiaDocuments() {
   }
 }
 
-// "24.09.26 18:05" (dd.mm.yy) → "260924 18:05", which sorts chronologically
-const sortKey = (d: FiaDocument) => d.published.replace(/^(\d\d)\.(\d\d)\.(\d\d)/, '$3$2$1');
-
 export function getFiaDocuments() {
-  return [...documents].sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+  return [...documents].sort((a, b) => b.published.localeCompare(a.published));
 }
 
 export function startFiaWatcher() {

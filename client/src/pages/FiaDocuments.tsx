@@ -4,12 +4,13 @@ import { useLang, useT } from '../i18n';
 import PageMasthead from '../components/PageMasthead';
 import StateBlock from '../components/StateBlock';
 import ErrorBanner from '../components/ErrorBanner';
+import { formatLocalShort, getLocalTZLabel } from '../utils/raceDate';
 
 interface FiaDocument {
   url: string;
   event: string;
   title: string;
-  published: string;
+  published: string; // UTC ISO
   status: 'summarized' | 'skipped' | 'failed';
   summary?: { title_ko: string; category: string; summary_ko: string[]; summary_en: string[] };
 }
@@ -57,7 +58,7 @@ export default function FiaDocuments() {
                 <article key={d.url} className="card" style={{ padding: '16px 20px' }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                     {category && <span className="stat-badge" style={{ fontSize: 11 }}>{t(category)}</span>}
-                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{d.published} CET</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatLocalShort({ date: d.published.slice(0, 10), time: d.published.slice(11) })} {getLocalTZLabel()}</span>
                   </div>
                   <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
                     {s && lang !== 'en' ? s.title_ko : d.title}
