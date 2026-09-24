@@ -42,6 +42,7 @@ FF = V2.FF
 SERVICE = '온더리밋'
 V2.SERVICE = V3.SERVICE = SERVICE
 PREVIEW = '--preview' in sys.argv
+OUT_NAME = 'v4'   # output files: out/audio_<name>.wav, out/promo_<name>.mp4
 
 TOTAL = 90.0
 MUSIC = '136.mp3'
@@ -455,12 +456,12 @@ def main():
             ev.append((st - 0.2, '2918', 0.8, None))
         else:
             ev.append((st - 0.28, '1492' if i % 2 else '1490', 0.45, None))
-    wav = f'{S}/out/audio_v4.wav'
+    wav = f'{S}/out/audio_{OUT_NAME}.wav'
     os.makedirs(f'{S}/out', exist_ok=True)
     V2.build_audio(total, ev, [(MUSIC, 0.0, P, total, 0.0, 0.6, 0.8)], wav)
     print('audio done')
 
-    out = f'{S}/out/promo_v4.mp4' if not PREVIEW else f'{S}/out/preview_v4.mp4'
+    out = f'{S}/out/promo_{OUT_NAME}.mp4' if not PREVIEW else f'{S}/out/preview_{OUT_NAME}.mp4'
     enc = subprocess.Popen([FF, '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
                             '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'ultrafast' if PREVIEW else 'medium',
                             '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-movflags', '+faststart',
