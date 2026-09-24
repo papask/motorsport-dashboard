@@ -51,6 +51,21 @@ export const getTelemetryDrivers = (year: number, round: number, signal?: AbortS
 export const getDriverTelemetry = (year: number, round: number, driverNumber: number, lap?: number | null, signal?: AbortSignal) =>
   api.get(`/telemetry/${year}/${round}/${driverNumber}`, { params: lap ? { lap } : undefined, signal }).then((r) => r.data);
 
+export interface TelemetryAvailability {
+  results: boolean;
+  lapTimes: boolean;
+  telemetry: boolean;
+  reason: string | null;
+}
+
+/**
+ * What a session actually has, checked before committing to the telemetry
+ * fetch — that one costs a minute or two on a cold cache, and finding out
+ * afterwards that there was nothing to fetch is the worst way to spend it.
+ */
+export const getTelemetryAvailability = (year: number, round: number, session = 'R', signal?: AbortSignal): Promise<TelemetryAvailability> =>
+  api.get(`/telemetry/availability/${year}/${round}`, { params: { session }, signal }).then((r) => r.data);
+
 // Incidents (FastF1)
 export const getRaceIncidents = (year: number, round: number, signal?: AbortSignal) =>
   api.get(`/telemetry/incidents/${year}/${round}`, { signal }).then((r) => r.data);

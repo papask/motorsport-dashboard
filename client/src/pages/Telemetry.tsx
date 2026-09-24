@@ -1,26 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
-import { getSeasonSchedule, getTelemetryDrivers, getDriverTelemetry } from '../services/api';
+import { getSeasonSchedule, getTelemetryDrivers, getDriverTelemetry, getTelemetryAvailability } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getCountryNameKR, UI_LABELS } from '../constants/koreanTerms';
 import { useT } from '../i18n';
+import PageMasthead from '../components/PageMasthead';
+import RoundSelector from '../components/RoundSelector';
+import StateBlock from '../components/StateBlock';
+import LongLoad from '../components/LongLoad';
+import LapList from '../components/LapList';
+import { TIRE_COLORS, tireColor, telemetry, chart, delta as deltaToken, text as textToken, ink, border, surface, rowTint, tooltipSurface } from '../theme/tokens';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Cell, Area, AreaChart, ComposedChart, ReferenceLine, ReferenceArea } from 'recharts';
 
 interface Props { year: number; }
 
-const TIRE_COLORS: Record<string, string> = {
-  'SOFT': '#E10600',
-  'MEDIUM': '#FFD700',
-  'HARD': '#FFFFFF',
-  'INTERMEDIATE': '#00C853',
-  'WET': '#0091FF',
-};
+const NEUTRAL_COLOR = telemetry.neutral;
 
-const NEUTRAL_COLOR = '#FFB020';
+// Declared once so the tablist and its arrow-key handler share one ordering.
+const TELEMETRY_TABS = [
+  { key: 'speed', labelKey: 'tabSpeedRpm' },
+  { key: 'inputs', labelKey: 'tabInputs' },
+  { key: 'laps', labelKey: 'tabLaps' },
+] as const;
 
 // Fixed per-driver colors used only in comparison mode, so the two drivers
 // are told apart consistently across every chart (A = primary, B = compare).
-const DRIVER_A_COLOR = '#E10600';
-const DRIVER_B_COLOR = '#12B8FF';
+const DRIVER_A_COLOR = telemetry.driverA;
+const DRIVER_B_COLOR = telemetry.driverB;
 
 // Classify a lap's FastF1 TrackStatus into a neutralization type.
 // Status codes: 1=green, 2=yellow, 4=Safety Car, 5=red flag, 6/7=Virtual SC.
@@ -132,14 +137,28 @@ function Telemetry({ year }: Props) {
     [year, selectedRound]
   );
 
+  // Cheap pre-check: does this session have car telemetry at all? Runs as soon
+  // as a round is picked, so a session without it never starts the one-to-two
+  // minute fetch below.
+  const { data: availability, loading: availLoading } = useApi(
+    (signal) => selectedRound
+      ? getTelemetryAvailability(year, selectedRound, 'R', signal)
+      : Promise.resolve(null),
+    [year, selectedRound]
+  );
+  const hasTelemetry = availability ? availability.telemetry : true;
+
   // Base fetch per driver = fastest lap. Gates the page and provides the full
   // laps summary + driver info (both independent of which trace lap is chosen).
-  const { data: telemetryData, loading: telLoading, error: telError } = useApi(
-    (signal) => (selectedRound && selectedDriver)
+  // Held back until the pre-check says there is something to fetch.
+  const { data: telemetryData, loading: telLoadingRaw, error: telError } = useApi(
+    (signal) => (selectedRound && selectedDriver && hasTelemetry)
       ? getDriverTelemetry(year, selectedRound, selectedDriver, null, signal)
       : Promise.resolve(null),
-    [year, selectedRound, selectedDriver]
+    [year, selectedRound, selectedDriver, hasTelemetry]
   );
+  // While the pre-check is in flight the page is still "loading" to the viewer.
+  const telLoading = availLoading || (hasTelemetry && telLoadingRaw);
 
   // Optional second driver to compare against
   const { data: telemetryDataB, loading: telLoadingB } = useApi(
@@ -169,6 +188,8 @@ function Telemetry({ year }: Props) {
   // charts stay populated instead of blanking out.
   const telA = selectedLapA != null ? (lapTelA ?? telemetryData) : telemetryData;
   const telB = selectedLapB != null ? (lapTelB ?? telemetryDataB) : telemetryDataB;
+
+  const selectedRace = schedule?.races?.find((r: any) => r.round === selectedRound);
 
   // Auto-select most recent race
   useEffect(() => {
@@ -290,8 +311,8 @@ function Telemetry({ year }: Props) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 22, height: 22, borderRadius: '50%',
-      background: TIRE_COLORS[compound || ''] || '#888',
-      color: '#000', fontWeight: 800, fontSize: 10,
+      background: tireColor(compound),
+      color: textToken.onInverse, fontWeight: 800, fontSize: 10,
     }}>
       {compound?.charAt(0) || '?'}
     </span>
@@ -395,7 +416,7 @@ function Telemetry({ year }: Props) {
   const lapLoadingOverlay = anyLapLoading ? (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 5, borderRadius: 12,
-      background: 'rgba(12,12,20,0.6)', backdropFilter: 'blur(1px)',
+      background: surface.veil, backdropFilter: 'blur(1px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -415,26 +436,28 @@ function Telemetry({ year }: Props) {
 
   return (
     <div className="page-container">
-      <div className="page-header fade-in">
-        <h2 className="page-title">🏎️ {UI_LABELS.telemetry}</h2>
-        <p className="page-subtitle">{t('telemetrySubtitle')}</p>
-      </div>
+      <PageMasthead
+        kicker={
+          selectedRace
+            ? `${t('analysisKicker')} · ${year} R${selectedRace.round} · ${selectedRace.circuit?.locality ?? selectedRace.raceName}`
+            : t('analysisKicker')
+        }
+        title={UI_LABELS.telemetry}
+        subtitle="Telemetry · FastF1"
+        aside={
+          <div className="masthead-controls">
+            <RoundSelector
+              rounds={(schedule?.races ?? []).map((r: any) => ({ round: r.round, raceName: r.raceName, locality: r.circuit?.locality }))}
+              value={selectedRound}
+              onChange={setSelectedRound}
+              placeholder={t('selectRace')}
+            />
+          </div>
+        }
+      />
 
-      {/* Race & Driver Selector */}
+      {/* Driver selectors */}
       <div className="selector-group fade-in fade-in-delay-1" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <select
-          className="selector"
-          value={selectedRound || ''}
-          onChange={(e) => setSelectedRound(Number(e.target.value))}
-        >
-          <option value="" disabled>{t('selectRace')}</option>
-          {schedule?.races?.map((r: any) => (
-            <option key={r.round} value={r.round}>
-              {t('roundNameOption', { n: r.round, name: r.raceName })}
-            </option>
-          ))}
-        </select>
-
         {driversLoading ? (
           <div style={{ padding: '8px 0', color: 'var(--text-muted)', fontSize: 13, alignSelf: 'center' }}>{t('loadingShort')}</div>
         ) : (
@@ -486,16 +509,52 @@ function Telemetry({ year }: Props) {
         </div>
       )}
 
-      {/* Content */}
-      {telLoading && (
-        <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{t('telLoadingHint')}</div></div>
+      {/* The pre-check says this session has no car telemetry — show what it
+          does have and where to find it, instead of a minute of loading that
+          ends in an error. */}
+      {!availLoading && availability && !availability.telemetry && (
+        <>
+          <StateBlock
+            title={t('noTelemetryTitle')}
+            reason={t('noTelemetryReason')}
+            actions={[{ label: UI_LABELS.raceResults, href: '#/results', primary: true }]}
+          />
+          <table className="data-table availability-table">
+            <tbody>
+              <tr>
+                <th scope="row">{t('availResults')}</th>
+                <td>{availability.results ? t('availYes') : t('availNo')}</td>
+              </tr>
+              <tr>
+                <th scope="row">{t('availLapTimes')}</th>
+                <td>{availability.lapTimes ? t('availYes') : t('availNo')}</td>
+              </tr>
+              <tr>
+                <th scope="row">{t('availTelemetry')}</th>
+                <td>{availability.telemetry ? t('availYes') : t('availNo')}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
       )}
 
+      {/* Content */}
+      {telLoading && <LongLoad hint={t('telLoadingHint')} />}
+
+      {/* FastF1 simply has no car telemetry for some sessions (cancelled,
+          shortened, or a missing feed). That is an expected outcome, not a
+          failure, so it says what exists instead and points at it. */}
       {telError && (
-        <div className="error-container">
-          <div className="error-icon">⚠️</div>
-          <div className="error-message">{telError}</div>
-        </div>
+        <StateBlock
+          title={t('noTelemetryTitle')}
+          reason={t('noTelemetryReason')}
+          detail={telError}
+          tone="error"
+          actions={[
+            { label: UI_LABELS.raceResults, href: '#/results', primary: true },
+            { label: t('noTelemetryOtherDriver'), onClick: () => setSelectedDriver(null) },
+          ]}
+        />
       )}
 
       {telemetryData && !telLoading && (
@@ -514,7 +573,7 @@ function Telemetry({ year }: Props) {
                 width: 48, height: 48, borderRadius: '50%',
                 background: `#${currentDriver.teamColor || '888'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, fontWeight: 800, color: '#000',
+                fontSize: 18, fontWeight: 800, color: textToken.onInverse,
                 fontFamily: 'var(--font-display)',
               }}>
                 {currentDriver.number}
@@ -532,56 +591,42 @@ function Telemetry({ year }: Props) {
             </div>
           )}
 
-          {/* Tab Selector */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-            {([
-              { key: 'speed', label: t('tabSpeedRpm'), icon: '⚡' },
-              { key: 'inputs', label: t('tabInputs'), icon: '🎮' },
-              { key: 'laps', label: t('tabLaps'), icon: '⏱️' },
-            ] as const).map(tab => (
+          {/* Tab Selector.
+
+              A real tablist: one stop in the tab order (roving tabindex) and
+              ←/→ to move between panels, which is what a keyboard user expects
+              of tabs and what three plain buttons could not provide. */}
+          <div className="tabs" role="tablist" aria-label={t('telemetry')}>
+            {TELEMETRY_TABS.map((tab, i) => (
               <button
                 key={tab.key}
+                id={`tel-tab-${tab.key}`}
+                role="tab"
+                type="button"
+                aria-selected={activeTab === tab.key}
+                aria-controls={`tel-panel-${tab.key}`}
+                tabIndex={activeTab === tab.key ? 0 : -1}
+                className={`tab ${activeTab === tab.key ? 'is-active' : ''}`}
                 onClick={() => setActiveTab(tab.key)}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: activeTab === tab.key ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)',
-                  color: activeTab === tab.key ? '#fff' : 'var(--text-muted)',
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontFamily: 'var(--font-display)',
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                  e.preventDefault();
+                  const delta = e.key === 'ArrowRight' ? 1 : -1;
+                  const next = TELEMETRY_TABS[(i + delta + TELEMETRY_TABS.length) % TELEMETRY_TABS.length];
+                  setActiveTab(next.key);
+                  document.getElementById(`tel-tab-${next.key}`)?.focus();
                 }}
               >
-                {tab.icon} {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
 
-          {/* Lap picker (affects speed/input traces only) */}
+          {/* Lap picker (affects speed/input traces only).
+              Driver A picks from the list beside the charts; the compare driver
+              keeps a dropdown, since two full lists would crowd the page. */}
           {activeTab !== 'laps' && telemetryData && (
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {comparing && <span style={{ width: 12, height: 4, borderRadius: 2, background: DRIVER_A_COLOR, display: 'inline-block' }} />}
-                <span style={{ fontSize: 12, fontWeight: 700, color: comparing ? DRIVER_A_COLOR : 'var(--text-secondary)' }}>
-                  {comparing ? nameA : t('viewLapLabel')}
-                </span>
-                <select
-                  className="selector"
-                  style={{ padding: '6px 10px', fontSize: 13 }}
-                  value={viewedLapA ?? ''}
-                  onChange={(e) => setSelectedLapA(Number(e.target.value))}
-                >
-                  {(telemetryData?.laps || []).map((l: any) => (
-                    <option key={l.lapNumber} value={l.lapNumber}>
-                      {t('lapN', { n: l.lapNumber })}{l.lapNumber === telemetryData?.telemetryLap ? ' ⚡' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {comparing && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ width: 12, height: 4, borderRadius: 2, background: DRIVER_B_COLOR, display: 'inline-block' }} />
@@ -605,9 +650,22 @@ function Telemetry({ year }: Props) {
             </div>
           )}
 
+          {/* Lap list beside the traces, as the canvas lays it out: the whole
+              stint is visible at once instead of hidden behind a dropdown. */}
+          <div className={activeTab === 'laps' ? '' : 'telemetry-split'}>
+            {activeTab !== 'laps' && telemetryData && (
+              <LapList
+                laps={telemetryData.laps || []}
+                value={viewedLapA}
+                onChange={setSelectedLapA}
+                fastestLap={telemetryData.telemetryLap}
+              />
+            )}
+            <div className="telemetry-panels">
+
           {/* Speed & RPM Tab */}
           {activeTab === 'speed' && speedData.length > 0 && (
-            <div className="card" style={{ padding: 24, position: 'relative' }}>
+            <div className="card" role="tabpanel" id="tel-panel-speed" aria-labelledby="tel-tab-speed" style={{ padding: 24, position: 'relative' }}>
               {lapLoadingOverlay}
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🏎️ {UI_LABELS.speed}{!comparing && viewedLapA != null ? ` · ${t('lapN', { n: viewedLapA })}` : ''}
@@ -616,15 +674,15 @@ function Telemetry({ year }: Props) {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#E10600" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#E10600" stopOpacity={0} />
+                      <stop offset="5%" stopColor={telemetry.speed} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={telemetry.speed} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                  <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 'auto']} unit=" km/h" />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                  <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 'auto']} unit=" km/h" />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: any) => [`${Math.round(value)} km/h`, name]}
                     labelFormatter={(v) => t('distanceColon', { v })}
                   />
@@ -640,18 +698,18 @@ function Telemetry({ year }: Props) {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="rpmGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFD700" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#FFD700" stopOpacity={0} />
+                      <stop offset="5%" stopColor={telemetry.rpm} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={telemetry.rpm} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                  <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 'auto']} />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                  <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 'auto']} />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: any) => [`${Math.round(value)}`, comparing ? name : 'RPM']}
                   />
-                  <Area type="monotone" dataKey="rpm" name={comparing ? nameA : 'RPM'} stroke={comparing ? DRIVER_A_COLOR : '#FFD700'} fill={comparing ? 'none' : 'url(#rpmGrad)'} strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="rpm" name={comparing ? nameA : 'RPM'} stroke={comparing ? DRIVER_A_COLOR : telemetry.rpm} fill={comparing ? 'none' : 'url(#rpmGrad)'} strokeWidth={1.5} dot={false} />
                   {comparing && <Area type="monotone" dataKey="rpmB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
               </ResponsiveContainer>
@@ -661,14 +719,14 @@ function Telemetry({ year }: Props) {
               </h3>
               <ResponsiveContainer width="100%" height={150}>
                 <LineChart data={chartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                  <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 8]} ticks={[1,2,3,4,5,6,7,8]} />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                  <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 8]} ticks={[1,2,3,4,5,6,7,8]} />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: any) => [t('gearUnit', { n: value }), comparing ? name : UI_LABELS.gear]}
                   />
-                  <Line type="stepAfter" dataKey="gear" name={comparing ? nameA : UI_LABELS.gear} stroke={comparing ? DRIVER_A_COLOR : '#00C853'} strokeWidth={1.5} dot={false} />
+                  <Line type="stepAfter" dataKey="gear" name={comparing ? nameA : UI_LABELS.gear} stroke={comparing ? DRIVER_A_COLOR : telemetry.gear} strokeWidth={1.5} dot={false} />
                   {comparing && <Line type="stepAfter" dataKey="gearB" name={nameB} stroke={DRIVER_B_COLOR} strokeWidth={1.5} dot={false} />}
                 </LineChart>
               </ResponsiveContainer>
@@ -692,7 +750,7 @@ function Telemetry({ year }: Props) {
                       const aFast = a != null && (b == null || a >= b);
                       const bFast = b != null && (a == null || b > a);
                       return (
-                        <div key={m.key} style={{ flex: '1 1 120px', minWidth: 120, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.04)' }}>
+                        <div key={m.key} style={{ flex: '1 1 120px', minWidth: 120, padding: '12px 14px', borderRadius: 10, background: ink.a04 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
                             {m.label}{m.sub ? ` · ${m.sub}` : ''}
                           </div>
@@ -729,7 +787,7 @@ function Telemetry({ year }: Props) {
 
           {/* Driver Inputs Tab */}
           {activeTab === 'inputs' && speedData.length > 0 && (
-            <div className="card" style={{ padding: 24, position: 'relative' }}>
+            <div className="card" role="tabpanel" id="tel-panel-inputs" aria-labelledby="tel-tab-inputs" style={{ padding: 24, position: 'relative' }}>
               {lapLoadingOverlay}
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🟢 {UI_LABELS.throttle}
@@ -738,18 +796,18 @@ function Telemetry({ year }: Props) {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="throttleGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00C853" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#00C853" stopOpacity={0} />
+                      <stop offset="5%" stopColor={telemetry.throttle} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={telemetry.throttle} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                  <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 100]} unit="%" />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                  <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 100]} unit="%" />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: any) => [`${Math.round(value)}%`, comparing ? name : UI_LABELS.throttle]}
                   />
-                  <Area type="monotone" dataKey="throttle" name={comparing ? nameA : UI_LABELS.throttle} stroke={comparing ? DRIVER_A_COLOR : '#00C853'} fill={comparing ? 'none' : 'url(#throttleGrad)'} strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="throttle" name={comparing ? nameA : UI_LABELS.throttle} stroke={comparing ? DRIVER_A_COLOR : telemetry.gear} fill={comparing ? 'none' : 'url(#throttleGrad)'} strokeWidth={1.5} dot={false} />
                   {comparing && <Area type="monotone" dataKey="throttleB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
               </ResponsiveContainer>
@@ -761,15 +819,15 @@ function Telemetry({ year }: Props) {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="brakeGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#E10600" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#E10600" stopOpacity={0} />
+                      <stop offset="5%" stopColor={telemetry.speed} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={telemetry.speed} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                  <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 100]} ticks={[0, 100]} tickFormatter={(v) => v ? 'ON' : 'OFF'} />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                  <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 100]} ticks={[0, 100]} tickFormatter={(v) => v ? 'ON' : 'OFF'} />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: any) => [value > 0 ? 'ON' : 'OFF', comparing ? name : UI_LABELS.brake]}
                   />
                   <Area type="stepAfter" dataKey="brake" name={comparing ? nameA : UI_LABELS.brake} stroke={DRIVER_A_COLOR} fill={comparing ? 'none' : 'url(#brakeGrad)'} strokeWidth={1.5} dot={false} />
@@ -784,20 +842,20 @@ function Telemetry({ year }: Props) {
                   </h3>
                   <ResponsiveContainer width="100%" height={100}>
                     <AreaChart data={chartData}>
-                      <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="distance" tick={{ fill: '#6a6a7d', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-                      <YAxis tick={{ fill: '#6a6a7d', fontSize: 10 }} domain={[0, 1]} ticks={[0, 1]} tickFormatter={(v) => v ? 'ON' : 'OFF'} />
+                      <CartesianGrid stroke={chart.gridline} />
+                      <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
+                      <YAxis tick={{ fill: chart.tickMuted, fontSize: 10 }} domain={[0, 1]} ticks={[0, 1]} tickFormatter={(v) => v ? 'ON' : 'OFF'} />
                       <Tooltip
-                        contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                        contentStyle={tooltipSurface}
                         formatter={(value: any, name: any) => [value > 0 ? 'ON' : 'OFF', comparing ? name : 'DRS']}
                       />
-                      <Area type="stepAfter" dataKey="drs" name={comparing ? nameA : 'DRS'} stroke={comparing ? DRIVER_A_COLOR : '#0091FF'} fill={comparing ? 'none' : 'rgba(0,145,255,0.2)'} strokeWidth={1.5} dot={false} />
+                      <Area type="stepAfter" dataKey="drs" name={comparing ? nameA : 'DRS'} stroke={comparing ? DRIVER_A_COLOR : telemetry.drs} fill={comparing ? 'none' : telemetry.drsFill} strokeWidth={1.5} dot={false} />
                       {comparing && <Area type="stepAfter" dataKey="drsB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
                     </AreaChart>
                   </ResponsiveContainer>
                 </>
               ) : (
-                <div style={{ marginTop: 24, padding: '12px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', fontSize: 12, color: 'var(--text-muted)' }}>
+                <div style={{ marginTop: 24, padding: '12px 16px', borderRadius: 8, background: border.faint, fontSize: 12, color: 'var(--text-muted)' }}>
                   {t('drsRemovedNote')}
                 </div>
               )}
@@ -806,22 +864,22 @@ function Telemetry({ year }: Props) {
 
           {/* Lap Times Tab */}
           {activeTab === 'laps' && lapData.length > 0 && (
-            <div className="card" style={{ padding: 24 }}>
+            <div className="card" role="tabpanel" id="tel-panel-laps" aria-labelledby="tel-tab-laps" style={{ padding: 24 }}>
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 ⏱️ {UI_LABELS.lapTime}
               </h3>
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={lapCompareData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="lap" tick={{ fill: '#6a6a7d', fontSize: 10 }} label={{ value: UI_LABELS.lap, fill: '#6a6a7d', fontSize: 11, position: 'insideBottom', offset: -5 }} />
+                  <CartesianGrid stroke={chart.gridline} />
+                  <XAxis dataKey="lap" tick={{ fill: chart.tickMuted, fontSize: 10 }} label={{ value: UI_LABELS.lap, fill: chart.tickMuted, fontSize: 11, position: 'insideBottom', offset: -5 }} />
                   <YAxis
-                    tick={{ fill: '#6a6a7d', fontSize: 10 }}
+                    tick={{ fill: chart.tickMuted, fontSize: 10 }}
                     domain={yCap.domain}
                     allowDataOverflow={yCap.overflow}
                     tickFormatter={formatLapTime}
                   />
                   {avgLapTime > 0 && (
-                    <ReferenceLine y={avgLapTime} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" label={{ value: t('avg'), fill: '#6a6a7d', fontSize: 10 }} />
+                    <ReferenceLine y={avgLapTime} stroke={chart.referenceLine} strokeDasharray="3 3" label={{ value: t('avg'), fill: chart.tickMuted, fontSize: 10 }} />
                   )}
                   {scPeriods.map((p, i) => (
                     <ReferenceArea
@@ -840,14 +898,14 @@ function Telemetry({ year }: Props) {
                     <ReferenceLine
                       key={`pit-${lap}`}
                       x={lap}
-                      stroke="#8A8AFF"
+                      stroke={telemetry.lapTime}
                       strokeDasharray="2 2"
                       strokeOpacity={0.7}
                       label={{ value: '🔧', position: 'top', fontSize: 12 }}
                     />
                   ))}
                   <Tooltip
-                    contentStyle={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={tooltipSurface}
                     formatter={(value: any, name: string) => {
                       if (name === 'time') return [formatLapTime(value), t('lapTimeColon')];
                       return [formatLapTime(value), name];
@@ -857,7 +915,7 @@ function Telemetry({ year }: Props) {
                       if (!active || !payload?.length) return null;
                       const d = payload[0]?.payload;
                       return (
-                        <div style={{ background: '#1a1a28', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                        <div style={{ ...tooltipSurface, padding: '10px 14px' }}>
                           <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('lapN', { n: label })}</div>
                           {comparing ? (
                             <>
@@ -875,23 +933,23 @@ function Telemetry({ year }: Props) {
                           {d.neutral && (
                             <div style={{ color: NEUTRAL_COLOR, marginTop: 2 }}>🟡 {neutralLabel(d.neutral)}</div>
                           )}
-                          {d.pitIn && <div style={{ color: '#8A8AFF', marginTop: 2 }}>🔧 {t('pitInLabel')}</div>}
-                          {d.pitOut && <div style={{ color: '#8A8AFF', marginTop: 2 }}>🔧 {t('pitOutLabel')}</div>}
-                          {d.s1 && <div style={{ color: '#FFD700' }}>S1: {d.s1.toFixed(3)}s</div>}
-                          {d.s2 && <div style={{ color: '#00C853' }}>S2: {d.s2.toFixed(3)}s</div>}
-                          {d.s3 && <div style={{ color: '#0091FF' }}>S3: {d.s3.toFixed(3)}s</div>}
+                          {d.pitIn && <div style={{ color: telemetry.lapTime, marginTop: 2 }}>🔧 {t('pitInLabel')}</div>}
+                          {d.pitOut && <div style={{ color: telemetry.lapTime, marginTop: 2 }}>🔧 {t('pitOutLabel')}</div>}
+                          {d.s1 && <div style={{ color: telemetry.sector1 }}>S1: {d.s1.toFixed(3)}s</div>}
+                          {d.s2 && <div style={{ color: telemetry.sector2 }}>S2: {d.s2.toFixed(3)}s</div>}
+                          {d.s3 && <div style={{ color: telemetry.sector3 }}>S3: {d.s3.toFixed(3)}s</div>}
                           {d.compound && (
                             <div style={{ marginTop: 4 }}>
                               <span style={{
                                 display: 'inline-block',
                                 width: 8, height: 8, borderRadius: '50%',
-                                background: TIRE_COLORS[d.compound] || '#888',
+                                background: tireColor(d.compound),
                                 marginRight: 4,
                               }} />
                               {d.compound} ({t('tyreLifeLaps', { n: d.tyreLife })})
                             </div>
                           )}
-                          {d.isPB && <div style={{ color: '#00C853', marginTop: 2 }}>🟢 {t('personalBest')}</div>}
+                          {d.isPB && <div style={{ color: telemetry.sector2, marginTop: 2 }}>🟢 {t('personalBest')}</div>}
                         </div>
                       );
                     }}
@@ -900,9 +958,9 @@ function Telemetry({ year }: Props) {
                     {lapCompareData.map((entry: any, idx: number) => (
                       <Cell
                         key={idx}
-                        fill={comparing ? DRIVER_A_COLOR : (TIRE_COLORS[entry.compound] || '#888')}
+                        fill={comparing ? DRIVER_A_COLOR : tireColor(entry.compound)}
                         fillOpacity={comparing ? 0.9 : (entry.isPB ? 1 : 0.6)}
-                        stroke={entry.isPB && !comparing ? '#00C853' : 'none'}
+                        stroke={entry.isPB && !comparing ? deltaToken.up : 'none'}
                         strokeWidth={entry.isPB && !comparing ? 2 : 0}
                       />
                     ))}
@@ -921,7 +979,7 @@ function Telemetry({ year }: Props) {
               )}
               {pitLaps.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                  <span style={{ color: '#8A8AFF' }}>🔧</span>
+                  <span style={{ color: telemetry.lapTime }}>🔧</span>
                   {t('pitInLabel')} · {pitLaps.map((l: number) => t('lapN', { n: l })).join(', ')}
                 </div>
               )}
@@ -959,7 +1017,7 @@ function Telemetry({ year }: Props) {
                     </thead>
                     <tbody>
                       {tableData.map((l: any) => {
-                        const rowBg = l.isPB ? 'rgba(0,200,83,0.08)' : (l.neutral ? 'rgba(255,176,32,0.08)' : undefined);
+                        const rowBg = l.isPB ? rowTint.personalBest : (l.neutral ? rowTint.neutralised : undefined);
                         const aFaster = l.time > 0 && l.timeB > 0 && l.time <= l.timeB;
                         const bFaster = l.time > 0 && l.timeB > 0 && l.timeB < l.time;
                         const delta = (l.time > 0 && l.timeB > 0) ? l.time - l.timeB : null;
@@ -968,7 +1026,7 @@ function Telemetry({ year }: Props) {
                             <td style={{ fontWeight: 600 }}>
                               {l.lap}
                               {l.neutral && (
-                                <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 800, background: NEUTRAL_COLOR, color: '#000' }}>
+                                <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 800, background: NEUTRAL_COLOR, color: textToken.onInverse }}>
                                   {l.neutral}
                                 </span>
                               )}
@@ -998,16 +1056,16 @@ function Telemetry({ year }: Props) {
                                   <div style={{ color: DRIVER_A_COLOR, fontWeight: aFaster ? 800 : 600 }}>{formatLapTime(l.time)}</div>
                                   <div style={{ color: DRIVER_B_COLOR, fontWeight: bFaster ? 800 : 600 }}>{formatLapTime(l.timeB)}</div>
                                 </td>
-                                <td style={{ fontWeight: 700, color: delta == null ? 'var(--text-muted)' : (delta <= 0 ? '#00C853' : '#E10600') }}>
+                                <td style={{ fontWeight: 700, color: delta == null ? 'var(--text-muted)' : (delta <= 0 ? deltaToken.up : deltaToken.down) }}>
                                   {delta == null ? '-' : (delta >= 0 ? '+' : '') + delta.toFixed(3)}
                                 </td>
                               </>
                             ) : (
                               <>
                                 <td>{tyreBadge(l.compound)}</td>
-                                <td style={{ color: '#FFD700' }}>{l.s1 ? l.s1.toFixed(3) : '-'}</td>
-                                <td style={{ color: '#00C853' }}>{l.s2 ? l.s2.toFixed(3) : '-'}</td>
-                                <td style={{ color: '#0091FF' }}>{l.s3 ? l.s3.toFixed(3) : '-'}</td>
+                                <td style={{ color: telemetry.sector1 }}>{l.s1 ? l.s1.toFixed(3) : '-'}</td>
+                                <td style={{ color: telemetry.sector2 }}>{l.s2 ? l.s2.toFixed(3) : '-'}</td>
+                                <td style={{ color: telemetry.sector3 }}>{l.s3 ? l.s3.toFixed(3) : '-'}</td>
                                 <td style={{ fontWeight: 700 }}>{formatLapTime(l.time)}</td>
                               </>
                             )}
@@ -1023,12 +1081,10 @@ function Telemetry({ year }: Props) {
 
           {/* No data fallback */}
           {!speedData.length && !lapData.length && (
-            <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-                {t('noTelForDriver')}
-              </p>
-            </div>
+            <StateBlock title={t('noTelForDriver')} reason={t('noTelemetryReason')} />
           )}
+            </div>
+          </div>
         </>
       )}
 

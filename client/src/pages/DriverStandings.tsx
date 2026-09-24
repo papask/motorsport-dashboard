@@ -1,30 +1,43 @@
+import { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getDriverStandingsHistory } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, UI_LABELS } from '../constants/koreanTerms';
 import StandingsPositionChart from '../components/StandingsPositionChart';
 import PosDelta from '../components/PosDelta';
-import CollapsibleCard from '../components/CollapsibleCard';
+import PageMasthead from '../components/PageMasthead';
+import StateBlock from '../components/StateBlock';
+import ErrorBanner from '../components/ErrorBanner';
+import { SkeletonRegion, SkeletonMasthead, SkeletonTable, SkeletonChart } from '../components/Skeleton';
+import useDeferredLoading from '../hooks/useDeferredLoading';
 import { useT } from '../i18n';
 
 interface Props { year: number; }
 
 export default function DriverStandings({ year }: Props) {
   const t = useT();
-  const { data, loading, error, refetch } = useApi((signal) => getDriverStandingsHistory(year, signal), [year]);
+  const { data, loading, error, refetch, failures } = useApi((signal) => getDriverStandingsHistory(year, signal), [year]);
+  const showSkeleton = useDeferredLoading(loading);
+  // Which table row the pointer (or keyboard focus) is on; the chart dims every
+  // other line so this one can actually be followed.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   if (loading) return (
     <div className="page-container">
-      <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{UI_LABELS.loading}</div></div>
+      {showSkeleton && (
+        <SkeletonRegion>
+          <SkeletonMasthead />
+          <div className="split-2">
+            <SkeletonTable rows={12} columns={5} />
+            <SkeletonChart />
+          </div>
+        </SkeletonRegion>
+      )}
     </div>
   );
 
   if (error) return (
     <div className="page-container">
-      <div className="error-container">
-        <div className="error-icon">⚠️</div>
-        <div className="error-message">{error}</div>
-        <button className="retry-btn" onClick={refetch}>{t('retry')}</button>
-      </div>
+      <ErrorBanner detail={error} onRetry={refetch} attempts={failures} />
     </div>
   );
 
@@ -47,41 +60,62 @@ export default function DriverStandings({ year }: Props) {
     };
   });
 
+  // Before the first round there is no order to show: the table keeps the entry
+  // list, every position reads "–", and the chart is replaced by a state block
+  // rather than an empty axis.
+  const preSeason = history.length === 0;
+
   return (
     <div className="page-container">
-      <div className="page-header fade-in">
-        <h2 className="page-title">🏆 {UI_LABELS.driverStandings}</h2>
-        <p className="page-subtitle">{t('seasonRound', { year, round: data?.round || '-' })}</p>
-      </div>
+      <PageMasthead
+        kicker={
+          preSeason
+            ? t('mhPreSeason', { year })
+            : t('seasonRound', { year, round: data?.round || '-' })
+        }
+        title={UI_LABELS.driverStandings}
+        subtitle={preSeason ? t('mhPreSeasonSub') : 'Driver Standings'}
+      />
 
-      {/* Championship position over rounds */}
-      <CollapsibleCard title={t('posChangeByRound')} className="fade-in fade-in-delay-1" style={{ marginBottom: 20 }}>
-        <StandingsPositionChart history={history} items={chartItems} showTooltip={false} />
-      </CollapsibleCard>
-
-      {/* Full Standings Table */}
-      <div className="card fade-in fade-in-delay-2">
-        <div className="card-title">{t('fullDriverStandings')}</div>
-        <table className="data-table">
+      <div className="split-2 fade-in">
+        {/* Full standings table */}
+        <div>
+          <div className="section-label">
+            <span className="k">{t('fullDriverStandings')}</span>
+          </div>
+          <table className="data-table">
           <thead>
             <tr>
               <th>{UI_LABELS.position}</th>
               <th>{UI_LABELS.driver}</th>
               <th className="col-team">{UI_LABELS.team}</th>
-              <th className="col-points" style={{ textAlign: 'right' }}>{t('thBeforeRace')}</th>
               <th className="col-points" style={{ textAlign: 'right' }}>{t('thThisGain')}</th>
               <th className="col-points" style={{ textAlign: 'right' }}>{t('thCurrentPoints')}</th>
             </tr>
           </thead>
           <tbody>
             {standings.map((s: any) => (
-              <tr key={s.driver.id}>
+              <tr
+                key={s.driver.id}
+                className={`linked-row ${highlightId === s.driver.id ? 'is-linked' : ''}`}
+                tabIndex={0}
+                onMouseEnter={() => setHighlightId(s.driver.id)}
+                onMouseLeave={() => setHighlightId((h) => (h === s.driver.id ? null : h))}
+                onFocus={() => setHighlightId(s.driver.id)}
+                onBlur={() => setHighlightId((h) => (h === s.driver.id ? null : h))}
+              >
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
-                      {s.position}
+                    {preSeason ? (
+                      <span className="position-badge position-other">–</span>
+                    ) : (
+                      <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
+                        {s.position}
+                      </span>
+                    )}
+                    <span style={{ width: 30 }}>
+                      {!preSeason && <PosDelta delta={s.positionDelta} />}
                     </span>
-                    <span style={{ width: 30 }}><PosDelta delta={s.positionDelta} /></span>
                   </span>
                 </td>
                 <td>
@@ -96,18 +130,38 @@ export default function DriverStandings({ year }: Props) {
                   </span>
                 </td>
                 <td className="col-team" style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
-                <td className="col-points" style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{s.prevPoints}</td>
                 <td className="col-points" style={{ textAlign: 'right' }}>
                   <span style={{ fontWeight: 700 }}>+{s.racePoints}</span>
                   {hasSprint && s.sprintPoints > 0 && (
-                    <span style={{ display: 'block', fontSize: 11, color: 'var(--accent-gold)' }}>{t('sprintGain', { n: s.sprintPoints })}</span>
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--status-fastest-lap)' }}>{t('sprintGain', { n: s.sprintPoints })}</span>
                   )}
                 </td>
                 <td className="col-points" style={{ textAlign: 'right' }}><span className="points-value">{s.points}</span></td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Championship position over rounds */}
+        <div>
+          <div className="section-label">
+            <span className="k">{t('posChangeByRound')}</span>
+            {!preSeason && history.length > 0 && (
+              <span className="en">R{history[0].round} → R{history[history.length - 1].round}</span>
+            )}
+          </div>
+          {preSeason ? (
+            <StateBlock
+              title={t('emptyChartTitle')}
+              reason={t('emptyChartReason')}
+              actions={[{ label: UI_LABELS.raceSchedule, href: '#/schedule' }]}
+            />
+          ) : (
+            <StandingsPositionChart history={history} items={chartItems} showTooltip={false} highlightId={highlightId} />
+          )}
+          <div className="en" style={{ marginTop: 8 }}>{t('chartTeammateDashed')}</div>
+        </div>
       </div>
     </div>
   );

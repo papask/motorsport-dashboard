@@ -1,30 +1,41 @@
+import { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getConstructorStandingsHistory } from '../services/api';
 import { getTeamNameKR, getTeamColor, UI_LABELS } from '../constants/koreanTerms';
 import StandingsPositionChart from '../components/StandingsPositionChart';
 import PosDelta from '../components/PosDelta';
-import CollapsibleCard from '../components/CollapsibleCard';
+import PageMasthead from '../components/PageMasthead';
+import StateBlock from '../components/StateBlock';
+import ErrorBanner from '../components/ErrorBanner';
+import { SkeletonRegion, SkeletonMasthead, SkeletonTable, SkeletonChart } from '../components/Skeleton';
+import useDeferredLoading from '../hooks/useDeferredLoading';
 import { useT } from '../i18n';
 
 interface Props { year: number; }
 
 export default function ConstructorStandings({ year }: Props) {
   const t = useT();
-  const { data, loading, error, refetch } = useApi((signal) => getConstructorStandingsHistory(year, signal), [year]);
+  const { data, loading, error, refetch, failures } = useApi((signal) => getConstructorStandingsHistory(year, signal), [year]);
+  const showSkeleton = useDeferredLoading(loading);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   if (loading) return (
     <div className="page-container">
-      <div className="loading-container"><div className="loading-spinner" /><div className="loading-text">{UI_LABELS.loading}</div></div>
+      {showSkeleton && (
+        <SkeletonRegion>
+          <SkeletonMasthead />
+          <div className="split-2">
+            <SkeletonTable rows={11} columns={5} />
+            <SkeletonChart />
+          </div>
+        </SkeletonRegion>
+      )}
     </div>
   );
 
   if (error) return (
     <div className="page-container">
-      <div className="error-container">
-        <div className="error-icon">⚠️</div>
-        <div className="error-message">{error}</div>
-        <button className="retry-btn" onClick={refetch}>{t('retry')}</button>
-      </div>
+      <ErrorBanner detail={error} onRetry={refetch} attempts={failures} />
     </div>
   );
 
@@ -38,34 +49,48 @@ export default function ConstructorStandings({ year }: Props) {
     color: getTeamColor(s.constructor.name),
   }));
 
+  const preSeason = history.length === 0;
+  // Bars are read against the leader, so the top team fills the track.
+  const maxPoints = standings.reduce((m: number, s: any) => Math.max(m, s.points), 0) || 1;
+
   return (
     <div className="page-container">
-      <div className="page-header fade-in">
-        <h2 className="page-title">🏎️ {UI_LABELS.constructorStandings}</h2>
-        <p className="page-subtitle">{t('seasonRound', { year, round: data?.round || '-' })}</p>
-      </div>
+      <PageMasthead
+        kicker={
+          preSeason
+            ? t('mhPreSeason', { year })
+            : t('seasonRound', { year, round: data?.round || '-' })
+        }
+        title={UI_LABELS.constructorStandings}
+        subtitle={preSeason ? t('mhPreSeasonSub') : 'Constructor Standings'}
+      />
 
-      {/* Championship position over rounds */}
-      <CollapsibleCard title={t('posChangeByRound')} className="fade-in fade-in-delay-1" style={{ marginBottom: 20 }}>
-        <StandingsPositionChart history={history} items={chartItems} />
-      </CollapsibleCard>
-
-      {/* Full Standings Table */}
-      <div className="card fade-in fade-in-delay-2">
-        <div className="card-title">{t('fullConstructorStandings')}</div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>{UI_LABELS.position}</th>
-              <th>{UI_LABELS.team}</th>
-              <th className="col-points" style={{ textAlign: 'right' }}>{t('thBeforeRace')}</th>
-              <th className="col-points" style={{ textAlign: 'right' }}>{t('thThisGain')}</th>
-              <th className="col-points" style={{ textAlign: 'right' }}>{t('thCurrentPoints')}</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="split-2 fade-in">
+        <div>
+          <div className="section-label">
+            <span className="k">{t('fullConstructorStandings')}</span>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>{UI_LABELS.position}</th>
+                <th>{UI_LABELS.team}</th>
+                <th className="col-detail" style={{ width: '28%' }}>{UI_LABELS.points}</th>
+                <th className="col-points" style={{ textAlign: 'right' }}>{t('thThisGain')}</th>
+                <th className="col-points" style={{ textAlign: 'right' }}>{t('thCurrentPoints')}</th>
+              </tr>
+            </thead>
+            <tbody>
             {standings.map((s: any) => (
-              <tr key={s.constructor.id}>
+              <tr
+                key={s.constructor.id}
+                className={`linked-row ${highlightId === s.constructor.id ? 'is-linked' : ''}`}
+                tabIndex={0}
+                onMouseEnter={() => setHighlightId(s.constructor.id)}
+                onMouseLeave={() => setHighlightId((h) => (h === s.constructor.id ? null : h))}
+                onFocus={() => setHighlightId(s.constructor.id)}
+                onBlur={() => setHighlightId((h) => (h === s.constructor.id ? null : h))}
+              >
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     <span className={`position-badge position-${s.position <= 3 ? s.position : 'other'}`}>
@@ -83,18 +108,43 @@ export default function ConstructorStandings({ year }: Props) {
                     <span className="cur">{t('subCur', { n: s.points })}</span>
                   </span>
                 </td>
-                <td className="col-points" style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{s.prevPoints}</td>
+                <td className="col-detail">
+                  <span
+                    className="points-bar"
+                    style={{ width: `${Math.round((s.points / maxPoints) * 100)}%`, background: getTeamColor(s.constructor.name) }}
+                    aria-hidden="true"
+                  />
+                </td>
                 <td className="col-points" style={{ textAlign: 'right' }}>
                   <span style={{ fontWeight: 700 }}>+{s.racePoints}</span>
                   {hasSprint && s.sprintPoints > 0 && (
-                    <span style={{ display: 'block', fontSize: 11, color: 'var(--accent-gold)' }}>{t('sprintGain', { n: s.sprintPoints })}</span>
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--status-fastest-lap)' }}>{t('sprintGain', { n: s.sprintPoints })}</span>
                   )}
                 </td>
                 <td className="col-points" style={{ textAlign: 'right' }}><span className="points-value">{s.points}</span></td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="section-label">
+            <span className="k">{t('posChangeByRound')}</span>
+            {!preSeason && history.length > 0 && (
+              <span className="en">R{history[0].round} → R{history[history.length - 1].round}</span>
+            )}
+          </div>
+          {preSeason ? (
+            <StateBlock
+              title={t('emptyChartTitle')}
+              reason={t('emptyChartReason')}
+              actions={[{ label: UI_LABELS.raceSchedule, href: '#/schedule' }]}
+            />
+          ) : (
+            <StandingsPositionChart history={history} items={chartItems} highlightId={highlightId} />
+          )}
+        </div>
       </div>
     </div>
   );

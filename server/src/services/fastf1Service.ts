@@ -114,3 +114,18 @@ export async function getSessions(year: string | number, round: string | number)
 export async function getDrivers(year: string | number, round: string | number) {
   return runFastF1('drivers', [String(year), String(round)]);
 }
+
+/**
+ * What data exists for a session, answered without loading car telemetry.
+ *
+ * Lets the client decide whether a one-to-two-minute telemetry fetch is worth
+ * starting, instead of making someone wait through it to be told there is
+ * nothing there.
+ */
+export async function getAvailability(
+  year: string | number,
+  round: string | number,
+  session: string = 'R'
+) {
+  return runFastF1('availability', [String(year), String(round), String(session)]);
+}
