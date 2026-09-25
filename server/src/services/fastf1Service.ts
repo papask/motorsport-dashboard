@@ -26,14 +26,24 @@ const PYTHON = resolvePython();
 // The helper stays in src/ so the compiled server (dist/) finds it too
 const HELPER_SCRIPT = path.join(SERVER_ROOT, 'src', 'services', 'fastf1_helper.py');
 
-/**
- * Spawn the FastF1 Python helper and parse JSON output.
- */
+// ponytail: one helper at a time; parallel cold loads OOM a 512MB host. Allow N at once on bigger instances.
+let queue: Promise<unknown> = Promise.resolve();
+
 function runFastF1(action: string, args: string[]): Promise<any> {
   const cacheKey = `fastf1:${action}:${args.join(':')}`;
   const cached = cache.get(cacheKey);
   if (cached) return Promise.resolve(cached);
 
+  // Re-check the cache once it's our turn: a queued duplicate may have filled it
+  const run = queue.then(() => cache.get(cacheKey) ?? spawnHelper(action, args, cacheKey));
+  queue = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Spawn the FastF1 Python helper and parse JSON output.
+ */
+function spawnHelper(action: string, args: string[], cacheKey: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const child = spawn(PYTHON, [HELPER_SCRIPT, action, ...args], {
       env: { ...process.env },

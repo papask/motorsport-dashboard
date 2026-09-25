@@ -140,7 +140,11 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `ANTHROPIC_API_KEY` | — | Claude API key for FiA document summaries. Locally, put it in `server/.env`. |
 | `DATA_DIR` | `/data` | Where the FiA summaries are stored (`fia-documents.json`) |
 
-FastF1 loads whole sessions into memory, so give the container at least 1 GB of RAM.
+FastF1 loads whole sessions into memory. The server runs one FastF1 helper at a time, so 512 MB of RAM is enough.
+
+### Render
+
+[render.yaml](render.yaml) is a Render Blueprint: in the Render dashboard, choose **New → Blueprint**, pick this repo, and enter `ANTHROPIC_API_KEY` when asked. It creates a Starter web service (Singapore) with a 1 GB disk at `/data`. Every push to `main` redeploys.
 
 > **Note:** The current UI is in Korean.
 
@@ -284,6 +288,10 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `ANTHROPIC_API_KEY` | — | FiA 문서 요약용 Claude API 키. 로컬에서는 `server/.env`에 넣습니다. |
 | `DATA_DIR` | `/data` | FiA 요약 저장 위치(`fia-documents.json`) |
 
-FastF1은 세션 데이터를 통째로 메모리에 올리므로 컨테이너 메모리는 1 GB 이상을 권장합니다.
+FastF1은 세션 데이터를 통째로 메모리에 올립니다. 서버가 FastF1 헬퍼를 한 번에 하나씩만 실행하므로 메모리는 512 MB면 충분합니다.
+
+### Render
+
+[render.yaml](render.yaml)은 Render Blueprint입니다. Render 대시보드에서 **New → Blueprint**를 누르고 이 저장소를 고른 뒤, `ANTHROPIC_API_KEY`를 입력하라고 나오면 넣으면 됩니다. Starter 웹 서비스(싱가포르)와 `/data`에 붙는 1 GB 디스크가 만들어지고, `main`에 push할 때마다 다시 배포됩니다.
 
 > **참고:** 현재 UI는 한국어로 되어 있습니다.
