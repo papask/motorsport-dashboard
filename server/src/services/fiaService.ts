@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
+import { getSeasonSchedule } from './jolpicaService';
 
 // Watches the FIA F1 document page and keeps a Korean/English summary of each
 // new PDF (steward decisions, summons, race director notes, ...).
@@ -11,7 +12,12 @@ const DATA_FILE = path.join(
   process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'),
   'fia-documents.json',
 );
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // ponytail: fixed 30 min; poll faster on race weekends if needed
+const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+// Around a session the stewards publish often, so check every 5 min from an
+// hour before it starts until 4 hours after (decisions can come late)
+const SESSION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const SESSION_WINDOW_BEFORE_MS = 60 * 60 * 1000;
+const SESSION_WINDOW_AFTER_MS = 4 * 60 * 60 * 1000;
 
 // Timing sheets and lists are tables; a summary adds nothing over the PDF
 const SKIP_SUMMARY = /classification|entry list|starting grid|timetable|lap chart|history chart|pit stop summary|circuit map/i;
@@ -177,8 +183,45 @@ export async function checkFiaDocuments() {
   }
 }
 
-export function getFiaDocuments() {
-  return [...documents].sort((a, b) => b.published.localeCompare(a.published));
+// Event names repeat every season, so the year keeps "2026 Italian Grand Prix" apart from 2027's
+const eventKey = (d: FiaDocument) => `${d.published.slice(0, 4)} ${d.event}`;
+
+/** Every event (oldest first) and the documents of one of them, the latest by default. */
+export function getFiaDocuments(event?: string) {
+  const sorted = [...documents].sort((a, b) => b.published.localeCompare(a.published));
+  const events = [...new Set(sorted.map(eventKey))].reverse();
+  const selected = event && events.includes(event) ? event : events.at(-1) ?? null;
+  return {
+    events,
+    event: selected,
+    documents: sorted.filter((d) => eventKey(d) === selected),
+    nextCheck, // null while the watcher is off; in the past while a check runs
+    checkEveryMin: checkEveryMs / 60000,
+  };
+}
+
+/** True from an hour before any session (practice to race) until 4 hours after it. */
+export async function nearSession(now = Date.now()) {
+  const { races } = await getSeasonSchedule(new Date(now).getUTCFullYear());
+  return races.some((r: any) =>
+    [r.firstPractice, r.secondPractice, r.thirdPractice, r.sprintQualifying, r.sprint, r.qualifying, { date: r.date, time: r.time }]
+      .some((s) => {
+        if (!s?.date || !s.time) return false;
+        const start = Date.parse(`${s.date}T${s.time}`);
+        return now > start - SESSION_WINDOW_BEFORE_MS && now < start + SESSION_WINDOW_AFTER_MS;
+      }),
+  );
+}
+
+let nextCheck: string | null = null;
+let checkEveryMs = CHECK_INTERVAL_MS;
+
+async function watch() {
+  await checkFiaDocuments();
+  // Schedule unavailable → fall back to the normal interval
+  checkEveryMs = (await nearSession().catch(() => false)) ? SESSION_CHECK_INTERVAL_MS : CHECK_INTERVAL_MS;
+  nextCheck = new Date(Date.now() + checkEveryMs).toISOString();
+  setTimeout(watch, checkEveryMs);
 }
 
 export function startFiaWatcher() {
@@ -186,6 +229,6 @@ export function startFiaWatcher() {
     console.warn('[FIA] ANTHROPIC_API_KEY not set; document summaries are off');
     return;
   }
-  checkFiaDocuments();
-  setInterval(checkFiaDocuments, CHECK_INTERVAL_MS);
+  nextCheck = new Date().toISOString(); // first check starts now
+  watch();
 }

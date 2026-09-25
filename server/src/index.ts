@@ -26,8 +26,8 @@ app.use('/api/standings', standingsRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/telemetry', telemetryRouter);
-app.get('/api/fia/documents', (_req, res) => {
-  res.json({ documents: getFiaDocuments() });
+app.get('/api/fia/documents', (req, res) => {
+  res.json(getFiaDocuments(typeof req.query.event === 'string' ? req.query.event : undefined));
 });
 
 // Health check

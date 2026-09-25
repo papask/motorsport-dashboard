@@ -10,6 +10,8 @@ export interface RoundOption {
   note?: string;
   /** Circuit locality, used to shorten the label on narrow screens. */
   locality?: string;
+  /** Replaces the round label, for lists that aren't championship rounds (FiA events). */
+  label?: string;
 }
 
 interface Props {
@@ -36,9 +38,9 @@ export default function RoundSelector({ rounds, value, onChange, placeholder, co
   // drops to "R13 · Monza" where a locality is known.
   const isMobile = useIsMobile();
   const label = (r: RoundOption) =>
-    isMobile
+    r.label ?? (isMobile
       ? `R${r.round}${r.locality ? ` · ${r.locality}` : ''}`
-      : t('roundNameOption', { n: r.round, name: r.raceName });
+      : t('roundNameOption', { n: r.round, name: r.raceName }));
   const index = rounds.findIndex((r) => r.round === value);
   const prev = index > 0 ? rounds[index - 1] : null;
   const next = index >= 0 && index < rounds.length - 1 ? rounds[index + 1] : null;

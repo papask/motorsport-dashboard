@@ -25,6 +25,7 @@ pnpm-debug.log*
 
 # Local run / tooling artifacts
 .codex-run/
+.playwright-mcp/
 *.pid
 .claude/dev-autostart.off
 

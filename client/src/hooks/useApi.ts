@@ -10,6 +10,8 @@ interface UseApiState<T> {
    * Lets the UI tell a blip apart from an outage and escalate what it offers.
    */
   failures: number;
+  /** Re-fetch in the background: no loading state, and a failure keeps the current data. */
+  refresh: () => void;
 }
 
 function depsEqual(a: any[], b: any[]) {
@@ -36,20 +38,24 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
     if (failures !== 0) setFailures(0);
   }
 
-  const fetch = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
+  const fetch = useCallback(async (signal?: AbortSignal, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+    const key = depsRef.current;
     try {
       const result = await fetchFn(signal);
-      if (signal?.aborted) return;
+      // A background refresh has no abort signal; drop it if the query changed meanwhile
+      if (signal?.aborted || depsRef.current !== key) return;
       setData(result);
       setFailures(0);
     } catch (err: any) {
-      if (signal?.aborted || err.name === 'AbortError') return;
+      if (signal?.aborted || err.name === 'AbortError' || silent) return;
       setError(err.response?.data?.error || err.message || '데이터를 불러올 수 없습니다');
       setFailures((n) => n + 1);
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && !silent) setLoading(false);
     }
   }, deps);
 
@@ -59,7 +65,7 @@ export function useApi<T>(fetchFn: (signal?: AbortSignal) => Promise<T>, deps: a
     return () => controller.abort();
   }, [fetch]);
 
-  return { data, loading, error, refetch: () => fetch(), failures };
+  return { data, loading, error, refetch: () => fetch(), failures, refresh: () => fetch(undefined, true) };
 }
 
 
