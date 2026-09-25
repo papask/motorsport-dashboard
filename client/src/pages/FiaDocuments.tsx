@@ -46,7 +46,7 @@ export default function FiaDocuments() {
 
   return (
     <div className="page-container">
-      <PageMasthead kicker={t('fiaKicker')} title={t('fiaTitle')} subtitle="FIA Documents" />
+      <PageMasthead kicker={t('fiaKicker')} title={t('fiaTitle')} subtitle="FiA Documents" />
 
       {docs.length === 0 && <StateBlock title={t('fiaEmpty')} reason={t('fiaEmptyReason')} />}
 

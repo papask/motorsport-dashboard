@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule, getRaceResults, getQualifyingResults, getSprintResults } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, getStatusKR, UI_LABELS } from '../constants/koreanTerms';
@@ -18,7 +19,13 @@ type SessionType = 'race' | 'qualifying' | 'sprint';
 export default function RaceResults({ year }: Props) {
   const t = useT();
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [sessionType, setSessionType] = useState<SessionType | ''>('');
+  // ?session=race (the dashboard's "more" link) opens straight onto that
+  // session of the auto-selected latest round.
+  const [searchParams] = useSearchParams();
+  const initialSession = searchParams.get('session');
+  const [sessionType, setSessionType] = useState<SessionType | ''>(
+    initialSession === 'race' || initialSession === 'qualifying' || initialSession === 'sprint' ? initialSession : ''
+  );
   const schedule = useApi((signal) => getSeasonSchedule(year, signal), [year]);
 
   // On the first page entry the most recent round is auto-selected (below).
@@ -162,6 +169,7 @@ export default function RaceResults({ year }: Props) {
       ) : hasResults ? (
         <div className="fade-in fade-in-delay-2">
           {sessionType === 'qualifying' ? (
+            <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -200,6 +208,7 @@ export default function RaceResults({ year }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <>
             {/* Podium strip: the three results people came for, read before the
@@ -224,6 +233,7 @@ export default function RaceResults({ year }: Props) {
                 </div>
               ))}
             </div>
+            <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -273,6 +283,7 @@ export default function RaceResults({ year }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
             </>
           )}
         </div>

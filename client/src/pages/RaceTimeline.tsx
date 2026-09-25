@@ -8,6 +8,7 @@ import { t, useT, type MessageKey } from '../i18n';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea, LabelList } from 'recharts';
 import PageMasthead from '../components/PageMasthead';
 import RoundSelector from '../components/RoundSelector';
+import CollapsibleCard from '../components/CollapsibleCard';
 import { SkeletonRegion, SkeletonChart } from '../components/Skeleton';
 import useDeferredLoading from '../hooks/useDeferredLoading';
 import { EVENT_COLORS, tireColor, TIRE_RING, podiumColor, getTeamColor, chart, status, podium, delta as deltaToken, text as textToken, ink, border, control, incident, tooltipSurface, TEAM_UNKNOWN } from '../theme/tokens';
@@ -262,6 +263,9 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(60);
   const [simTime, setSimTime] = useState(0); // ms offset from effective race start
+  // Collapsing hides the body but keeps this component mounted, so the replay
+  // resumes at the same lap when reopened.
+  const [open, setOpen] = useState(true);
   const animRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(0);
 
@@ -523,18 +527,18 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
       <div style={{
         padding: isMobile ? '12px 14px' : '16px 24px',
         display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
-        alignItems: isMobile ? 'stretch' : 'center',
+        flexDirection: isMobile && open ? 'column' : 'row',
+        alignItems: isMobile && open ? 'stretch' : 'center',
         justifyContent: 'space-between',
         gap: isMobile ? 10 : 0,
-        background: activeFlag ? `${EVENT_STYLES[activeFlag.type]?.bg}15` : 'transparent',
-        borderBottom: `2px solid ${activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'var(--border-subtle)'}`,
+        background: activeFlag && open ? `${EVENT_STYLES[activeFlag.type]?.bg}15` : 'transparent',
+        borderBottom: open ? `2px solid ${activeFlag ? EVENT_STYLES[activeFlag.type]?.bg : 'var(--border-subtle)'}` : 'none',
         transition: 'all 0.3s ease',
       }}>
         <div>
           <div className="card-title" style={{ margin: 0 }}>
             🏎️ {t('raceReplay')}
-            {activeFlag && (
+            {activeFlag && open && (
               <span style={{
                 marginLeft: 12, padding: '2px 10px', borderRadius: 4, fontSize: 12, fontWeight: 700,
                 background: EVENT_STYLES[activeFlag.type]?.bg, color: EVENT_STYLES[activeFlag.type]?.color,
@@ -543,13 +547,16 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
               </span>
             )}
           </div>
+          {open && (
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
             <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>{t('lapN', { n: currentLap })}</span>
             <span style={{ margin: '0 10px', opacity: 0.3 }}>|</span>
             {t('raceElapsed')} {simMin}:{simSec.toString().padStart(2, '0')}
           </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isMobile ? 'space-between' : 'flex-start', flexWrap: 'wrap' }}>
+          {open && (<>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {[
               { label: '30x', value: 30 },
@@ -588,9 +595,19 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
+          </>)}
+          <button
+            className="collapse-toggle"
+            style={{ background: 'transparent', cursor: 'pointer' }}
+            aria-expanded={open}
+            onClick={() => { setOpen(!open); setIsPlaying(false); }}
+          >
+            {open ? t('collapse') : t('expand')}
+          </button>
         </div>
       </div>
 
+      {open && (<>
       {/* Progress bar */}
       <div
         style={{ height: 5, background: chart.gridline, cursor: 'pointer' }}
@@ -726,6 +743,27 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {replayAnnouncement}
       </p>
+
+      {/* Legend footer: a glance-when-unsure reference, so it sits below the board. */}
+      <div style={{
+        padding: isMobile ? '10px 14px' : '12px 24px', borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', gap: isMobile ? 12 : 24, flexWrap: 'wrap', alignItems: 'center',
+      }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{t('legend')}</div>
+        {Object.entries(EVENT_STYLES).filter(([k]) => k !== 'green' && k !== 'chequered').map(([key, style]) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: style.bg }} />
+            <span style={{ color: 'var(--text-secondary)' }}>{style.icon} {evtLabel(key)}</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+          <span style={{ color: deltaToken.up, fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>{t('gained')}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+          <span style={{ color: deltaToken.down, fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>{t('dropped')}</span>
+        </div>
+      </div>
+      </>)}
     </div>
   );
 }
@@ -744,11 +782,9 @@ export default function RaceTimeline({ year }: Props) {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [sessionType, setSessionType] = useState<SessionType>('');
   // On a phone the 22-line chart is not readable upright, so the replay is what
-  // the page opens on and the chart starts collapsed — one tap away, with a
-  // rotate hint inside it. On a wide screen both are open.
+  // the page opens on and the chart starts collapsed (CollapsibleCard's mobile
+  // default) — one tap away, with a rotate hint inside it.
   const isMobileViewport = useIsMobile();
-  const [isChartOpen, setIsChartOpen] = useState(!isMobileViewport);
-  const [isReplayOpen, setIsReplayOpen] = useState(true);
   const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
 
   const { data: scheduleData } = useApi(() => getSeasonSchedule(year), [year]);
@@ -1046,21 +1082,19 @@ export default function RaceTimeline({ year }: Props) {
       {hasTimeline && (
         <div className="layout-content fade-in">
           {/* Section 1: Position Change Chart */}
-          <div className="accordion-item">
-            <div className={`accordion-header ${isChartOpen ? '' : 'collapsed'}`} onClick={() => setIsChartOpen(!isChartOpen)}>
-              <div className="accordion-title">📈 {t('posChangeChart')}</div>
-              <div className="collapse-toggle">{isChartOpen ? t('collapse') : t('expand')}</div>
-            </div>
-            {isChartOpen && (
-              <div className="accordion-content">
-                {driverKeys.length > 0 && (
-                  <div className="card fade-in" style={{ padding: '24px 16px' }}>
-                    <div className="card-title" style={{ paddingLeft: 8 }}>
-                      {t('posChangeChart')}
-                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 8 }}>
-                        {t('totalLapsDrivers', { laps: timeline.data.totalLaps, n: driverKeys.length })}
+          {driverKeys.length > 0 && (
+                  <CollapsibleCard
+                    className="fade-in"
+                    style={{ paddingLeft: 16, paddingRight: 16, marginBottom: 24 }}
+                    title={
+                      <span style={{ paddingLeft: 8 }}>
+                        📈 {t('posChangeChart')}
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 8 }}>
+                          {t('totalLapsDrivers', { laps: timeline.data.totalLaps, n: driverKeys.length })}
+                        </span>
                       </span>
-                    </div>
+                    }
+                  >
                     {isMobileViewport && (
                       <p className="rotate-hint">{t('rotateHint')}</p>
                     )}
@@ -1209,42 +1243,11 @@ export default function RaceTimeline({ year }: Props) {
                         );
                       })}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  </CollapsibleCard>
+          )}
 
           {/* Section 2: Race Replay */}
-          <div className="accordion-item">
-            <div className={`accordion-header ${isReplayOpen ? '' : 'collapsed'}`} onClick={() => setIsReplayOpen(!isReplayOpen)}>
-              <div className="accordion-title">🎬 {t('raceReplay')}</div>
-              <div className="collapse-toggle">{isReplayOpen ? t('collapse') : t('expand')}</div>
-            </div>
-            {isReplayOpen && (
-              <div className="accordion-content">
-                {/* ... (existing legend and info) */}
-                <div className="card fade-in" style={{ marginBottom: 12, padding: '16px 24px' }}>
-                  <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{t('legend')}</div>
-                    {Object.entries(EVENT_STYLES).filter(([k]) => k !== 'green' && k !== 'chequered').map(([key, style]) => (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                        <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: style.bg }} />
-                        <span style={{ color: 'var(--text-secondary)' }}>{style.icon} {evtLabel(key)}</span>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: deltaToken.up, fontWeight: 700 }}>▲</span><span style={{ color: 'var(--text-secondary)' }}>{t('gained')}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <span style={{ color: deltaToken.down, fontWeight: 700 }}>▼</span><span style={{ color: 'var(--text-secondary)' }}>{t('dropped')}</span>
-                    </div>
-                  </div>
-                </div>
-                <RaceReplay key={`${selectedRound}-${sessionType}`} data={timeline.data} getTireCompound={getTireCompound} />
-              </div>
-            )}
-          </div>
+          <RaceReplay key={`${selectedRound}-${sessionType}`} data={timeline.data} getTireCompound={getTireCompound} />
         </div>
       )}
 

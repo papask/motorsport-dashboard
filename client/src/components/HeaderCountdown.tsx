@@ -16,11 +16,8 @@ interface ScheduleRace {
   circuit: { name: string; country: string };
 }
 
-// Screens where a countdown to the *next* race is still relevant. The dashboard
-// carries its own in the masthead, and the review/analysis screens are about a
-// race that already happened — a live timer there is noise, so the canvas
-// leaves it off.
-const COUNTDOWN_ROUTES = new Set(['/drivers', '/constructors']);
+// Shown on every screen next to the settings gear, except the dashboard, which
+// carries its own countdown in the masthead.
 
 // Compact next-race countdown for the header.
 export default function HeaderCountdown({ year }: { year: number }) {
@@ -31,7 +28,7 @@ export default function HeaderCountdown({ year }: { year: number }) {
   const nextRace = races.length ? getNextRace(races) : null;
   const countdown = useCountdown(nextRace ? getRaceDateTime(nextRace).toISOString() : null);
 
-  if (!COUNTDOWN_ROUTES.has(location.pathname) || !nextRace) return null;
+  if (location.pathname === '/' || !nextRace) return null;
 
   return (
     <div className="header-countdown" title={nextRace.raceName}>

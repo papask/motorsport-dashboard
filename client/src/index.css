@@ -190,12 +190,86 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== SETTINGS (gear + modal) ===== */
+.settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: 12px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.settings-btn:hover,
+.settings-btn.active {
+  background: var(--ink-06);
+  color: var(--text-primary);
+}
+
+.settings-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.drawer-only {
+  display: none;
+}
+
+/* Same surface as the nav dropdowns, anchored to the gear's right edge. */
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 220;
+  width: 260px;
+  padding: 4px 12px;
+  background: var(--surface-menu);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* Invisible bridge over the 8px gap, so moving from the gear into the menu
+   doesn't count as leaving it (the wrapper closes on mouseleave). */
+.settings-menu::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 0;
+  right: 0;
+  height: 9px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* ===== LANGUAGE TOGGLE (KO / EN) ===== */
 .lang-toggle {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 16px;
   padding: 2px;
   border-radius: 8px;
   background: var(--ink-06);
@@ -229,7 +303,6 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 8px;
   padding: 2px;
   border-radius: 8px;
   background: var(--ink-06);
@@ -272,15 +345,6 @@ body {
 
 /* Language and theme live in the header on desktop and in the drawer below
    768px; each copy is hidden where the other one shows. */
-.header-only {
-  display: flex;
-  align-items: center;
-}
-
-.drawer-only {
-  display: none;
-}
-
 .nav-item-container {
   position: relative;
   height: 100%;
@@ -658,6 +722,20 @@ body {
   margin-bottom: 12px;
 }
 
+.section-more {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-more:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .masthead {
     flex-direction: column;
@@ -870,6 +948,13 @@ body {
 .data-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+/* Wide tables scroll inside this wrapper instead of overflowing the page.
+   The scroll lives on a wrapper, not the table: a display:block table shrinks
+   its rows to content width and stops filling the column. */
+.table-scroll {
+  overflow-x: auto;
 }
 
 .data-table thead th {
@@ -1694,16 +1779,23 @@ body {
     padding: 0 16px;
   }
 
+  /* The drawer is out of flow here, so auto pushes countdown, gear and
+     hamburger to the right edge. */
   .top-nav-logo {
-    margin-right: 12px;
+    margin-right: auto;
   }
 
-  /* Compact countdown on mobile: race location stacked above the timer */
+  /* Location and timer sit on one line when the bar has room and wrap to
+     two right-aligned lines when it doesn't: the item may shrink below its
+     one-line width, and wrap takes over from there. */
   .header-countdown {
     margin-left: 8px;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
+    flex-shrink: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: 8px;
+    row-gap: 0;
   }
 
   .hc-label {
@@ -1711,17 +1803,22 @@ body {
   }
 
   .hc-name {
-    font-size: 10px;
-    max-width: 90px;
+    font-size: 12px;
+    max-width: 120px;
   }
 
-  .hc-time {
-    font-size: 13px;
+  /* Phones use the drawer's foot for language/theme instead of the gear. */
+  .settings-wrap {
+    display: none;
   }
 
-  /* Keep the language toggle compact and left of the hamburger on mobile */
-  .lang-toggle {
-    margin-left: 8px;
+  .drawer-only {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
   }
 
   .lang-btn {
@@ -1737,7 +1834,7 @@ body {
     gap: 5px;
     width: 42px;
     height: 42px;
-    margin-left: auto;
+    margin-left: 4px;
     background: none;
     border: none;
     cursor: pointer;
@@ -1820,24 +1917,6 @@ body {
     align-items: stretch;
   }
 
-  .header-only {
-    display: none;
-  }
-
-  .drawer-only {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  .drawer-only .lang-toggle,
-  .drawer-only .theme-toggle {
-    margin-left: 0;
-  }
-
   /* The bar only has to fit the brand, the countdown and the hamburger. */
   .top-nav-logo span {
     display: none;
@@ -1875,21 +1954,16 @@ body {
     padding: 2px 0 2px 18px;
   }
 
+  /* Swap the desktop's left divider for a top one. */
   .top-nav-season {
-    margin-top: 10px;
-    padding-top: 12px;
+    margin: 10px 0 0;
+    padding: 12px 0 0;
+    border-left: none;
     border-top: 1px solid var(--border-subtle);
   }
 
   .season-select {
     width: 100%;
-  }
-
-  /* Wide tables scroll horizontally instead of overflowing the page */
-  .data-table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   .data-table thead th,

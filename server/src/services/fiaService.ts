@@ -46,9 +46,21 @@ function parisToUtc(printed: string) {
   return new Date(wall - offsetMs).toISOString().replace('.000Z', 'Z');
 }
 
+// The site writes the federation as "FiA". Only text fields are touched; the
+// URL is the document's key and must stay exactly as the FIA serves it.
+const fiA = (s: string) => s.replaceAll('FIA', 'FiA');
+function brand(d: FiaDocument): FiaDocument {
+  return {
+    ...d,
+    event: fiA(d.event),
+    title: fiA(d.title),
+    summary: d.summary && JSON.parse(fiA(JSON.stringify(d.summary))),
+  };
+}
+
 let documents: FiaDocument[] = [];
 try {
-  documents = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  documents = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')).map(brand);
   documents.forEach((d) => { d.published = parisToUtc(d.published); }); // files saved before UTC
 } catch {
   // first run: nothing stored yet
@@ -155,7 +167,7 @@ export async function checkFiaDocuments() {
           entry = { ...doc, status: 'failed' };
         }
       }
-      documents = [entry, ...documents.filter((d) => d.url !== doc.url)];
+      documents = [brand(entry), ...documents.filter((d) => d.url !== doc.url)];
       save(); // after each document, so a crash doesn't re-bill finished ones
     }
   } catch (err: any) {

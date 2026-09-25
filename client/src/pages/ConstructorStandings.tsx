@@ -70,6 +70,7 @@ export default function ConstructorStandings({ year }: Props) {
           <div className="section-label">
             <span className="k">{t('fullConstructorStandings')}</span>
           </div>
+          <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
@@ -126,6 +127,7 @@ export default function ConstructorStandings({ year }: Props) {
             ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div>

@@ -83,6 +83,7 @@ export default function DriverStandings({ year }: Props) {
           <div className="section-label">
             <span className="k">{t('fullDriverStandings')}</span>
           </div>
+          <div className="table-scroll">
           <table className="data-table">
           <thead>
             <tr>
@@ -141,6 +142,7 @@ export default function DriverStandings({ year }: Props) {
             ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Championship position over rounds */}

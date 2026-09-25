@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { getConstructorStandings, getDriverStandings, getLastRaceResults, getSeasonSchedule } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, getTeamColor, getCountryNameKR, UI_LABELS } from '../constants/koreanTerms';
@@ -171,6 +172,7 @@ export default function Dashboard({ year }: DashboardProps) {
         <div className="fade-in fade-in-delay-2">
           <div className="section-label">
             <span className="k">{UI_LABELS.driverStandings} TOP 5</span>
+            <Link to="/drivers" className="section-more">{t('more')} →</Link>
           </div>
           {standings.loading ? (
             showStandingsSkeleton ? (
@@ -179,6 +181,7 @@ export default function Dashboard({ year }: DashboardProps) {
           ) : standings.error ? (
             <ErrorBanner detail={standings.error} onRetry={standings.refetch} attempts={standings.failures} />
           ) : (
+            <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -210,6 +213,7 @@ export default function Dashboard({ year }: DashboardProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
@@ -217,11 +221,14 @@ export default function Dashboard({ year }: DashboardProps) {
         <div className="fade-in fade-in-delay-3">
           <div className="section-label">
             <span className="k">{UI_LABELS.lastRace}</span>
-            {lastRace.data && (
-              <span className="en">
-                {lastRace.data.raceName} · {t('roundN', { n: lastRace.data.round })}
-              </span>
-            )}
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: 12, minWidth: 0 }}>
+              {lastRace.data && (
+                <span className="en">
+                  {lastRace.data.raceName} · {t('roundN', { n: lastRace.data.round })}
+                </span>
+              )}
+              <Link to="/results?session=race" className="section-more">{t('more')} →</Link>
+            </span>
           </div>
           {lastRace.loading ? (
             showLastRaceSkeleton ? (

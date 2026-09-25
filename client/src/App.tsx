@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Dashboard from './pages/Dashboard';
 import DriverStandings from './pages/DriverStandings';
 import ConstructorStandings from './pages/ConstructorStandings';
@@ -18,6 +18,13 @@ import './index.css';
 // decisions (e.g. where the season selector attaches) so it survives translation.
 function getNavItems(t: (k: any) => string) {
   return [
+    {
+      id: 'news',
+      label: t('navNews'),
+      children: [
+        { path: '/fia', label: t('navFia') },
+      ],
+    },
     { id: 'schedule', path: '/schedule', label: t('navSchedule') },
     {
       id: 'standings',
@@ -41,7 +48,6 @@ function getNavItems(t: (k: any) => string) {
       children: [
         { path: '/telemetry', label: t('navTelemetry') },
         { path: '/incidents', label: t('navIncidents') },
-        { path: '/fia', label: t('navFia') },
       ],
     },
   ];
@@ -118,6 +124,54 @@ function ThemeToggle() {
   );
 }
 
+// Gear button → dropdown anchored under it. Closes on an outside click or Esc.
+function SettingsButton() {
+  const t = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="settings-wrap" ref={ref} onMouseLeave={() => setOpen(false)}>
+      <button
+        className={`settings-btn ${open ? 'active' : ''}`}
+        aria-label={t('settings')}
+        title={t('settings')}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="settings-menu" role="group" aria-label={t('settings')}>
+          <div className="settings-row">
+            <span>{t('settingsLanguage')}</span>
+            <LangToggle />
+          </div>
+          <div className="settings-row">
+            <span>{t('settingsTheme')}</span>
+            <ThemeToggle />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; setSelectedYear: (y: number) => void }) {
   const location = useLocation();
   const t = useT();
@@ -179,8 +233,8 @@ function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; s
               {item.id === 'analysis' && (
                 <div className="nav-tail">
                   <YearSelect selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
-                  {/* Below 768px the header has no room for these, so the
-                      drawer carries them at its foot — as the canvas shows. */}
+                  {/* Below 768px the gear is hidden and the drawer carries
+                      these at its foot instead. */}
                   <div className="drawer-only">
                     <LangToggle />
                     <ThemeToggle />
@@ -238,10 +292,7 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
         <NavContent selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
       </div>
       <HeaderCountdown year={selectedYear} />
-      <div className="header-only">
-        <LangToggle />
-        <ThemeToggle />
-      </div>
+      <SettingsButton />
       <button
         className={`nav-hamburger ${menuOpen ? 'open' : ''}`}
         aria-label={t('menuAria')}
