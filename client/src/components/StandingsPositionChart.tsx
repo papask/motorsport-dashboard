@@ -113,8 +113,11 @@ export default function StandingsPositionChart({ history, items, showTooltip = t
       aria-describedby="standings-chart-table"
     >
       {/* The same data as a table, visually hidden: a line chart is unreadable
-          to a screen reader, and the numbers are the point. */}
-      <table id="standings-chart-table" className="sr-only">
+          to a screen reader, and the numbers are the point. sr-only sits on a
+          wrapper because a <table> ignores its 1px width and overflow clip and
+          would still widen the page. */}
+      <div className="sr-only">
+      <table id="standings-chart-table">
         <caption>{summary}</caption>
         <thead>
           <tr>
@@ -138,6 +141,7 @@ export default function StandingsPositionChart({ history, items, showTooltip = t
           })}
         </tbody>
       </table>
+      </div>
       <div className="chart-scroll-inner" aria-hidden="true">
       <ResponsiveContainer>
         <LineChart data={chartData} margin={{ top: 16, right: 84, bottom: 16, left: 16 }}>

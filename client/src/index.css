@@ -534,6 +534,16 @@ body {
   width: 100%;
 }
 
+/* Site-wide banner under every page (App.tsx). The bottom gap sits on the
+   slot, not the wrapper, so an empty or unfilled slot leaves no blank strip. */
+.footer-ad {
+  padding: 0 24px;
+}
+
+.footer-ad > * {
+  margin-bottom: 24px;
+}
+
 /* For pages whose main region is a scroller of its own (the incident log): the
    container takes the full height of the content area so that region can claim
    the remainder, rather than sizing to its content and leaving the rest blank.
@@ -661,6 +671,13 @@ body {
   align-items: start;
 }
 
+/* As with .card-grid: without this a column grows to its widest child (the
+   800px mobile chart) and pushes the page sideways instead of letting the
+   chart scroll inside its own container. */
+.split-2 > * {
+  min-width: 0;
+}
+
 /* ===== RESULT CARDS =====
    Three equal panels, each led by a large numeral with the driver pinned to the
    bottom. Replaces the stepped podium: at this size the finishing order is
@@ -720,6 +737,37 @@ body {
   padding-bottom: 8px;
   border-bottom: 2px solid var(--border-strong);
   margin-bottom: 12px;
+}
+
+/* ===== AD SLOT (in-feed) ===== */
+.ad-slot {
+  padding: 8px 0;
+}
+
+.ad-slot-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* Dev-only stand-in for an unconfigured slot (see AdSlot). */
+.ad-slot-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* No ad to show (no fill, blocked) → drop the whole slot, label included. */
+.ad-slot:has(ins[data-ad-status='unfilled']) {
+  display: none;
 }
 
 .section-more {
@@ -1729,6 +1777,14 @@ body {
     padding: 20px;
   }
 
+  .footer-ad {
+    padding: 0 20px;
+  }
+
+  .footer-ad > * {
+    margin-bottom: 20px;
+  }
+
   .card-grid-2,
   .card-grid-3,
   .card-grid-4 {
@@ -1939,8 +1995,11 @@ body {
     display: none;
   }
 
-  /* Dropdowns are always expanded inside the drawer (hover doesn't exist on touch) */
-  .dropdown-menu {
+  /* Dropdowns are always expanded inside the drawer (hover doesn't exist on touch).
+     The is-dismissed selector is repeated so the desktop "just picked an item,
+     hide the menu" state can't hide the group of the page you're on. */
+  .dropdown-menu,
+  .nav-item-container.is-dismissed .dropdown-menu {
     position: static;
     opacity: 1;
     visibility: visible;

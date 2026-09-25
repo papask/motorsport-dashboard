@@ -1,4 +1,6 @@
+import { Fragment } from 'react';
 import { useApi } from '../hooks/useApi';
+import AdSlot from '../components/AdSlot';
 import { getFiaDocuments } from '../services/api';
 import { useLang, useT } from '../i18n';
 import PageMasthead from '../components/PageMasthead';
@@ -43,9 +45,14 @@ export default function FiaDocuments() {
   const docs = data?.documents ?? [];
   // Documents arrive newest first; keep that order within and across events
   const events = [...new Set(docs.map((d) => d.event))];
+  // Counts documents across all events, so an ad lands after every 10th one on
+  // the page regardless of how they're grouped (none after the last document).
+  let shown = 0;
 
+  // keep-all: Korean wraps at spaces instead of mid-word; break-word still
+  // lets a single over-long token (a URL, an article number) wrap.
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
       <PageMasthead kicker={t('fiaKicker')} title={t('fiaTitle')} subtitle="FiA Documents" />
 
       {docs.length === 0 && <StateBlock title={t('fiaEmpty')} reason={t('fiaEmptyReason')} />}
@@ -58,8 +65,10 @@ export default function FiaDocuments() {
               const s = d.summary;
               const lines = s ? (lang === 'en' ? s.summary_en : s.summary_ko) : [];
               const category = s && CATEGORY_KEYS[s.category as keyof typeof CATEGORY_KEYS];
+              shown++;
               return (
-                <article key={d.url} className="card" style={{ padding: '16px 20px' }}>
+                <Fragment key={d.url}>
+                <article className="card" style={{ padding: '16px 20px' }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                     {category && <span className="stat-badge" style={{ fontSize: 11 }}>{t(category)}</span>}
                     <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatLocalShort({ date: d.published.slice(0, 10), time: d.published.slice(11) })} {getLocalTZLabel()}</span>
@@ -84,6 +93,8 @@ export default function FiaDocuments() {
                     {t('fiaOriginal')} ↗
                   </a>
                 </article>
+                {shown % 10 === 0 && shown < docs.length && <AdSlot />}
+                </Fragment>
               );
             })}
           </div>

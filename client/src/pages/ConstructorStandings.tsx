@@ -9,6 +9,8 @@ import StateBlock from '../components/StateBlock';
 import ErrorBanner from '../components/ErrorBanner';
 import { SkeletonRegion, SkeletonMasthead, SkeletonTable, SkeletonChart } from '../components/Skeleton';
 import useDeferredLoading from '../hooks/useDeferredLoading';
+import useIsMobile from '../hooks/useIsMobile';
+import AdSlot from '../components/AdSlot';
 import { useT } from '../i18n';
 
 interface Props { year: number; }
@@ -18,6 +20,8 @@ export default function ConstructorStandings({ year }: Props) {
   const { data, loading, error, refetch, failures } = useApi((signal) => getConstructorStandingsHistory(year, signal), [year]);
   const showSkeleton = useDeferredLoading(loading);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  // Matches the .split-2 breakpoint where the two columns stack.
+  const stacked = useIsMobile(900);
 
   if (loading) return (
     <div className="page-container">
@@ -130,6 +134,9 @@ export default function ConstructorStandings({ year }: Props) {
           </div>
         </div>
 
+        {/* Stacked (≤900px): the ad sits between the table and the chart. */}
+        {stacked && <AdSlot variant="display" />}
+
         <div>
           <div className="section-label">
             <span className="k">{t('posChangeByRound')}</span>
@@ -146,6 +153,8 @@ export default function ConstructorStandings({ year }: Props) {
           ) : (
             <StandingsPositionChart history={history} items={chartItems} highlightId={highlightId} />
           )}
+          {/* Two columns: the ad fills the free space under the chart. */}
+          {!stacked && <div style={{ marginTop: 24 }}><AdSlot variant="display" /></div>}
         </div>
       </div>
     </div>

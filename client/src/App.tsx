@@ -10,6 +10,7 @@ import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import FiaDocuments from './pages/FiaDocuments';
 import HeaderCountdown from './components/HeaderCountdown';
+import AdSlot from './components/AdSlot';
 import { useLang, useT, type Lang } from './i18n';
 import { useTheme, type ThemePref } from './theme/useTheme';
 import './index.css';
@@ -306,6 +307,17 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
   );
 }
 
+// One banner at the foot of every page. Keyed by path so each page view gets
+// a fresh ad request instead of one slot living across the whole visit.
+function FooterAd() {
+  const { pathname } = useLocation();
+  return (
+    <div className="footer-ad">
+      <AdSlot key={pathname} variant="display" />
+    </div>
+  );
+}
+
 function App() {
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   // Subscribe App to language changes so the whole page tree re-renders (and
@@ -328,6 +340,7 @@ function App() {
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
             <Route path="/fia" element={<FiaDocuments />} />
           </Routes>
+          <FooterAd />
         </main>
       </div>
     </BrowserRouter>

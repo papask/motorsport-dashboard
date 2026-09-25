@@ -9,6 +9,8 @@ import StateBlock from '../components/StateBlock';
 import ErrorBanner from '../components/ErrorBanner';
 import { SkeletonRegion, SkeletonMasthead, SkeletonTable, SkeletonChart } from '../components/Skeleton';
 import useDeferredLoading from '../hooks/useDeferredLoading';
+import useIsMobile from '../hooks/useIsMobile';
+import AdSlot from '../components/AdSlot';
 import { useT } from '../i18n';
 
 interface Props { year: number; }
@@ -20,6 +22,8 @@ export default function DriverStandings({ year }: Props) {
   // Which table row the pointer (or keyboard focus) is on; the chart dims every
   // other line so this one can actually be followed.
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  // Matches the .split-2 breakpoint where the two columns stack.
+  const stacked = useIsMobile(900);
 
   if (loading) return (
     <div className="page-container">
@@ -145,6 +149,9 @@ export default function DriverStandings({ year }: Props) {
           </div>
         </div>
 
+        {/* Stacked (≤900px): the ad sits between the table and the chart. */}
+        {stacked && <AdSlot variant="display" />}
+
         {/* Championship position over rounds */}
         <div>
           <div className="section-label">
@@ -163,6 +170,8 @@ export default function DriverStandings({ year }: Props) {
             <StandingsPositionChart history={history} items={chartItems} showTooltip={false} highlightId={highlightId} />
           )}
           <div className="en" style={{ marginTop: 8 }}>{t('chartTeammateDashed')}</div>
+          {/* Two columns: the ad fills the free space under the chart. */}
+          {!stacked && <div style={{ marginTop: 24 }}><AdSlot variant="display" /></div>}
         </div>
       </div>
     </div>

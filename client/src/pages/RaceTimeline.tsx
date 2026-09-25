@@ -1111,7 +1111,8 @@ export default function RaceTimeline({ year }: Props) {
                     >
                       {/* 22 lines are unreadable to a screen reader; the same
                           grid as a hidden table is not. */}
-                      <table id="timeline-chart-table" className="sr-only">
+                      <div className="sr-only">
+                      <table id="timeline-chart-table">
                         <caption>
                           {t('srTimelineSummary', {
                             race: timeline.data.raceName ?? '',
@@ -1138,6 +1139,7 @@ export default function RaceTimeline({ year }: Props) {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                       <div className="chart-scroll-inner" aria-hidden="true">
                       <ResponsiveContainer>
                         <LineChart data={filledTimeline} margin={{ top: 35, right: 84, bottom: 20, left: 40 }}>
