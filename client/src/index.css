@@ -2418,6 +2418,14 @@ body {
   }
 }
 
+.skeleton-spinner {
+  position: absolute;
+  top: min(50%, 240px);
+  left: 50%;
+  margin: -20px 0 0 -20px;
+  z-index: 1;
+}
+
 .skeleton-table td {
   border-bottom: 1px solid var(--border-faint);
 }

@@ -8,7 +8,7 @@ import RoundSelector from '../components/RoundSelector';
 import StateBlock from '../components/StateBlock';
 import LongLoad from '../components/LongLoad';
 import LapList from '../components/LapList';
-import { TIRE_COLORS, tireColor, telemetry, chart, delta as deltaToken, text as textToken, ink, border, surface, rowTint, tooltipSurface } from '../theme/tokens';
+import { TIRE_COLORS, tireColor, TIRE_RING, telemetry, chart, delta as deltaToken, text as textToken, ink, border, surface, rowTint, tooltipSurface } from '../theme/tokens';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Bar, Cell, Area, AreaChart, ComposedChart, ReferenceLine, ReferenceArea } from 'recharts';
 
 interface Props { year: number; }
@@ -311,8 +311,8 @@ function Telemetry({ year }: Props) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 22, height: 22, borderRadius: '50%',
-      background: tireColor(compound),
-      color: textToken.onInverse, fontWeight: 800, fontSize: 10,
+      background: tireColor(compound), border: `1.5px solid ${TIRE_RING}`,
+      color: TIRE_RING, fontWeight: 800, fontSize: 10,
     }}>
       {compound?.charAt(0) || '?'}
     </span>
@@ -960,8 +960,8 @@ function Telemetry({ year }: Props) {
                         key={idx}
                         fill={comparing ? DRIVER_A_COLOR : tireColor(entry.compound)}
                         fillOpacity={comparing ? 0.9 : (entry.isPB ? 1 : 0.6)}
-                        stroke={entry.isPB && !comparing ? deltaToken.up : 'none'}
-                        strokeWidth={entry.isPB && !comparing ? 2 : 0}
+                        stroke={comparing ? 'none' : entry.isPB ? deltaToken.up : TIRE_RING}
+                        strokeWidth={comparing ? 0 : entry.isPB ? 2 : 1}
                       />
                     ))}
                   </Bar>
@@ -991,7 +991,7 @@ function Telemetry({ year }: Props) {
                 </div>
                 {Object.entries(TIRE_COLORS).map(([compound, color]) => (
                   <div key={compound} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, boxShadow: `0 0 0 1px ${TIRE_RING}`, display: 'inline-block' }} />
                     {compound}
                   </div>
                 ))}

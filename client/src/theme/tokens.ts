@@ -178,8 +178,8 @@ export const delta = {
 
 /**
  * The compound LETTER is the primary cue; these colours are the secondary one
- * (badge underline, chart marker fill). SOFT is a desaturated rose so it never
- * reads as a red flag.
+ * (badge underline, chart marker fill). Slicks use Pirelli's real sidewall
+ * colours; outline them with TIRE_RING so the white HARD stays visible.
  */
 export const TIRE_COLORS: Record<string, string> = {
   SOFT: v('tyre-soft'),
@@ -190,6 +190,7 @@ export const TIRE_COLORS: Record<string, string> = {
 };
 
 export const TIRE_UNKNOWN = v('text-muted');
+export const TIRE_RING = v('tyre-ring');
 
 /** Tyre fill for a compound, falling back to the neutral swatch. */
 export function tireColor(compound?: string | null): string {

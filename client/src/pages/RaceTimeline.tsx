@@ -10,7 +10,7 @@ import PageMasthead from '../components/PageMasthead';
 import RoundSelector from '../components/RoundSelector';
 import { SkeletonRegion, SkeletonChart } from '../components/Skeleton';
 import useDeferredLoading from '../hooks/useDeferredLoading';
-import { EVENT_COLORS, tireColor, podiumColor, getTeamColor, chart, status, podium, delta as deltaToken, text as textToken, ink, border, control, incident, tooltipSurface, TEAM_UNKNOWN } from '../theme/tokens';
+import { EVENT_COLORS, tireColor, TIRE_RING, podiumColor, getTeamColor, chart, status, podium, delta as deltaToken, text as textToken, ink, border, control, incident, tooltipSurface, TEAM_UNKNOWN } from '../theme/tokens';
 
 function renderCustomLabel(props: any, text: string, isEnd: boolean, endIndex: number, isDimmed: boolean) {
   const { x, y, index, value } = props;
@@ -104,12 +104,12 @@ function renderTireMarker(props: any, driverKey: string, getTireCompound: any, t
   const color = tireColor(compound);
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <circle cx={x} cy={y} r={7.5} fill={color} stroke={chart.dotStroke} strokeWidth={2} />
+      <circle cx={x} cy={y} r={7.5} fill={color} stroke={TIRE_RING} strokeWidth={2} />
       <text
         x={x} y={y}
         dy={3.5}
         textAnchor="middle"
-        fill={textToken.onInverse}
+        fill={TIRE_RING}
         fontSize={10}
         fontWeight={900}
         fontFamily="var(--font-display)"
@@ -696,7 +696,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
               <span style={{ width: 34, flexShrink: 0 }}>
                 {compound && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: tireColor(compound), display: 'inline-block' }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: tireColor(compound), boxShadow: `0 0 0 1px ${TIRE_RING}`, display: 'inline-block' }} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>{compound.charAt(0)}</span>
                   </span>
                 )}

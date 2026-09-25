@@ -86,10 +86,12 @@
   --data-bar: #514c4a;
 
   /* Tyre compounds — letter is primary, colour is the secondary cue.
-     SOFT is a desaturated rose, separated from race-control red by chroma. */
-  --tyre-soft: #9e5a60;
-  --tyre-medium: #8c6802;
-  --tyre-hard: #676e76;
+     Slick colours match Pirelli's sidewalls and are the same in every theme;
+     draw them with a dark ring so the white HARD still reads on a light ground. */
+  --tyre-soft: #da291c;
+  --tyre-medium: #ffd12e;
+  --tyre-hard: #f0f0ec;
+  --tyre-ring: #1a1a1a;
   --tyre-inter: #577646;
   --tyre-wet: #5a6c9d;
 
@@ -171,9 +173,6 @@
     --data-track: #0e0d0c;
     --data-bar: #aca6a4;
 
-    --tyre-soft: #cf868b;
-    --tyre-medium: #bd9335;
-    --tyre-hard: #939aa3;
     --tyre-inter: #7fa46b;
     --tyre-wet: #8299d3;
 
@@ -241,9 +240,6 @@
   --data-track: #0e0d0c;
   --data-bar: #aca6a4;
 
-  --tyre-soft: #cf868b;
-  --tyre-medium: #bd9335;
-  --tyre-hard: #939aa3;
   --tyre-inter: #7fa46b;
   --tyre-wet: #8299d3;
 

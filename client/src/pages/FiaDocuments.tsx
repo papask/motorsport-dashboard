@@ -29,7 +29,11 @@ export default function FiaDocuments() {
   const { lang } = useLang();
   const { data, loading, error, refetch, failures } = useApi<{ documents: FiaDocument[] }>(getFiaDocuments, []);
 
-  if (loading) return <div className="page-container" />;
+  if (loading) return (
+    <div className="page-container">
+      <div className="loading-container" aria-busy="true"><div className="loading-spinner" /><div className="loading-text">{t('loadingData')}</div></div>
+    </div>
+  );
   if (error) return (
     <div className="page-container">
       <ErrorBanner detail={error} onRetry={refetch} attempts={failures} />

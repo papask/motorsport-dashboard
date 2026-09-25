@@ -25,13 +25,15 @@ export function SkeletonBlock({
 
 /**
  * Wraps a loading region: marks it busy for assistive tech and names what is
- * loading, so a screen reader is told rather than shown.
+ * loading, so a screen reader is told rather than shown. A spinner sits on
+ * top so a slow first load (e.g. race timeline) visibly reads as in progress.
  */
 export function SkeletonRegion({ children, label }: { children: ReactNode; label?: string }) {
   const t = useT();
   return (
-    <div aria-busy="true" aria-live="polite">
+    <div aria-busy="true" aria-live="polite" style={{ position: 'relative' }}>
       <span className="sr-only">{label ?? t('loadingData')}</span>
+      <div className="loading-spinner skeleton-spinner" aria-hidden="true" />
       {children}
     </div>
   );
