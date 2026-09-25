@@ -146,6 +146,10 @@ FastF1 loads whole sessions into memory. The server runs one FastF1 helper at a 
 
 [render.yaml](render.yaml) is a Render Blueprint: in the Render dashboard, choose **New → Blueprint**, pick this repo, and enter `ANTHROPIC_API_KEY` when asked. It creates a Starter web service (Singapore) with a 1 GB disk at `/data`. Every push to `main` redeploys.
 
+### Visitor analytics
+
+Render doesn't record visitors, so the client loads Microsoft Clarity (heatmaps, session recordings) and Google Analytics 4 (visitors, pages, countries, referrers). Create a project in each, put the Clarity project id and the GA4 measurement id (`G-…`) in [client/src/analytics.ts](client/src/analytics.ts), and push. An empty id loads nothing, and the dev server never loads either.
+
 > **Note:** The current UI is in Korean.
 
 ---
@@ -293,5 +297,9 @@ FastF1은 세션 데이터를 통째로 메모리에 올립니다. 서버가 Fas
 ### Render
 
 [render.yaml](render.yaml)은 Render Blueprint입니다. Render 대시보드에서 **New → Blueprint**를 누르고 이 저장소를 고른 뒤, `ANTHROPIC_API_KEY`를 입력하라고 나오면 넣으면 됩니다. Starter 웹 서비스(싱가포르)와 `/data`에 붙는 1 GB 디스크가 만들어지고, `main`에 push할 때마다 다시 배포됩니다.
+
+### 방문자 분석
+
+Render는 방문자를 기록하지 않으므로 클라이언트에서 Microsoft Clarity(히트맵, 세션 녹화)와 Google Analytics 4(방문자 수, 페이지, 국가, 유입 경로)를 불러옵니다. 각 서비스에서 프로젝트를 만든 뒤 Clarity 프로젝트 ID와 GA4 측정 ID(`G-…`)를 [client/src/analytics.ts](client/src/analytics.ts)에 넣고 push하면 됩니다. ID가 비어 있으면 아무것도 불러오지 않고, 개발 서버에서는 항상 꺼져 있습니다.
 
 > **참고:** 현재 UI는 한국어로 되어 있습니다.
