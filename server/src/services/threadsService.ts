@@ -6,10 +6,11 @@ import path from 'path';
 // can't rewrite its own env. Setting a new env token replaces the saved one.
 
 const API = 'https://graph.threads.net';
-const TOKEN_FILE = path.join(
-  process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'),
-  'threads-token.json',
-);
+const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data');
+const TOKEN_FILE = path.join(DATA_DIR, 'threads-token.json');
+// On/off switch, flipped at runtime through /api/admin/threads. It lives on the
+// data disk, so each environment (local, Render) has its own and a restart keeps it.
+const SETTINGS_FILE = path.join(DATA_DIR, 'threads-settings.json');
 const REFRESH_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
 
 const seed = process.env.THREADS_ACCESS_TOKEN;
@@ -19,6 +20,23 @@ try {
   if (saved.seed === seed) token = saved.token;
 } catch {
   // never refreshed yet
+}
+
+// Off until switched on, so a new environment never starts posting by itself
+let enabled = false;
+try {
+  enabled = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')).enabled === true;
+} catch {
+  // never switched
+}
+
+export const threadsStatus = () => ({ enabled, hasToken: Boolean(token) });
+
+export function setThreadsEnabled(value: boolean) {
+  enabled = value;
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ enabled }));
+  console.log(`[Threads] posting ${enabled ? 'on' : 'off'}`);
 }
 
 async function send(url: string, init?: RequestInit) {
@@ -67,10 +85,10 @@ const TOPIC_TAG = 'F1 Threads';
 /**
  * Posts the first text (under TOPIC_TAG) and chains the rest as replies, each
  * to the one before (needs threads_manage_replies). Text only, 500 chars each.
- * No-op without a token.
+ * No-op without a token or while switched off.
  */
 export async function postToThreads(texts: string[]) {
-  if (!token) return;
+  if (!token || !enabled) return;
   let replyTo: string | undefined;
   for (const text of texts) {
     const { id } = await post('threads', {

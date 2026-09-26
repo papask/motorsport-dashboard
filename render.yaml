@@ -11,6 +11,8 @@ services:
         sync: false # entered in the dashboard on first deploy, never committed
       - key: THREADS_ACCESS_TOKEN # long-lived token; posts new FiA summaries to Threads
         sync: false
+      - key: ADMIN_TOKEN # guards /api/admin (Threads on/off); Render generates it, read it in the dashboard
+        generateValue: true
       - key: SITE_URL # Threads posts link to its /docs page
         value: https://www.onthelimit.app
     disk: # FastF1 cache + FiA summaries; a disk also pins the service to one instance
