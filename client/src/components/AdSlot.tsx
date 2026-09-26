@@ -7,7 +7,7 @@ import { useT } from '../i18n';
  * in the page source anyway), so it lives here rather than in an env var.
  */
 const ADSENSE = {
-  client: '',          // 'ca-pub-XXXXXXXXXXXXXXXX'
+  client: 'ca-pub-5640711065629726',
   infeedSlot: '',      // in-feed ad unit's data-ad-slot (FiA document list)
   infeedLayoutKey: '', // in-feed ad unit's data-ad-layout-key
   displaySlot: '',     // responsive display ad unit's data-ad-slot (standings pages)

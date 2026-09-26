@@ -556,6 +556,11 @@ body {
   line-height: 1.5;
   color: var(--text-muted);
 }
+.site-disclaimer a { color: inherit; }
+
+.privacy-page { max-width: 768px; }
+.privacy-page h2 { font-size: 16px; margin: 24px 0 8px; }
+.privacy-page p { line-height: 1.7; color: var(--text-secondary); }
 
 /* For pages whose main region is a scroller of its own (the incident log): the
    container takes the full height of the content area so that region can claim

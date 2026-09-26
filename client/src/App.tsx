@@ -9,6 +9,7 @@ import RaceTimeline from './pages/RaceTimeline';
 import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import FiaDocuments from './pages/FiaDocuments';
+import Privacy from './pages/Privacy';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
 import { useLang, useT, type Lang } from './i18n';
@@ -342,9 +343,12 @@ function App() {
             <Route path="/docs" element={<FiaDocuments />} />
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Routes>
           <FooterAd />
-          <footer className="site-disclaimer">{t('disclaimer')}</footer>
+          <footer className="site-disclaimer">
+            {t('disclaimer')} · <Link to="/privacy">{t('privacyLink')}</Link>
+          </footer>
         </main>
       </div>
     </BrowserRouter>
