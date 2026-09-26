@@ -126,7 +126,6 @@ export default function RaceResults({ year }: Props) {
               rounds={races.map((r: any) => ({
                 round: r.round,
                 raceName: r.raceName,
-                locality: r.circuit?.locality,
                 available: isRoundStarted(r),
               }))}
               value={selectedRound}

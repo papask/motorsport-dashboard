@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import Dashboard from './pages/Dashboard';
 import DriverStandings from './pages/DriverStandings';
@@ -23,7 +23,7 @@ function getNavItems(t: (k: any) => string) {
       id: 'news',
       label: t('navNews'),
       children: [
-        { path: '/fia', label: t('navFia') },
+        { path: '/docs', label: t('navFia') },
       ],
     },
     { id: 'schedule', path: '/schedule', label: t('navSchedule') },
@@ -323,6 +323,7 @@ function App() {
   // Subscribe App to language changes so the whole page tree re-renders (and
   // every translated string re-evaluates) when the language flips.
   const { lang } = useLang();
+  const t = useT();
 
   return (
     <BrowserRouter>
@@ -338,9 +339,12 @@ function App() {
             <Route path="/timeline" element={<RaceTimeline year={selectedYear} />} />
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
-            <Route path="/fia" element={<FiaDocuments />} />
+            <Route path="/docs" element={<FiaDocuments />} />
+            {/* old address, kept for links already shared */}
+            <Route path="/fia" element={<Navigate to="/docs" replace />} />
           </Routes>
           <FooterAd />
+          <footer className="site-disclaimer">{t('disclaimer')}</footer>
         </main>
       </div>
     </BrowserRouter>

@@ -8,8 +8,6 @@ export interface RoundOption {
   available?: boolean;
   /** Optional suffix, e.g. "· 텔레메트리 없음". */
   note?: string;
-  /** Circuit locality, used to shorten the label on narrow screens. */
-  locality?: string;
   /** Replaces the round label, for lists that aren't championship rounds (FiA events). */
   label?: string;
 }
@@ -35,11 +33,11 @@ interface Props {
 export default function RoundSelector({ rounds, value, onChange, placeholder, compact }: Props) {
   const t = useT();
   // A full "라운드 13 - Italian Grand Prix" does not fit a phone, so the label
-  // drops to "R13 · Monza" where a locality is known.
+  // shortens to "R13 · Italian GP", keeping the Grand Prix name.
   const isMobile = useIsMobile();
   const label = (r: RoundOption) =>
     r.label ?? (isMobile
-      ? `R${r.round}${r.locality ? ` · ${r.locality}` : ''}`
+      ? `R${r.round} · ${r.raceName.replace(/ Grand Prix/i, ' GP')}`
       : t('roundNameOption', { n: r.round, name: r.raceName }));
   const index = rounds.findIndex((r) => r.round === value);
   const prev = index > 0 ? rounds[index - 1] : null;

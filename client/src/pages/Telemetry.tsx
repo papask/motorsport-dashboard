@@ -447,7 +447,7 @@ function Telemetry({ year }: Props) {
         aside={
           <div className="masthead-controls">
             <RoundSelector
-              rounds={(schedule?.races ?? []).map((r: any) => ({ round: r.round, raceName: r.raceName, locality: r.circuit?.locality }))}
+              rounds={(schedule?.races ?? []).map((r: any) => ({ round: r.round, raceName: r.raceName }))}
               value={selectedRound}
               onChange={setSelectedRound}
               placeholder={t('selectRace')}

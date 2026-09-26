@@ -26,7 +26,9 @@
 | `onthelimit-logo-ko-tagline-{light,dark}.svg` | 태그라인(ONTHELIMIT · RACE DATA)이 들어간 버전. 랜딩 화면, 푸터, 발표 자료처럼 크게 쓸 때 씁니다. |
 | `onthelimit-logo-en-{light,dark}.svg` | 영문 UI(데스크탑), SNS |
 | `onthelimit-logo-en-stacked-{light,dark}.svg` | 영문 UI의 **모바일 헤더용**. `ON THE / LIMIT`을 두 줄로 쌓아서 폭이 좁습니다. |
-| `onthelimit-mark.svg`, `onthelimit-mark-{512,192}.png`, `apple-touch-icon.png` | 앱 아이콘, PWA 아이콘, SNS 프로필 이미지 |
+| `onthelimit-mark.svg`, `onthelimit-mark-{512,192}.png`, `apple-touch-icon.png` | 앱 아이콘, PWA 아이콘 |
+| `onthelimit-profile.svg`, `onthelimit-profile-1080.png` | SNS 프로필 이미지(Threads, Instagram 등). 원형으로 잘리는 것을 전제로 모서리를 둥글리지 않고 바탕을 꽉 채웠으며, 엠블럼을 1.1배 키웠습니다. |
+| `onthelimit-profile-ko.svg`, `onthelimit-profile-ko-1080.png` | 기본 로고(`ko-light`)를 흰 정사각형 가운데에 폭 90%로 올린 SNS 프로필 이미지. 원형으로 잘려도 배지가 온전히 남습니다. |
 | `favicon.svg`, `favicon-{32,16}.png` | 파비콘. 작은 크기에서도 보이도록 눈금을 빼고 선을 굵게 만들었습니다. |
 | `*@2x.png` | SVG를 쓸 수 없는 곳에 넣는 2배 해상도 PNG |
 

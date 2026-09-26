@@ -183,9 +183,19 @@ def badge(text, theme, size=58, weight='Black', tracking=-1.5, tagline=None):
 def main():
     write('onthelimit-mark.svg', svg(512, 512, mark_group(512), 'OnTheLimit'))
     write('favicon.svg', svg(64, 64, mark_group(64, simple=True), 'OnTheLimit'))
+    # SNS profile photo: platforms crop it to a circle, so the tile goes full-bleed
+    # (no rounded corners) and the gauge is enlarged to fill the circle
+    write('onthelimit-profile.svg', svg(512, 512, f'<rect width="512" height="512" fill="{TILE}"/>\n  '
+          f'<g transform="translate(256 256) scale(1.1) translate(-256 -256)">\n  {mark_group(512, tile=False)}\n  </g>', 'OnTheLimit'))
     for theme in ('light', 'dark'):
         W, H, body = badge('온더리밋', theme, size=58)
         write(f'onthelimit-logo-ko-{theme}.svg', svg(W, H, body, '온더리밋'))
+        if theme == 'light':
+            # badge profile photo: white square, badge 90% wide so a circle crop keeps it whole
+            w = 512 * 0.9
+            write('onthelimit-profile-ko.svg', svg(512, 512, f'<rect width="512" height="512" fill="{PAPER}"/>\n  '
+                  f'<svg x="{(512 - w) / 2:.1f}" y="{(512 - w * H / W) / 2:.1f}" width="{w:.1f}" height="{w * H / W:.1f}" '
+                  f'viewBox="0 0 {W:.0f} {H:.0f}" overflow="visible">\n  {body}\n  </svg>', '온더리밋'))
         W, H, body = badge('온더리밋', theme, size=58, tagline='ONTHELIMIT  ·  RACE DATA')
         write(f'onthelimit-logo-ko-tagline-{theme}.svg', svg(W, H, body, '온더리밋'))
         W, H, body = badge('ONTHELIMIT', theme, size=56)

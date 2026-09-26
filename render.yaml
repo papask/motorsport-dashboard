@@ -9,6 +9,10 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false # entered in the dashboard on first deploy, never committed
+      - key: THREADS_ACCESS_TOKEN # long-lived token; posts new FiA summaries to Threads
+        sync: false
+      - key: SITE_URL # Threads posts link to its /docs page
+        value: https://www.onthelimit.app
     disk: # FastF1 cache + FiA summaries; a disk also pins the service to one instance
       name: data
       mountPath: /data

@@ -1029,7 +1029,6 @@ export default function RaceTimeline({ year }: Props) {
               rounds={races.map((r: any) => ({
                 round: r.round,
                 raceName: r.raceName,
-                locality: r.circuit?.locality,
                 available: isRoundStarted(r),
               }))}
               value={selectedRound}

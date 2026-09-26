@@ -1,6 +1,6 @@
 const { chromium } = require('playwright'); const fs = require('fs'); const path = require('path');
 const OUT = path.join(__dirname, '..', 'client', 'public', 'brand');
-const jobs = [['onthelimit-mark.svg', 512, 'onthelimit-mark-512.png'], ['onthelimit-mark.svg', 192, 'onthelimit-mark-192.png'], ['onthelimit-mark.svg', 180, 'apple-touch-icon.png'],
+const jobs = [['onthelimit-mark.svg', 512, 'onthelimit-mark-512.png'], ['onthelimit-mark.svg', 192, 'onthelimit-mark-192.png'], ['onthelimit-mark.svg', 180, 'apple-touch-icon.png'], ['onthelimit-profile.svg', 1080, 'onthelimit-profile-1080.png'], ['onthelimit-profile-ko.svg', 1080, 'onthelimit-profile-ko-1080.png'],
   ['favicon.svg', 32, 'favicon-32.png'], ['favicon.svg', 16, 'favicon-16.png']];
 for (const f of fs.readdirSync(OUT)) if (f.startsWith('onthelimit-logo-') && f.endsWith('.svg')) jobs.push([f, null, f.replace('.svg', '@2x.png')]);
 (async () => {

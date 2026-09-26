@@ -9,6 +9,7 @@ export const MESSAGES = {
     // ── Brand / nav ─────────────────────────────────────────
     logoTitle: '온더리밋',
     logoSubtitle: '모터스포츠 데이터',
+    disclaimer: '온더리밋은 FiA, Formula 1 및 관련 회사와 무관한 비공식 팬 서비스입니다. F1, FORMULA 1 등은 Formula One Licensing B.V.의 상표입니다.',
     navSchedule: '스케줄',
     navStandings: '스탠딩',
     navDrivers: '드라이버',
@@ -309,6 +310,7 @@ export const MESSAGES = {
     // ── Brand / nav ─────────────────────────────────────────
     logoTitle: 'OnTheLimit',
     logoSubtitle: 'Motorsport Data',
+    disclaimer: 'OnTheLimit is an unofficial fan service, not affiliated with the FiA, Formula 1 or related companies. F1, FORMULA 1 and related marks are trademarks of Formula One Licensing B.V.',
     navSchedule: 'Schedule',
     navStandings: 'Standings',
     navDrivers: 'Drivers',

@@ -7,6 +7,7 @@ import scheduleRouter from './routes/schedule';
 import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
+import { startThreadsTokenRefresh } from './services/threadsService';
 
 // Local secrets (ANTHROPIC_API_KEY) live in server/.env; hosts set real env vars
 try {
@@ -49,6 +50,7 @@ if (fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
 app.listen(PORT, () => {
   console.log(`🏎️  F1 Dashboard Server running on http://localhost:${PORT}`);
   startFiaWatcher();
+  startThreadsTokenRefresh();
 });
 
 export default app;

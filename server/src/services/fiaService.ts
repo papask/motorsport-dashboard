@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSeasonSchedule } from './jolpicaService';
+import { postToThreads } from './threadsService';
 
 // Watches the FIA F1 document page and keeps a Korean/English summary of each
 // new PDF (steward decisions, summons, race director notes, ...).
@@ -154,6 +155,78 @@ async function summarize(url: string) {
   return JSON.parse(text && text.type === 'text' ? text.text : '');
 }
 
+const POST_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+// "Azerbaijan Grand Prix" → "아제르바이잔"; unknown names stay in English
+const GP_NAMES_KO: Record<string, string> = {
+  Australian: '호주', Chinese: '중국', Japanese: '일본', Bahrain: '바레인', 'Saudi Arabian': '사우디아라비아',
+  Miami: '마이애미', 'Emilia Romagna': '에밀리아 로마냐', Canadian: '캐나다', Monaco: '모나코', Barcelona: '바르셀로나',
+  'Barcelona-Catalunya': '바르셀로나-카탈루냐', Spanish: '스페인', Austrian: '오스트리아', British: '영국',
+  Belgian: '벨기에', Hungarian: '헝가리', Dutch: '네덜란드', Italian: '이탈리아', Azerbaijan: '아제르바이잔',
+  Singapore: '싱가포르', 'United States': '미국', 'Mexico City': '멕시코시티', Brazilian: '브라질',
+  'São Paulo': '상파울루', 'Las Vegas': '라스베이거스', Qatar: '카타르', 'Abu Dhabi': '아부다비',
+};
+
+/** The event's round in its season's schedule; undefined when the names don't line up. */
+async function roundOf(d: FiaDocument) {
+  const { races } = await getSeasonSchedule(d.published.slice(0, 4));
+  return races.find((r: any) => r.raceName.toLowerCase() === d.event.toLowerCase())?.round as number | undefined;
+}
+
+const POST_MAX_CHARS = 500; // Threads' limit per post
+const CONTINUED = ' <계속>';
+const docNumber = (d: { title: string }) => Number(d.title.match(/^Doc (\d+)/i)?.[1] ?? 0);
+
+/**
+ * "2026 15 라운드 아제르바이잔 그랑프리 FiA 문서 요약", the site link,
+ * "Doc 52. <title>", the FIA PDF link, the summary bullets and an AI notice.
+ * The site link comes first so Threads' link card shows the site. Each post is
+ * filled up to 500 chars, cut between sentences, and ends in "<계속>" when a
+ * reply carries on. Timing sheets (no summary) get the FIA title and a note
+ * that tables aren't summarized.
+ */
+export function threadsPosts(d: FiaDocument, round?: number) {
+  const num = docNumber(d);
+  const title = d.summary?.title_ko ?? d.title.replace(/^Doc \d+\s*-\s*/i, '');
+  const gp = d.event.replace(/ Grand Prix.*$/i, '');
+  const head = [
+    `${d.published.slice(0, 4)}${round ? ` ${round} 라운드` : ''} ${GP_NAMES_KO[gp] ?? gp} 그랑프리 FiA 문서 요약`,
+    process.env.SITE_URL && `🔗 ${process.env.SITE_URL}/docs`,
+    `${num ? `Doc ${num}. ` : ''}${title}`,
+    `📄 ${d.url}`,
+  ].filter(Boolean).join('\n');
+  // [text, separator before it when it shares a post with what precedes]
+  const units: [string, string][] = [[head, '']];
+  if (d.summary) {
+    d.summary.summary_ko.forEach((bullet, i) =>
+      bullet.split(/(?<=[.!?])\s+/).forEach((sentence, j) =>
+        units.push(j ? [sentence, ' '] : [`• ${sentence}`, i ? '\n' : '\n\n'])));
+  } else {
+    units.push(['순위표·명단 같은 표 문서는 요약하지 않습니다.', '\n\n']);
+  }
+  if (d.summary) units.push(['AI 요약/번역이므로 실수가 있을 수 있습니다.', '\n\n']); // summaries come from Claude
+
+  // A post's first unit drops its separator
+  const render = (post: [string, string][]) => post.map(([text, sep], k) => (k ? sep : '') + text).join('');
+  if (render(units).length <= POST_MAX_CHARS) return [render(units)];
+  const limit = POST_MAX_CHARS - CONTINUED.length;
+  const posts: [string, string][][] = [];
+  for (const [i, [text, sep]] of units.entries()) {
+    const post = posts.at(-1);
+    // the post taking the final unit is the last one and needs no "<계속>" room
+    const room = i === units.length - 1 ? POST_MAX_CHARS : limit;
+    if (post && render([...post, [text, sep]]).length <= room) post.push([text, sep]);
+    // ponytail: a single sentence longer than a post is cut mid-sentence; summaries are short sentences
+    else for (let j = 0; j < text.length; j += limit) posts.push([[text.slice(j, j + limit), sep]]);
+  }
+  // A reply holding only the AI notice reads oddly: the sentence before it comes along
+  const [prev, tail] = posts.slice(-2);
+  if (tail?.length === 1 && prev.length > 1 && render([prev.at(-1)!, ...tail]).length <= POST_MAX_CHARS) {
+    tail.unshift(prev.pop()!);
+  }
+  return posts.map((post, i) => render(post) + (i < posts.length - 1 ? CONTINUED : ''));
+}
+
 let running = false;
 
 export async function checkFiaDocuments() {
@@ -161,7 +234,10 @@ export async function checkFiaDocuments() {
   running = true;
   try {
     const known = new Map(documents.map((d) => [d.url, d]));
-    for (const doc of await listDocuments()) {
+    // Oldest first, so a batch lands on Threads in document order
+    const listed = (await listDocuments()).sort((a, b) =>
+      a.published.localeCompare(b.published) || docNumber(a) - docNumber(b));
+    for (const doc of listed) {
       const prev = known.get(doc.url);
       if (prev && prev.status !== 'failed') continue;
       let entry: FiaDocument = { ...doc, status: 'skipped' };
@@ -173,8 +249,16 @@ export async function checkFiaDocuments() {
           entry = { ...doc, status: 'failed' };
         }
       }
-      documents = [brand(entry), ...documents.filter((d) => d.url !== doc.url)];
+      const branded = brand(entry);
+      documents = [branded, ...documents.filter((d) => d.url !== doc.url)];
       save(); // after each document, so a crash doesn't re-bill finished ones
+      // The age limit keeps a fresh disk (or a late retry) from posting a whole weekend at once
+      // Failed summaries wait for their retry, so each document is posted once
+      if (branded.status !== 'failed' && Date.now() - Date.parse(doc.published) < POST_MAX_AGE_MS) {
+        // ponytail: a failed post is only logged, never retried
+        const round = await roundOf(branded).catch(() => undefined); // schedule down → post without the round
+        await postToThreads(threadsPosts(branded, round)).catch((err) => console.error(`[Threads] ${doc.title}:`, err.message));
+      }
     }
   } catch (err: any) {
     console.error('[FIA] check failed:', err.message);

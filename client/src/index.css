@@ -49,7 +49,12 @@ body {
 .app-layout {
   display: flex;
   flex-direction: column;
+  /* dvh = the visible height. On iOS Safari 100vh is the height with the
+     toolbar hidden, so the layout overflowed the screen and scrollIntoView
+     (schedule's jump to the next race) scrolled the page and cut off the
+     header. 100vh stays as the fallback for browsers without dvh. */
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
 }
@@ -542,6 +547,14 @@ body {
 
 .footer-ad > * {
   margin-bottom: 24px;
+}
+
+/* Unofficial-service notice under every page (App.tsx) */
+.site-disclaimer {
+  padding: 0 24px 24px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 /* For pages whose main region is a scroller of its own (the incident log): the
@@ -1755,6 +1768,42 @@ body {
 .selector:hover,
 .selector:focus {
   border-color: var(--control-selected-bg);
+}
+
+/* Native select chrome off everywhere: iOS Safari otherwise draws its own
+   rounded, bordered box inside ours and Android Chrome its own arrow, so one
+   caret is drawn here instead. Sits after the select rules so the caret
+   survives their `background` shorthand. */
+.season-select,
+.round-select,
+.selector {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+.round-select {
+  border-radius: 0; /* the rounded frame is .round-selector's */
+}
+
+.round-selector.is-compact .round-select {
+  padding-right: 26px;
+}
+
+/* iOS Safari zooms the page when a control under 16px takes focus */
+@media (pointer: coarse) {
+  .season-select,
+  .round-select,
+  .round-selector.is-compact .round-select,
+  .selector {
+    font-size: 16px;
+  }
 }
 
 /* ===== RESPONSIVE ===== */
