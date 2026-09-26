@@ -10,6 +10,7 @@ import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import { setThreadsEnabled, startThreadsTokenRefresh, threadsStatus } from './services/threadsService';
+import { startResultsPoster } from './services/resultsPoster';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -71,6 +72,7 @@ app.listen(PORT, () => {
   console.log(`🏎️  F1 Dashboard Server running on http://localhost:${PORT}`);
   startFiaWatcher();
   startThreadsTokenRefresh();
+  startResultsPoster();
 });
 
 export default app;

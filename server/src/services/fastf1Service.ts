@@ -132,6 +132,11 @@ export async function getSessions(year: string | number, round: string | number)
   return runFastF1('sessions', [String(year), String(round)]);
 }
 
+/** One session's classification (R, S, Q or SQ), for the Threads results post. */
+export async function getSessionResults(year: string | number, round: string | number, session: string) {
+  return runFastF1('session_results', [String(year), String(round), session]);
+}
+
 export async function getDrivers(year: string | number, round: string | number) {
   return runFastF1('drivers', [String(year), String(round)]);
 }

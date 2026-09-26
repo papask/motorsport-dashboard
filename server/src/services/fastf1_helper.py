@@ -14,6 +14,7 @@ Actions:
   timeline_extras <year> <round> [session_id]
   telemetry <year> <round> <driver_number>
   incidents <year> <round>
+  session_results <year> <round> <R|S|Q|SQ>
 """
 
 import sys
@@ -148,6 +149,74 @@ def get_results(year, round_num):
         'date': str(event_info.get('Session5Date', '')),
         'results': results_list,
     }
+
+
+def _quali_order_from_laps(session):
+    """Qualifying classification rebuilt from lap times: [(driver_number, [q1, q2, q3])].
+
+    Official results come from Ergast/Jolpica, which has no sprint qualifying
+    at all and fills qualifying only some time after the session. Ranking by
+    the furthest segment reached, then the best valid lap in it, matched the
+    official qualifying order exactly when checked (2026 R12). Deleted laps
+    (track limits) need the race-control messages to be marked.
+    """
+    laps = session.laps
+    if 'Deleted' in laps.columns:
+        laps = laps[laps['Deleted'] != True]
+    best = {}
+    for i, part in enumerate(laps.split_qualifying_sessions()):
+        if part is None or part.empty:
+            continue
+        for drv, t in part.groupby('DriverNumber')['LapTime'].min().items():
+            if pd.notna(t):
+                best.setdefault(drv, [None] * 3)[i] = t
+
+    def rank(item):
+        times = item[1]
+        seg = max(i for i, t in enumerate(times) if t is not None)
+        return (-seg, times[seg])
+
+    return sorted(best.items(), key=rank)
+
+
+def get_session_results(year, round_num, session_id):
+    """Classification of one session (R, S, Q or SQ) for the Threads results post.
+
+    Times are seconds so Node formats them. Qualifying without official
+    positions yet is ranked from laps (see _quali_order_from_laps).
+    """
+    session = fastf1.get_session(int(year), int(round_num), session_id)
+    is_quali = session_id in ('Q', 'SQ')
+    session.load(laps=True, telemetry=False, weather=False, messages=is_quali)
+    res = session.results
+
+    def secs(v):
+        return v.total_seconds() if pd.notna(v) else None
+
+    rows = {}
+    for drv, r in res.iterrows():
+        rows[drv] = {
+            'position': int(r['Position']) if pd.notna(r.get('Position')) else None,
+            'classified': str(r.get('ClassifiedPosition', '') or ''),
+            'code': str(r.get('Abbreviation', '')),
+            'firstName': str(r.get('FirstName', '')),
+            'lastName': str(r.get('LastName', '')),
+            'team': str(r.get('TeamName', '')),
+            'status': str(r.get('Status', '') or ''),
+            'time': secs(r.get('Time')),
+            'laps': int(r['Laps']) if pd.notna(r.get('Laps')) else None,
+            'points': float(r['Points']) if pd.notna(r.get('Points')) else 0,
+            'q': [secs(r.get('Q1')), secs(r.get('Q2')), secs(r.get('Q3'))],
+        }
+
+    if is_quali and not res['Position'].notna().any():
+        for pos, (drv, times) in enumerate(_quali_order_from_laps(session), 1):
+            if drv in rows:
+                rows[drv]['position'] = pos
+                rows[drv]['q'] = [secs(t) if t is not None else None for t in times]
+
+    ordered = sorted(rows.values(), key=lambda x: (x['position'] is None, x['position'] or 999))
+    return {'session': session_id, 'results': ordered}
 
 
 def _compute_stints(laps):
@@ -919,6 +988,8 @@ def main():
             round_num = sys.argv[3]
             session_id = sys.argv[4] if len(sys.argv) > 4 else 'R'
             result = get_availability(year, round_num, session_id)
+        elif action == 'session_results':
+            result = get_session_results(sys.argv[2], sys.argv[3], sys.argv[4])
         elif action == 'drivers':
             year = sys.argv[2]
             round_num = sys.argv[3]
