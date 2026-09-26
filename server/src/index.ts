@@ -11,6 +11,7 @@ import telemetryRouter from './routes/telemetry';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import { setThreadsEnabled, startThreadsTokenRefresh, threadsStatus } from './services/threadsService';
 import { startResultsPoster } from './services/resultsPoster';
+import { renderPage } from './pageMeta';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -61,10 +62,13 @@ app.get('/api/health', (_req, res) => {
 // both the app and the API. In development Vite serves the client instead.
 const CLIENT_DIST = process.env.CLIENT_DIST || path.resolve(__dirname, '..', '..', 'client', 'dist');
 if (fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
-  app.use(express.static(CLIENT_DIST));
-  // Client-side routes fall back to index.html; unknown /api paths stay 404
-  app.get(/^\/(?!api(\/|$)).*/, (_req, res) => {
-    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  // index: false so "/" also goes through renderPage below
+  app.use(express.static(CLIENT_DIST, { index: false }));
+  const template = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf8');
+  // Client-side routes fall back to index.html, with that page's meta tags; unknown /api paths stay 404
+  app.get(/^\/(?!api(\/|$)).*/, (req, res) => {
+    const site = process.env.SITE_URL || `https://${req.get('host')}`;
+    res.type('html').send(renderPage(template, req.path, site));
   });
 }
 

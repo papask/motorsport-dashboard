@@ -347,6 +347,12 @@ function App() {
           </Routes>
           <FooterAd />
           <footer className="site-disclaimer">
+            <p style={{ margin: '0 0 4px' }}>
+              {t('dataSources')}{' '}
+              <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noreferrer">Jolpica F1 API</a>
+              {' · '}
+              <a href="https://github.com/theOehrly/Fast-F1" target="_blank" rel="noreferrer">FastF1</a>
+            </p>
             {t('disclaimer')} · <Link to="/privacy">{t('privacyLink')}</Link>
           </footer>
         </main>
