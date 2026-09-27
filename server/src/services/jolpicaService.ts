@@ -329,11 +329,20 @@ export async function getSeasonSchedule(year: string | number) {
   };
 }
 
+// Right after a race Jolpica can publish a placeholder classification where no car
+// has completed a lap. Treat that as "no data yet" rather than showing it, and
+// shorten its cache life so the real classification is picked up quickly.
+function isPlaceholderResult(url: string, results: any[] | undefined): boolean {
+  const placeholder = !results?.length || results.every((r) => !(parseInt(r.laps) > 0));
+  if (placeholder) cache.ttl(url, 60);
+  return placeholder;
+}
+
 export async function getRaceResults(year: string | number, round: string | number) {
   const url = `${BASE_URL}/${year}/${round}/results/`;
   const data: any = await cachedGet(url);
   const race = data?.MRData?.RaceTable?.Races?.[0];
-  if (!race) return null;
+  if (!race || isPlaceholderResult(url, race.Results)) return null;
 
   return {
     season: race.season,
@@ -417,7 +426,7 @@ export async function getSprintResults(year: string | number, round: string | nu
   const url = `${BASE_URL}/${year}/${round}/sprint/`;
   const data: any = await cachedGet(url);
   const race = data?.MRData?.RaceTable?.Races?.[0];
-  if (!race) return null;
+  if (!race || isPlaceholderResult(url, race.SprintResults)) return null;
 
   return {
     season: race.season,

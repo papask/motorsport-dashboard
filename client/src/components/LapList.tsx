@@ -8,12 +8,19 @@ export interface LapRow {
   compound?: string | null;
 }
 
+
 interface Props {
   laps: LapRow[];
   value: number | null;
   onChange: (lap: number) => void;
   /** The driver's fastest lap, marked and used as the default. */
   fastestLap?: number | null;
+  /** Compare mode: each row shows both drivers' times, A over B. Swatches are
+   *  CSS backgrounds for each driver's marker (dashed for a teammate). */
+  compare?: {
+    swatchA: string;
+    b: { laps: LapRow[]; value: number | null; fastestLap?: number | null; swatch: string };
+  };
 }
 
 function formatLapTime(seconds?: number | null): string {
@@ -33,8 +40,31 @@ function formatLapTime(seconds?: number | null): string {
  * Compound is carried by its letter; the coloured underline is the second cue,
  * so the row survives both themes and colour-blind viewers.
  */
-export default function LapList({ laps, value, onChange, fastestLap }: Props) {
+export default function LapList({ laps, value, onChange, fastestLap, compare }: Props) {
   const t = useT();
+
+  // Compare mode lists every lap either driver ran (one may have retired early).
+  const byLapB = new Map((compare?.b.laps ?? []).map((l) => [l.lapNumber, l]));
+  const byLapA = new Map(laps.map((l) => [l.lapNumber, l]));
+  const lapNumbers = compare
+    ? [...new Set([...byLapA.keys(), ...byLapB.keys()])].sort((x, y) => x - y)
+    : laps.map((l) => l.lapNumber);
+
+  const timeLine = (l: LapRow | undefined, isFastest: boolean) => (
+    <>
+      <span className="en lap-row-t">{formatLapTime(l?.lapTime)}</span>
+      {isFastest && <span className="lap-row-fl" aria-label={t('fastestLap')}>⚡</span>}
+      {l?.compound && (
+        <span
+          className="lap-row-tyre"
+          style={{ borderBottomColor: tireColor(l.compound) }}
+          title={l.compound}
+        >
+          {l.compound.charAt(0)}
+        </span>
+      )}
+    </>
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const didCentre = useRef(false);
 
@@ -57,30 +87,33 @@ export default function LapList({ laps, value, onChange, fastestLap }: Props) {
         <span className="k">{t('lapListCols')}</span>
       </div>
       <div className="lap-list-scroll" ref={scrollRef} role="listbox" aria-label={t('lapListLaps', { n: laps.length })}>
-        {laps.map((l) => {
-          const selected = l.lapNumber === value;
+        {lapNumbers.map((n) => {
+          const selected = n === value;
           return (
             <button
-              key={l.lapNumber}
+              key={n}
               type="button"
               role="option"
               aria-selected={selected}
-              data-lap={l.lapNumber}
-              className={`lap-row ${selected ? 'is-selected' : ''}`}
-              onClick={() => onChange(l.lapNumber)}
+              data-lap={n}
+              className={`lap-row ${compare ? 'is-compare' : ''} ${selected ? 'is-selected' : ''}`}
+              onClick={() => onChange(n)}
             >
-              <span className="num lap-row-n">{l.lapNumber}</span>
-              <span className="en lap-row-t">{formatLapTime(l.lapTime)}</span>
-              {l.compound && (
-                <span
-                  className="lap-row-tyre"
-                  style={{ borderBottomColor: tireColor(l.compound) }}
-                  title={l.compound}
-                >
-                  {l.compound.charAt(0)}
+              <span className="num lap-row-n">{n}</span>
+              {compare ? (
+                <span className="lap-row-pair">
+                  <span className="lap-row-line">
+                    <span className="lap-row-mark" style={{ background: compare.swatchA }} />
+                    {timeLine(byLapA.get(n), n === fastestLap)}
+                  </span>
+                  <span className={`lap-row-line ${n === compare.b.value ? 'is-b-viewed' : ''}`}>
+                    <span className="lap-row-mark" style={{ background: compare.b.swatch }} />
+                    {timeLine(byLapB.get(n), n === compare.b.fastestLap)}
+                  </span>
                 </span>
+              ) : (
+                timeLine(byLapA.get(n), n === fastestLap)
               )}
-              {l.lapNumber === fastestLap && <span className="lap-row-fl" aria-label={t('fastestLap')}>⚡</span>}
             </button>
           );
         })}

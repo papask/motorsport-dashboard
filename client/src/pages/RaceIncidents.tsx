@@ -72,7 +72,8 @@ function RaceIncidents({ year }: Props) {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   // Set by shift-clicking a lap in the density rail; a plain click scrolls.
   const [lapFilter, setLapFilter] = useState<number | null>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const densityRef = useRef<HTMLDivElement>(null);
+  const headScrollRef = useRef<HTMLDivElement>(null);
 
   const { data: incidentsData, loading: incLoading, error: incError, refetch: incRefetch, failures: incFailures } = useApi(
     (signal) => selectedRound ? getRaceIncidents(year, selectedRound, signal) : Promise.resolve(null),
@@ -88,6 +89,15 @@ function RaceIncidents({ year }: Props) {
       setSelectedRound(latest.round);
     }
   }, [schedule]);
+
+  // Publish the sticky rail's height as --density-h on the page container.
+  useEffect(() => {
+    const el = densityRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => el.parentElement?.style.setProperty('--density-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [incidentsData, incLoading]);
 
   const showSchedSkeleton = useDeferredLoading(schedLoading);
   const showIncSkeleton = useDeferredLoading(incLoading);
@@ -151,9 +161,38 @@ function RaceIncidents({ year }: Props) {
 
   const selectedRace = schedule?.races?.find((r: any) => r.round === selectedRound);
 
+  // Shared by the table and its mobile pinned header copy so columns line up.
+  // Message is the last column on purpose, which is a deliberate departure from
+  // the canvas. The canvas draws this table at 1052px, where a flexible message
+  // column is ~570px; on a real 1400px+ screen it swells past 900px and the
+  // short messages leave a gap between themselves and whatever sits to their
+  // right. Putting the elastic column last turns that surplus into a right
+  // margin instead.
+  const tableCols = (
+    <colgroup>
+      <col style={{ width: 64 }} />
+      <col style={{ width: 90 }} />
+      <col style={{ width: 104 }} />
+      <col style={{ width: 132 }} />
+      <col style={{ width: 110 }} />
+      <col />
+    </colgroup>
+  );
+  const tableHead = (
+    <thead>
+      <tr>
+        <th>{UI_LABELS.lap}</th>
+        <th>{t('thTime')}</th>
+        <th>{t('thCategory')}</th>
+        <th>{t('thFlag')}</th>
+        <th>{t('thScope')}</th>
+        <th>{t('thMessage')}</th>
+      </tr>
+    </thead>
+  );
+
   return (
-    // page-fill: the message log below sizes itself to the leftover height.
-    <div className="page-container page-fill">
+    <div className="page-container">
       <PageMasthead
         kicker={
           selectedRace
@@ -256,10 +295,14 @@ function RaceIncidents({ year }: Props) {
               the rail for. Shift+click is the explicit filter. */}
           {sortedLaps.length > 0 ? (
             <>
+              {/* Sticky while the table scrolls under it; its height feeds
+                  --density-h so the table header and jump target sit below it. */}
+              <div className="density-sticky" ref={densityRef}>
               <div className="density-head">
                 <span className="k">{t('lapDensityLabel', { n: totalLaps })}</span>
                 <span className="en">{t('lapDensityHint')}</span>
               </div>
+              <div className="density-rail-scroll">
               <div className="density-rail" role="group" aria-label={t('lapDensityLabel', { n: totalLaps })}>
                 {lapAxis.map((lap) => {
                   const count = countByLap[lap] ?? 0;
@@ -267,14 +310,7 @@ function RaceIncidents({ year }: Props) {
                     <button
                       key={lap}
                       type="button"
-                      className={`density-bar ${lapFilter === lap ? 'is-filtered' : ''}`}
-                      style={{
-                        height: count === 0 ? 3 : Math.min(26, 5 + count * 4),
-                        background:
-                          count >= 3 ? 'var(--status-red-flag)'
-                            : count > 0 ? 'var(--text-primary)'
-                              : 'var(--border-subtle)',
-                      }}
+                      className={`density-col ${lapFilter === lap ? 'is-filtered' : ''}`}
                       title={t('lapIncidentCount', { lap, n: count })}
                       aria-label={t('lapIncidentCount', { lap, n: count })}
                       onClick={(e) => {
@@ -287,9 +323,16 @@ function RaceIncidents({ year }: Props) {
                             ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
                         }
                       }}
-                    />
+                    >
+                      <span
+                        className={`density-bar ${count === 0 ? 'is-empty' : ''}`}
+                        style={{ height: count === 0 ? 3 : Math.min(44, 6 + count * 5) }}
+                      />
+                      <span className="density-lap">{lap % 2 === 1 ? lap : ''}</span>
+                    </button>
                   );
                 })}
+              </div>
               </div>
               {lapFilter != null && (
                 <div className="density-filter-note">
@@ -299,26 +342,23 @@ function RaceIncidents({ year }: Props) {
                   </button>
                 </div>
               )}
-
-              <div className="incidents-scroll" ref={tableScrollRef}>
+              {/* Mobile only: the table box scrolls sideways, so its own header
+                  can't stick to the page. This copy lives in the pinned block
+                  and follows the table's horizontal scroll instead. */}
+              <div className="incidents-head-scroll" ref={headScrollRef} aria-hidden="true">
                 <table className="data-table incidents-table">
-                  <thead>
-                    {/* Message is the last column on purpose, which is a
-                        deliberate departure from the canvas. The canvas draws
-                        this table at 1052px, where a flexible message column is
-                        ~570px; on a real 1400px+ screen it swells past 900px and
-                        the short messages leave a gap between themselves and
-                        whatever sits to their right. Putting the elastic column
-                        last turns that surplus into a right margin instead. */}
-                    <tr>
-                      <th style={{ width: 64 }}>{UI_LABELS.lap}</th>
-                      <th style={{ width: 90 }}>{t('thTime')}</th>
-                      <th style={{ width: 104 }}>{t('thCategory')}</th>
-                      <th style={{ width: 132 }}>{t('thFlag')}</th>
-                      <th style={{ width: 110 }}>{t('thScope')}</th>
-                      <th>{t('thMessage')}</th>
-                    </tr>
-                  </thead>
+                  {tableCols}
+                  {tableHead}
+                </table>
+              </div>
+              </div>
+
+              <div className="incidents-scroll" onScroll={(e) => {
+                if (headScrollRef.current) headScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+              }}>
+                <table className="data-table incidents-table">
+                  {tableCols}
+                  {tableHead}
                   <tbody>
                     {sortedLaps.map((lap) =>
                       mergeBlueFlags(groupedByLap[lap]).map((inc: any, i: number) => {

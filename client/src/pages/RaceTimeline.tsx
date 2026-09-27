@@ -581,6 +581,7 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
             ))}
           </div>
           <button
+            aria-label={isPlaying ? t('replayPause') : t('replayPlay')}
             onClick={() => {
               if (simTime >= totalDuration) setSimTime(0);
               setIsPlaying(!isPlaying);
@@ -593,7 +594,12 @@ function RaceReplay({ data, getTireCompound }: { data: any, getTireCompound: any
               boxShadow: `0 0 20px ${isPlaying ? chart.progress : chart.progress}`,
             }}
           >
-            {isPlaying ? '⏸' : '▶'}
+            {/* SVG, not ⏸/▶ glyphs — mobile OSes swap those for their own emoji */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              {isPlaying
+                ? <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>
+                : <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />}
+            </svg>
           </button>
           </>)}
           <button
@@ -785,6 +791,10 @@ export default function RaceTimeline({ year }: Props) {
   // the page opens on and the chart starts collapsed (CollapsibleCard's mobile
   // default) — one tap away, with a rotate hint inside it.
   const isMobileViewport = useIsMobile();
+  // Touch: show the chart tooltip only on a tap (browsers fire no click after a
+  // drag/scroll), and hide it as soon as the next touch starts.
+  const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  const [touchTipOpen, setTouchTipOpen] = useState(false);
   const [selectedDrivers, setSelectedDrivers] = useState<Set<string>>(new Set());
 
   const { data: scheduleData } = useApi(() => getSeasonSchedule(year), [year]);
@@ -851,6 +861,11 @@ export default function RaceTimeline({ year }: Props) {
   const isRoundStarted = (r: any) => (r?.sprint?.date ? getRaceDateTime(r.sprint) : getRaceDateTime(r)) <= now;
   const isRaceStarted = (r: any) => !!r && getRaceDateTime(r) <= now;
   const hasTimeline = !!(timeline.data && Array.isArray(timeline.data.timeline) && timeline.data.timeline.length > 0);
+  // Session start + ~2h race + ~2h for the data feeds to settle.
+  const sessionStart = selectedRace && sessionType
+    ? getRaceDateTime(sessionType === 'sprint' ? selectedRace.sprint : selectedRace)
+    : null;
+  const isRecentSession = !!sessionStart && sessionStart <= now && now.getTime() - sessionStart.getTime() < 4 * 3600_000;
 
   // Auto-select the most recent round that has run (session still needs picking).
   if (!selectedRound && races.length > 0) {
@@ -1067,6 +1082,12 @@ export default function RaceTimeline({ year }: Props) {
         </SkeletonRegion>
       )}
 
+      {isRecentSession && !timeline.loading && (
+        <div className="card" role="status" style={{ padding: '12px 16px', marginBottom: 16, fontSize: 13, color: 'var(--text-secondary)' }}>
+          ⏳ {t('recentSessionNotice')}
+        </div>
+      )}
+
       {/* Selected a session but data is missing / no response — likely not run yet */}
       {selectedRound && sessionType && !timeline.loading && !hasTimeline && (
         <div className="card" style={{ textAlign: 'center', padding: 60 }}>
@@ -1139,7 +1160,9 @@ export default function RaceTimeline({ year }: Props) {
                         </tbody>
                       </table>
                       </div>
-                      <div className="chart-scroll-inner" aria-hidden="true">
+                      <div className="chart-scroll-inner" aria-hidden="true"
+                        onTouchStart={isTouch ? () => setTouchTipOpen(false) : undefined}
+                        onClick={isTouch ? () => setTouchTipOpen(true) : undefined}>
                       <ResponsiveContainer>
                         <LineChart data={filledTimeline} margin={{ top: 35, right: 84, bottom: 20, left: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chart.gridline} />
@@ -1150,7 +1173,7 @@ export default function RaceTimeline({ year }: Props) {
                             tick={false} axisLine={false} tickLine={false}
                             label={{ value: UI_LABELS.position, fill: chart.axisLabel, fontSize: 11, angle: -90, position: 'insideLeft' }}
                             ticks={Array.from({ length: driverKeys.length }, (_, i) => i + 1)} />
-                          <Tooltip content={<TimelineTooltip selectedDrivers={selectedDrivers} dnfByLap={dnfByLap} driverInfoMap={Object.fromEntries(driverKeys.map(d => [d.key, { name: d.name, code: d.code, color: d.color, dashed: d.dashed }]))} />} />
+                          <Tooltip trigger={isTouch ? 'click' : 'hover'} active={isTouch ? touchTipOpen : undefined} content={<TimelineTooltip selectedDrivers={selectedDrivers} dnfByLap={dnfByLap} driverInfoMap={Object.fromEntries(driverKeys.map(d => [d.key, { name: d.name, code: d.code, color: d.color, dashed: d.dashed }]))} />} />
 
                           {/* Zebra Stripes */}
                           {Array.from({ length: Math.ceil((timeline.data.totalLaps || 0) / 2) }, (_, i) => (

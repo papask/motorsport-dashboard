@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties, type ReactElement } from 'react';
 import { useApi } from '../hooks/useApi';
 import { getSeasonSchedule, getTelemetryDrivers, getDriverTelemetry, getTelemetryAvailability } from '../services/api';
 import { getTeamNameKR, getDriverNameKR, UI_LABELS } from '../constants/koreanTerms';
@@ -15,17 +15,24 @@ interface Props { year: number; }
 
 const NEUTRAL_COLOR = telemetry.neutral;
 
+// Full width on desktop; on mobile the chart keeps a 900px minimum and its box
+// scrolls sideways (shared .chart-container pattern), so traces aren't crushed.
+function ScrollChart({ height, children }: { height: number; children: ReactElement }) {
+  return (
+    <div className="chart-container" style={{ '--chart-min-width': '900px' } as CSSProperties}>
+      <div className="chart-scroll-inner" style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 // Declared once so the tablist and its arrow-key handler share one ordering.
 const TELEMETRY_TABS = [
   { key: 'speed', labelKey: 'tabSpeedRpm' },
   { key: 'inputs', labelKey: 'tabInputs' },
   { key: 'laps', labelKey: 'tabLaps' },
 ] as const;
-
-// Fixed per-driver colors used only in comparison mode, so the two drivers
-// are told apart consistently across every chart (A = primary, B = compare).
-const DRIVER_A_COLOR = telemetry.driverA;
-const DRIVER_B_COLOR = telemetry.driverB;
 
 // Classify a lap's FastF1 TrackStatus into a neutralization type.
 // Status codes: 1=green, 2=yellow, 4=Safety Car, 5=red flag, 6/7=Virtual SC.
@@ -233,6 +240,17 @@ function Telemetry({ year }: Props) {
   const nameA = driverLabel(currentDriver, selectedDriver);
   const nameB = driverLabel(driverB, selectedDriverB);
 
+  // Comparison-mode colors: each driver's team color (fixed A/B tokens when
+  // FastF1 has none). Teammates share a color, so B is drawn dashed.
+  const teamHex = (d: any) => (d?.teamColor && d.teamColor !== '888888' ? `#${d.teamColor}` : null);
+  const DRIVER_A_COLOR = teamHex(currentDriver) ?? telemetry.driverA;
+  const DRIVER_B_COLOR = teamHex(driverB) ?? telemetry.driverB;
+  const B_DASH = currentDriver?.team && currentDriver.team === driverB?.team ? '6 3' : undefined;
+  // Legend swatch for B: dashed when B's line is.
+  const bSwatch = B_DASH
+    ? `repeating-linear-gradient(90deg, ${DRIVER_B_COLOR} 0 5px, transparent 5px 8px)`
+    : DRIVER_B_COLOR;
+
   // Prepare telemetry chart data (from the effective / chosen lap)
   const speedData = useMemo(() => buildSpeedData(telA?.telemetry), [telA]);
   const speedDataB = useMemo(() => buildSpeedData(telB?.telemetry), [telB]);
@@ -318,7 +336,7 @@ function Telemetry({ year }: Props) {
     </span>
   );
 
-  // A/B stacked sector cell: driver A on top (red), B below (blue); the faster
+  // A/B stacked sector cell: driver A on top, B below (team colors); the faster
   // of the two is bolded so per-lap sector deltas read at a glance.
   const cmpSectorCell = (a: number | null, b: number | null) => (
     <td style={{ lineHeight: 1.4 }}>
@@ -503,7 +521,7 @@ function Telemetry({ year }: Props) {
             {nameA}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
-            <span style={{ width: 20, height: 4, borderRadius: 2, background: DRIVER_B_COLOR, display: 'inline-block' }} />
+            <span style={{ width: 20, height: 4, borderRadius: 2, background: bSwatch, display: 'inline-block' }} />
             {nameB}
           </div>
         </div>
@@ -623,17 +641,18 @@ function Telemetry({ year }: Props) {
           </div>
 
           {/* Lap picker (affects speed/input traces only).
-              Driver A picks from the list beside the charts; the compare driver
-              keeps a dropdown, since two full lists would crowd the page. */}
+              The list beside the charts shows both drivers' times per lap and
+              picks a lap for both; this dropdown lets B view a different lap. */}
           {activeTab !== 'laps' && telemetryData && (
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
               {comparing && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 12, height: 4, borderRadius: 2, background: DRIVER_B_COLOR, display: 'inline-block' }} />
+                  <span style={{ width: 12, height: 4, borderRadius: 2, background: bSwatch, display: 'inline-block' }} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: DRIVER_B_COLOR }}>{nameB}</span>
                   <select
                     className="selector"
                     style={{ padding: '6px 10px', fontSize: 13 }}
+                    aria-describedby="compare-lap-hint"
                     value={viewedLapB ?? ''}
                     onChange={(e) => setSelectedLapB(Number(e.target.value))}
                   >
@@ -647,6 +666,11 @@ function Telemetry({ year }: Props) {
               )}
 
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('fastestLapMark')}</span>
+              {comparing && (
+                <span id="compare-lap-hint" style={{ fontSize: 11, color: 'var(--text-muted)', flexBasis: '100%' }}>
+                  {t('compareLapHint', { name: nameB })}
+                </span>
+              )}
             </div>
           )}
 
@@ -657,8 +681,19 @@ function Telemetry({ year }: Props) {
               <LapList
                 laps={telemetryData.laps || []}
                 value={viewedLapA}
-                onChange={setSelectedLapA}
+                // In compare mode a row picks that lap for both drivers (each
+                // keeps its current lap if it didn't run this one); the dropdown
+                // above still sets B independently.
+                onChange={(lap) => {
+                  const ran = (d: any) => d?.laps?.some((l: any) => l.lapNumber === lap);
+                  if (ran(telemetryData)) setSelectedLapA(lap);
+                  if (comparing && ran(telemetryDataB)) setSelectedLapB(lap);
+                }}
                 fastestLap={telemetryData.telemetryLap}
+                compare={comparing ? {
+                  swatchA: DRIVER_A_COLOR,
+                  b: { laps: telemetryDataB?.laps || [], value: viewedLapB, fastestLap: telemetryDataB?.telemetryLap, swatch: bSwatch },
+                } : undefined}
               />
             )}
             <div className="telemetry-panels">
@@ -670,7 +705,7 @@ function Telemetry({ year }: Props) {
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🏎️ {UI_LABELS.speed}{!comparing && viewedLapA != null ? ` · ${t('lapN', { n: viewedLapA })}` : ''}
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
+              <ScrollChart height={280}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
@@ -687,14 +722,14 @@ function Telemetry({ year }: Props) {
                     labelFormatter={(v) => t('distanceColon', { v })}
                   />
                   <Area type="monotone" dataKey="speed" name={comparing ? nameA : UI_LABELS.speed} stroke={DRIVER_A_COLOR} fill={comparing ? 'none' : 'url(#speedGrad)'} strokeWidth={1.5} dot={false} />
-                  {comparing && <Area type="monotone" dataKey="speedB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
+                  {comparing && <Area type="monotone" dataKey="speedB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               <h3 style={{ margin: '32px 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 ⚙️ RPM
               </h3>
-              <ResponsiveContainer width="100%" height={200}>
+              <ScrollChart height={200}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="rpmGrad" x1="0" y1="0" x2="0" y2="1">
@@ -710,14 +745,14 @@ function Telemetry({ year }: Props) {
                     formatter={(value: any, name: any) => [`${Math.round(value)}`, comparing ? name : 'RPM']}
                   />
                   <Area type="monotone" dataKey="rpm" name={comparing ? nameA : 'RPM'} stroke={comparing ? DRIVER_A_COLOR : telemetry.rpm} fill={comparing ? 'none' : 'url(#rpmGrad)'} strokeWidth={1.5} dot={false} />
-                  {comparing && <Area type="monotone" dataKey="rpmB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
+                  {comparing && <Area type="monotone" dataKey="rpmB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               <h3 style={{ margin: '32px 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🔧 {UI_LABELS.gear}
               </h3>
-              <ResponsiveContainer width="100%" height={150}>
+              <ScrollChart height={150}>
                 <LineChart data={chartData}>
                   <CartesianGrid stroke={chart.gridline} />
                   <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
@@ -727,9 +762,9 @@ function Telemetry({ year }: Props) {
                     formatter={(value: any, name: any) => [t('gearUnit', { n: value }), comparing ? name : UI_LABELS.gear]}
                   />
                   <Line type="stepAfter" dataKey="gear" name={comparing ? nameA : UI_LABELS.gear} stroke={comparing ? DRIVER_A_COLOR : telemetry.gear} strokeWidth={1.5} dot={false} />
-                  {comparing && <Line type="stepAfter" dataKey="gearB" name={nameB} stroke={DRIVER_B_COLOR} strokeWidth={1.5} dot={false} />}
+                  {comparing && <Line type="stepAfter" dataKey="gearB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} strokeWidth={1.5} dot={false} />}
                 </LineChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               {/* Speed trap (fastest-lap top speeds) */}
               {fastestLap && (fastestLap.speedST != null || fastestLap.speedFL != null) && (
@@ -792,7 +827,7 @@ function Telemetry({ year }: Props) {
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🟢 {UI_LABELS.throttle}
               </h3>
-              <ResponsiveContainer width="100%" height={200}>
+              <ScrollChart height={200}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="throttleGrad" x1="0" y1="0" x2="0" y2="1">
@@ -808,14 +843,14 @@ function Telemetry({ year }: Props) {
                     formatter={(value: any, name: any) => [`${Math.round(value)}%`, comparing ? name : UI_LABELS.throttle]}
                   />
                   <Area type="monotone" dataKey="throttle" name={comparing ? nameA : UI_LABELS.throttle} stroke={comparing ? DRIVER_A_COLOR : telemetry.gear} fill={comparing ? 'none' : 'url(#throttleGrad)'} strokeWidth={1.5} dot={false} />
-                  {comparing && <Area type="monotone" dataKey="throttleB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
+                  {comparing && <Area type="monotone" dataKey="throttleB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               <h3 style={{ margin: '32px 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 🔴 {UI_LABELS.brake}
               </h3>
-              <ResponsiveContainer width="100%" height={150}>
+              <ScrollChart height={150}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="brakeGrad" x1="0" y1="0" x2="0" y2="1">
@@ -831,16 +866,16 @@ function Telemetry({ year }: Props) {
                     formatter={(value: any, name: any) => [value > 0 ? 'ON' : 'OFF', comparing ? name : UI_LABELS.brake]}
                   />
                   <Area type="stepAfter" dataKey="brake" name={comparing ? nameA : UI_LABELS.brake} stroke={DRIVER_A_COLOR} fill={comparing ? 'none' : 'url(#brakeGrad)'} strokeWidth={1.5} dot={false} />
-                  {comparing && <Area type="stepAfter" dataKey="brakeB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
+                  {comparing && <Area type="stepAfter" dataKey="brakeB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} fill="none" strokeWidth={1.5} dot={false} />}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               {hasDrsData ? (
                 <>
                   <h3 style={{ margin: '32px 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                     🟦 DRS
                   </h3>
-                  <ResponsiveContainer width="100%" height={100}>
+                  <ScrollChart height={100}>
                     <AreaChart data={chartData}>
                       <CartesianGrid stroke={chart.gridline} />
                       <XAxis dataKey="distance" tick={{ fill: chart.tickMuted, fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
@@ -850,9 +885,9 @@ function Telemetry({ year }: Props) {
                         formatter={(value: any, name: any) => [value > 0 ? 'ON' : 'OFF', comparing ? name : 'DRS']}
                       />
                       <Area type="stepAfter" dataKey="drs" name={comparing ? nameA : 'DRS'} stroke={comparing ? DRIVER_A_COLOR : telemetry.drs} fill={comparing ? 'none' : telemetry.drsFill} strokeWidth={1.5} dot={false} />
-                      {comparing && <Area type="stepAfter" dataKey="drsB" name={nameB} stroke={DRIVER_B_COLOR} fill="none" strokeWidth={1.5} dot={false} />}
+                      {comparing && <Area type="stepAfter" dataKey="drsB" name={nameB} stroke={DRIVER_B_COLOR} strokeDasharray={B_DASH} fill="none" strokeWidth={1.5} dot={false} />}
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ScrollChart>
                 </>
               ) : (
                 <div style={{ marginTop: 24, padding: '12px 16px', borderRadius: 8, background: border.faint, fontSize: 12, color: 'var(--text-muted)' }}>
@@ -868,7 +903,7 @@ function Telemetry({ year }: Props) {
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                 ⏱️ {UI_LABELS.lapTime}
               </h3>
-              <ResponsiveContainer width="100%" height={300}>
+              <ScrollChart height={300}>
                 <ComposedChart data={lapCompareData}>
                   <CartesianGrid stroke={chart.gridline} />
                   <XAxis dataKey="lap" tick={{ fill: chart.tickMuted, fontSize: 10 }} label={{ value: UI_LABELS.lap, fill: chart.tickMuted, fontSize: 11, position: 'insideBottom', offset: -5 }} />
@@ -966,10 +1001,10 @@ function Telemetry({ year }: Props) {
                     ))}
                   </Bar>
                   {comparing && (
-                    <Bar dataKey="timeB" name={nameB} radius={[2, 2, 0, 0]} barSize={5} fill={DRIVER_B_COLOR} fillOpacity={0.9} />
+                    <Bar dataKey="timeB" name={nameB} radius={[2, 2, 0, 0]} barSize={5} fill={DRIVER_B_COLOR} fillOpacity={B_DASH ? 0.4 : 0.9} />
                   )}
                 </ComposedChart>
-              </ResponsiveContainer>
+              </ScrollChart>
 
               {scPeriods.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>

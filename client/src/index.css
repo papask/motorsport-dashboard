@@ -25,6 +25,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  /* Korean wraps between words, not mid-word; an over-long token still breaks. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* Scrollbar */
@@ -561,19 +564,6 @@ body {
 .privacy-page { max-width: 768px; }
 .privacy-page h2 { font-size: 16px; margin: 24px 0 8px; }
 .privacy-page p { line-height: 1.7; color: var(--text-secondary); }
-
-/* For pages whose main region is a scroller of its own (the incident log): the
-   container takes the full height of the content area so that region can claim
-   the remainder, rather than sizing to its content and leaving the rest blank.
-   Only above a certain viewport height — on a short window there is no surplus
-   to hand out, and squeezing the controls to make one would be worse. */
-@media (min-height: 700px) {
-  .page-container.page-fill {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-}
 
 /* ===== WIREFRAME PRIMITIVES =====
    The canvas builds every screen from four pieces: a kicker, a large heading,
@@ -2392,6 +2382,27 @@ body {
   align-items: start;
 }
 
+/* Desktop: the lap list runs the full height of the charts beside it. The
+   scroller has zero intrinsic height, so the row is sized by the charts alone
+   and the list just fills it. */
+@media (min-width: 901px) {
+  .telemetry-split {
+    align-items: stretch;
+  }
+
+  .telemetry-split .lap-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .telemetry-split .lap-list-scroll {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 300px;
+    max-height: none;
+  }
+}
+
 .telemetry-panels {
   min-width: 0;
 }
@@ -2465,6 +2476,38 @@ body {
   font-size: 10px;
 }
 
+/* Compare mode: two lines per lap (A over B), each led by its driver's
+   team-colour marker. The row highlight is A's lap; B's viewed lap is bolded. */
+.lap-row.is-compare {
+  height: auto;
+  padding: 4px;
+}
+
+.lap-row-pair {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lap-row-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lap-row-mark {
+  flex-shrink: 0;
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.lap-row-line.is-b-viewed .lap-row-t {
+  font-weight: 800;
+}
+
 @media (max-width: 900px) {
   .telemetry-split {
     grid-template-columns: 1fr;
@@ -2482,8 +2525,16 @@ body {
 }
 
 /* ===== INCIDENT DENSITY RAIL =====
-   One bar per lap across the table's width. Height is the message count, so a
-   busy lap is visible before any row is read; colour only reinforces it. */
+   One bar per lap across the table's width; height is the message count. The
+   whole block stays pinned while the table scrolls beneath it. */
+.density-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: 8px;
+  background: var(--surface-base);
+}
+
 .density-head {
   display: flex;
   justify-content: space-between;
@@ -2494,30 +2545,68 @@ body {
 
 .density-rail {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 30px;
-  padding-bottom: 2px;
-  border-bottom: 2px solid var(--border-strong);
+}
+
+/* The whole column is the tap target, not just the bar. */
+.density-col {
+  flex: 1;
+  min-width: 4px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .density-bar {
-  flex: 1;
-  min-width: 2px;
-  border: none;
-  padding: 0;
+  width: calc(100% - 2px);
   border-radius: 1px;
-  cursor: pointer;
-  transition: outline-color var(--transition-fast);
+  background: var(--text-primary);
   outline: 2px solid transparent;
+  transition: outline-color var(--transition-fast);
 }
 
-.density-bar:hover {
+.density-bar.is-empty {
+  background: var(--border-subtle);
+}
+
+.density-col:hover .density-bar,
+.density-col.is-filtered .density-bar {
   outline-color: var(--text-primary);
 }
 
-.density-bar.is-filtered {
-  outline-color: var(--text-primary);
+.density-lap {
+  align-self: stretch;
+  height: 16px;
+  margin-top: 2px;
+  border-top: 2px solid var(--border-strong);
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile: keep each lap wide enough to tap; the rail scrolls sideways. */
+@media (max-width: 768px) {
+  .density-rail-scroll {
+    overflow-x: auto;
+  }
+
+  .density-col {
+    flex: 0 0 18px;
+  }
+}
+
+/* Shift+click hint means nothing on touch and only makes the pinned block taller. */
+@media (pointer: coarse) {
+  .density-head .en {
+    display: none;
+  }
 }
 
 .density-filter-note {
@@ -2528,35 +2617,25 @@ body {
 }
 
 /* ===== INCIDENT TABLE =====
-   The canvas specifies 560px, which is right for its 1100×~900 artboard but
-   leaves a tall screen half empty and slices whatever row the boundary lands
-   on. Instead the region takes whatever height is left below the controls, so
-   the table ends where the window does. */
+   Flows with the page (no inner scroller); the header sticks to the page scroll. */
 .incidents-scroll {
-  max-height: 560px;
-  overflow-y: auto;
   margin-top: 12px;
-}
-
-@media (min-height: 700px) {
-  .incidents-scroll {
-    /* basis 0, not auto: with auto the region would size to all 236 rows and
-       grow the page instead of scrolling inside a fixed frame. */
-    flex: 1 1 0;
-    min-height: 0;
-    max-height: none;
-  }
 }
 
 .incidents-table thead th {
   position: sticky;
-  top: 0;
+  top: var(--density-h, 0px);
   z-index: 1;
   background: var(--surface-base);
 }
 
 .incidents-table td {
   vertical-align: top;
+}
+
+/* Rail click targets land below the pinned rail + table header. */
+.incidents-table tr[id] {
+  scroll-margin-top: calc(var(--density-h, 0px) + 40px);
 }
 
 /* The elastic column. It is capped at a readable measure so that on a wide
@@ -2566,6 +2645,50 @@ body {
   font-size: 12px;
   line-height: 1.45;
   max-width: 68ch;
+  overflow-wrap: anywhere;
+}
+
+/* Pinned header copy (RaceIncidents.tsx) — mobile only. */
+.incidents-head-scroll {
+  display: none;
+}
+
+/* Mobile: the table scrolls sideways inside its own box (not the page), and the
+   message wraps instead of inheriting the mobile data-table nowrap. A sideways
+   scroller can't pin its header to the page, so the in-table header is shrunk
+   to nothing (kept for screen readers) and the copy in the pinned block, moved
+   in sync by JS, stands in. Fixed layout + shared <col> widths keep both aligned. */
+@media (max-width: 768px) {
+  .incidents-scroll {
+    overflow-x: auto;
+  }
+
+  .incidents-head-scroll {
+    display: block;
+    overflow: hidden;
+  }
+
+  .incidents-table {
+    table-layout: fixed;
+    width: 720px;
+  }
+
+  .incidents-table .incident-message {
+    white-space: normal;
+  }
+
+  .incidents-scroll .incidents-table thead th {
+    position: static;
+    height: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0;
+    line-height: 0;
+  }
+
+  .incidents-head-scroll .incidents-table thead th {
+    position: static;
+  }
 }
 
 .flag-badge {
