@@ -170,12 +170,13 @@ const docNumber = (d: { title: string }) => Number(d.title.match(/^Doc (\d+)/i)?
  * "Doc 52. <title>", the FIA PDF link, the summary bullets and an AI notice.
  * The site link comes first so Threads' link card shows the site. Each post is
  * filled up to 500 chars, cut between sentences, and ends in "<계속>" when a
- * reply carries on. Timing sheets (no summary) get the FIA title and a note
- * that tables aren't summarized.
+ * reply carries on. Only summarized documents are posted: a timing sheet's
+ * title and PDF link alone told readers nothing.
  */
 export function threadsPosts(d: FiaDocument, round?: number) {
+  if (!d.summary) return [];
   const num = docNumber(d);
-  const title = d.summary?.title_ko ?? d.title.replace(/^Doc \d+\s*-\s*/i, '');
+  const title = d.summary.title_ko;
   const head = [
     `${gpHeading(d.published.slice(0, 4), round, d.event)} FiA 문서 요약`,
     process.env.SITE_URL && `🔗 ${process.env.SITE_URL}/docs`,
@@ -184,14 +185,10 @@ export function threadsPosts(d: FiaDocument, round?: number) {
   ].filter(Boolean).join('\n');
   // [text, separator before it when it shares a post with what precedes]
   const units: [string, string][] = [[head, '']];
-  if (d.summary) {
-    d.summary.summary_ko.forEach((bullet, i) =>
-      bullet.split(/(?<=[.!?])\s+/).forEach((sentence, j) =>
-        units.push(j ? [sentence, ' '] : [`• ${sentence}`, i ? '\n' : '\n\n'])));
-  } else {
-    units.push(['순위표·명단 같은 표 문서는 요약하지 않습니다.', '\n\n']);
-  }
-  if (d.summary) units.push(['AI 요약/번역이므로 실수가 있을 수 있습니다.', '\n\n']); // summaries come from Claude
+  d.summary.summary_ko.forEach((bullet, i) =>
+    bullet.split(/(?<=[.!?])\s+/).forEach((sentence, j) =>
+      units.push(j ? [sentence, ' '] : [`• ${sentence}`, i ? '\n' : '\n\n'])));
+  units.push(['AI 요약/번역이므로 실수가 있을 수 있습니다.', '\n\n']); // summaries come from Claude
   return packPosts(units);
 }
 
@@ -221,8 +218,8 @@ export async function checkFiaDocuments() {
       documents = [branded, ...documents.filter((d) => d.url !== doc.url)];
       save(); // after each document, so a crash doesn't re-bill finished ones
       // The age limit keeps a fresh disk (or a late retry) from posting a whole weekend at once
-      // Failed summaries wait for their retry, so each document is posted once
-      if (branded.status !== 'failed' && Date.now() - Date.parse(doc.published) < POST_MAX_AGE_MS) {
+      // Only summaries go out: timing sheets are skipped, failed summaries wait for their retry
+      if (branded.summary && Date.now() - Date.parse(doc.published) < POST_MAX_AGE_MS) {
         // ponytail: a failed post is only logged, never retried
         const round = await roundOf(branded).catch(() => undefined); // schedule down → post without the round
         await postToThreads(threadsPosts(branded, round)).catch((err) => console.error(`[Threads] ${doc.title}:`, err.message));
