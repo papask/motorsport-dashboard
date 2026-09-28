@@ -384,6 +384,28 @@ function sticker(id, on, sx, sy, k, rot = -4) {
 }
 
 // ── 단톡방 편: 말풍선이 박마다 뜨고 → 3.2–4.8초 "나만 몰라?" → 링크 미리보기를 누르면(6.0초) 화면 가득 커진다(6.4–6.9초)
+// ?chat=<이름>: 같은 박자에 방 이름·등장인물·대사만 바꾼 판. 줄마다 [이름, 프로필 색, 대사], 내 말은 이름이 null.
+const CHATS = {
+  brunch: { room: '8/6 브런치 모임', count: 5, rows: [
+    ['젬젬', '#FF8A5B', '어제 F1 봤어?? 🏎️'],
+    ['습도', '#4C7DF0', '마지막에 역전한 거 실화냐 ㅋㅋㅋ'],
+    ['테스트', '#19A974', '나 소리 질렀잖아 😱'],
+    ['습도', '#4C7DF0', '다음 경기 언제야? 같이 보자!'],
+    [null, null, '챠드는 F1 하나도 모르는뎅...'],
+    ['션', '#8B5CF6', '챠또몰... 이거야 이거'],
+  ] },
+};
+const chatCfg = CHATS[new URLSearchParams(location.search).get('chat')];
+if (chatCfg) {
+  $('#chat .name').innerHTML = `${chatCfg.room}<small>${chatCfg.count}</small>`;
+  document.querySelectorAll('#chatList > .m:not(.cont)').forEach((row, i) => {
+    const [who, color, text] = chatCfg.rows[i];
+    row.querySelector('p').textContent = text;
+    if (!who) return;
+    const av = row.querySelector('.av'); av.textContent = who[0]; av.style.setProperty('--c', color);
+    row.querySelector('.nm').textContent = who;
+  });
+}
 const chatTimed = [...document.querySelectorAll('#chat [data-t]')];
 const chatRows = [...document.querySelectorAll('#chatList > .m')];
 const CHAT_VIEW = 1920 - 190 - 160;

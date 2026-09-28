@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `onthelimit-shorts-v1.mp4` | `index.html` | **26.00초** | 기본 편: 큰 자막 + 폰 목업 + PC 화면 몽타주 |
 | `onthelimit-shorts-chat-v1.mp4` | `index.html?chat` | **26.00초** | 단톡방 편: 친구들 대화에서 시작해, 링크 미리보기가 커지며 기능 장면으로 |
+| `onthelimit-shorts-chat-v2.mp4` | `index.html?chat=brunch` | **26.00초** | 단톡방 편 v2: "8/6 브런치 모임", 젬젬·습도·테스트·션과 나(챠드) |
 
 - **형식:** 1080×1920(9:16), 30fps, H.264 High(yuv420p), AAC
 - **음악:** 두 편 모두 Mixkit "Summer's Here"(Ahjay Stelino, 150BPM의 밝고 빠른 곡). 곡의 뒷부분을 자르거나 이어 붙이지 않고 곡의 원래 엔딩까지 씁니다. 박이 0.4초라서 장면 전환과 말풍선이 박 위에 오고, 마무리 와이프는 마디 첫 박, 주소 등장은 곡의 마지막 화음에 맞췄습니다. 시작 지점은 `index.html`의 `window.__MUSIC_START`(68.07초)이고, 두 편이 같습니다. 자막만 보고도 이해되게 만든 영상이라 소리를 꺼도 내용이 전달됩니다.
@@ -38,6 +39,8 @@
 | 0:04.8–0:06.4 | 나: "나 F1 하나도 모르는데… 😢" → 민지: "ㅋㅋ 걱정 마, 여기 보면 돼" + 온더리밋 링크 미리보기, 톡 누름 |
 | 0:06.4–0:07.2 | 미리보기 카드가 화면 가득 커지고, 로고가 가운데로 모였다가 스케줄 장면의 폰으로 넘어감 |
 | 0:07–0:26 | 기본 편과 같음: 01 스케줄 → 02 순위 → 03 레이스 리뷰 → PC 화면 5장 → 마무리 |
+
+**v2(`?chat=brunch`)**는 박자와 장면은 그대로 두고 방 이름·등장인물·대사만 바꿨습니다: 방 이름 "8/6 브런치 모임"(5명), 젬젬 "어제 F1 봤어?? 🏎️" → 습도 "마지막에 역전한 거 실화냐 ㅋㅋㅋ" → 테스트 "나 소리 질렀잖아 😱" → 습도 "다음 경기 언제야? 같이 보자!" → 나 "챠드는 F1 하나도 모르는뎅..." → 션 "챠또몰... 이거야 이거" + 링크 미리보기. 이런 판은 `index.html`의 `CHATS` 표에 한 줄씩 더하면 됩니다.
 
 말풍선이 뜨는 시각은 `#chat` 안 각 요소의 `data-t`(초)입니다. 말풍선을 바꾸거나 더해도 스크롤은 자동으로 맞춰집니다.
 
@@ -77,7 +80,7 @@
    - `pc-{next,standings,schedule,docs,timeline}.jpg` = 1920×1080(DPR 1)으로 연 `/next`, `/drivers`, `/schedule`, `/docs`, `/timeline`(레이스를 고르고 순위 변동 차트를 펼친 상태)을 1440×810으로 줄인 것
    - `replay.jpg` = 리플레이 캡처 중 옐로 플래그 배지가 뜬 장면(`tl_p*.png`)
    - 시즌이 바뀌어 화면 배치가 달라지면 `index.html`의 확대 좌표(`focus(…)`, `hl(…)`, 스티커 위치)를 함께 고칩니다. 좌표는 모두 앱 화면의 1배(390px 폭) 기준입니다.
-4. **녹화:** `node scripts/render.cjs onthelimit-shorts-v1.mp4`, `node scripts/render.cjs onthelimit-shorts-chat-v1.mp4 --page "index.html?chat"`
+4. **녹화:** `node scripts/render.cjs onthelimit-shorts-v1.mp4`, `node scripts/render.cjs onthelimit-shorts-chat-v1.mp4 --page "index.html?chat"`, `node scripts/render.cjs onthelimit-shorts-chat-v2.mp4 --page "index.html?chat=brunch"`
    - 프레임마다 `window.__seek(t)`로 그려서 캡처하므로, 컴퓨터 속도와 상관없이 프레임이 정확합니다.
    - 확인용 정지 화면: `node scripts/render.cjs check.mp4 --stills 1,5,9,13,17,21`
-5. **대표 이미지:** 기본 편 23초 프레임을 `poster-shorts-v1.jpg`로, 단톡방 편 5.9초 프레임을 `poster-shorts-chat-v1.jpg`로 저장합니다.
+5. **대표 이미지:** 기본 편 23초 프레임을 `poster-shorts-v1.jpg`로, 단톡방 편 5.9초 프레임을 `poster-shorts-chat-v1.jpg`, `poster-shorts-chat-v2.jpg`로 저장합니다.
