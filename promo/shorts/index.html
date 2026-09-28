@@ -6,7 +6,7 @@
 <title>온더리밋 쇼츠</title>
 <!--
   온더리밋 세로 홍보 영상 (1080×1920, 24초, 자동재생).
-  - 그냥 열면 자동재생하고 끝나면 처음부터 반복합니다. 화면을 누르면 일시정지/재생.
+  - 그냥 열면 자동재생하고 끝나면 처음부터 반복합니다. 첫 클릭에 음악과 함께 처음부터, 그다음부터는 일시정지/재생.
   - ?t=12.5  : 그 시점에서 멈춘 화면
   - ?render  : 녹화용. window.__seek(t)로 프레임을 직접 그립니다(scripts/render.cjs).
   서체 파일은 fonts/에 두고 저장소에는 넣지 않습니다(README 참고).
@@ -91,7 +91,6 @@ body.render #stage { transform: none !important; }
 #phone { position: absolute; left: 50%; top: 0; width: 560px; height: 1166px; margin-left: -280px; border-radius: 78px; background: #0d0d10;
   box-shadow: 0 60px 120px rgba(17,17,20,.28), 0 0 0 3px #2a2a30 inset; padding: 20px; transform-origin: 50% 0; visibility: hidden; }
 #screen { position: relative; width: 520px; height: 1126px; border-radius: 60px; overflow: hidden; background: #f2f1ef; }
-#island { position: absolute; left: 50%; top: 14px; width: 150px; height: 42px; margin-left: -75px; background: #0d0d10; border-radius: 30px; z-index: 5; }
 .page { position: absolute; left: 0; top: 0; width: 520px; visibility: hidden; }
 .page img { display: block; width: 520px; }
 #hdr { position: absolute; left: 0; top: 0; width: 520px; z-index: 4; }
@@ -155,7 +154,6 @@ body.render #hint { display: none; }
 
   <!-- 폰 목업 -->
   <div id="phone"><div id="screen">
-    <div id="island"></div>
     <div class="page" id="pgS"><img src="img/schedule.jpg" alt=""></div>
     <div class="page" id="pgR"><img src="img/standings.jpg" alt=""></div>
     <div class="page" id="pgC"><img src="img/chart.jpg" alt=""></div>
@@ -199,7 +197,8 @@ body.render #hint { display: none; }
   <div id="flash"></div>
   <div id="wipe"></div>
 </div>
-<div id="hint">화면을 누르면 일시정지 / 재생</div>
+<div id="hint">화면을 누르면 일시정지 / 재생 (음악은 누른 뒤부터)</div>
+<audio id="music" src="music/music.mp3" preload="auto"></audio>
 
 <script>
 (() => {
@@ -431,11 +430,11 @@ function render(t) {
     $('#logo').style.opacity = clamp(kl * 3);
     $('#logo').style.transform = `scale(${lerp(.3, 1, ease.back(kl))}) rotate(${lerp(-8, 0, ease.out(kl))}deg)`;
     pop(out, t, 18.75, .22, .36);
-    const ku = clamp((t - 19.55) / .4);
-    const pulse = t > 20.5 ? 1 + Math.sin((t - 20.5) * 4.2) * .025 : 1;
+    const ku = clamp((t - 19.9) / .4);
+    const pulse = t > 20.9 ? 1 + Math.sin((t - 20.9) * 4.2) * .025 : 1;
     $('#url').style.opacity = ku;
     $('#url').style.transform = `translateX(-50%) translateY(${lerp(50, 0, ease.out(ku))}px) scale(${lerp(.7, 1, ease.back(ku)) * pulse})`;
-    const kf2 = clamp((t - 20.0) / .4); $('#free').style.opacity = kf2;
+    const kf2 = clamp((t - 20.4) / .4); $('#free').style.opacity = kf2;
     $('#chkTop').style.transform = `translateX(${-((t - 18) * 60) % 120}px) translateY(${lerp(-130, 0, ease.out(clamp((t - 18) / .4)))}px)`;
     $('#chkBot').style.transform = `translateX(${-120 + ((t - 18) * 60) % 120}px) translateY(${lerp(130, 0, ease.out(clamp((t - 18) / .4)))}px)`;
   }
@@ -452,14 +451,19 @@ window.__DUR = DUR;
 if (qs.has('render')) { document.body.classList.add('render'); render(0); return; }
 addEventListener('resize', fit); fit();
 if (qs.has('t')) { render(parseFloat(qs.get('t')) || 0); return; }
-let t0 = null, paused = false, pausedAt = 0;
+// 음악(music/music.mp3, 저장소에는 없음): 곡의 72.333초가 영상 0초. 브라우저 정책상 첫 클릭부터 소리가 난다.
+const MUSIC_START = 72.333, music = $('#music');
+let t0 = null, paused = false, pausedAt = 0, armed = false;
+const syncMusic = (t) => { if (!armed || paused || t > DUR) { music.pause(); return; } music.currentTime = MUSIC_START + t; music.play().catch(() => {}); };
 document.addEventListener('click', () => {
+  if (!armed) { armed = true; t0 = performance.now(); pausedAt = 0; syncMusic(0); return; }
   paused = !paused;
   if (!paused) t0 = performance.now() - pausedAt * 1000;
+  syncMusic(pausedAt);
 });
 function tick(now) {
   if (t0 === null) t0 = now;
-  if (!paused) { let t = (now - t0) / 1000; if (t > DUR + .5) { t0 = now; t = 0; } pausedAt = t; render(t); }
+  if (!paused) { let t = (now - t0) / 1000; if (t > DUR + .5) { t0 = now; t = 0; syncMusic(0); } else if (t > DUR) music.pause(); pausedAt = t; render(t); }
   requestAnimationFrame(tick);
 }
 document.fonts.ready.then(() => requestAnimationFrame(tick));
