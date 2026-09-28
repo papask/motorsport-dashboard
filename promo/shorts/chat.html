@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온더리밋 단톡방</title>
+<!--
+  온더리밋 세로 홍보 영상 · 단톡방 편 (1080×1920, 22.8초, 자동재생).
+  친구들이 F1 얘기로 떠들고 → "나만 몰라?" → 친구가 온더리밋 링크를 보내고 → 내가 묻는 말마다 앱 화면으로 답이 온다.
+  재생·녹화 방식은 index.html과 같습니다(?t=12.5, ?render, 첫 클릭에 음악). 등장 시각은 각 요소의 data-t(초)입니다.
+-->
+<style>
+@font-face { font-family: 'Jalnan 2'; src: local('Jalnan 2'), local('Jalnan2TTF'), url('fonts/Jalnan2TTF.ttf') format('truetype'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 600; src: url('fonts/Pretendard-SemiBold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 700; src: url('fonts/Pretendard-Bold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 800; src: url('fonts/Pretendard-ExtraBold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2') format('woff2'); font-display: block; }
+
+:root {
+  --red: #D9101A; --ink: #111114; --paper: #FFFFFF; --cream: #FFF6EF; --grey: #6B6B76; --yellow: #FFD23F; --chat: #EEF1F5;
+  --title: 'Jalnan 2', 'Pretendard', sans-serif;
+  --body: 'Pretendard', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #1a1a1d; overflow: hidden; }
+body { display: flex; align-items: center; justify-content: center; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; flex: none; background: var(--chat); color: var(--ink); font-family: var(--body); }
+body.render { display: block; background: var(--chat); }
+body.render #stage { transform: none !important; }
+.t-title { font-family: var(--title); font-weight: 400; letter-spacing: -1px; line-height: 1.18; text-align: center; }
+.red { color: var(--red); }
+.w { display: inline-block; white-space: pre; }
+
+/* 채팅방 틀 */
+#top { position: absolute; left: 0; right: 0; top: 0; height: 190px; background: var(--paper); border-bottom: 2px solid #dde1e7; display: flex; align-items: center; padding: 50px 40px 0; gap: 26px; z-index: 5; }
+#top .back { font-size: 90px; font-weight: 600; line-height: 1; margin-top: -12px; }
+#top .name { font-size: 50px; font-weight: 800; flex: 1; }
+#top .name small { color: var(--grey); font-weight: 700; margin-left: 12px; }
+#top .menu { width: 54px; height: 40px; background: linear-gradient(var(--ink) 0 6px, transparent 6px 17px, var(--ink) 17px 23px, transparent 23px 34px, var(--ink) 34px 40px); border-radius: 3px; }
+#bar { position: absolute; left: 0; right: 0; bottom: 0; height: 160px; background: var(--paper); border-top: 2px solid #dde1e7; display: flex; align-items: center; gap: 22px; padding: 0 36px 20px; z-index: 5; }
+#bar .plus { width: 76px; height: 76px; border-radius: 50%; background: #e6e8ec; font-size: 60px; font-weight: 600; color: var(--grey); display: grid; place-items: center; line-height: 1; }
+#bar .in { flex: 1; height: 86px; border-radius: 43px; background: #f1f2f5; font-size: 40px; color: #a3a6ad; display: flex; align-items: center; padding: 0 34px; font-weight: 600; }
+#bar .send { width: 86px; height: 86px; border-radius: 50%; background: var(--red); }
+#view { position: absolute; left: 0; right: 0; top: 190px; bottom: 160px; overflow: hidden; }
+#list { position: relative; padding: 30px 36px 40px; }
+
+/* 말풍선 */
+.day { margin: 0 auto 30px; width: max-content; padding: 10px 30px; border-radius: 999px; background: rgba(17,17,20,.08); color: var(--grey); font-size: 32px; font-weight: 700; }
+.m { display: flex; gap: 22px; margin-top: 30px; align-items: flex-start; transform-origin: 0 100%; }
+.m.cont { margin-top: 14px; padding-left: 132px; }
+.m.me { justify-content: flex-end; transform-origin: 100% 100%; }
+.av { flex: none; width: 110px; height: 110px; border-radius: 40px; background: var(--c); color: #fff; font: 400 52px/110px var(--title); text-align: center; font-style: normal; }
+.nm { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin: 0 0 10px 6px; }
+.m p { display: inline-block; max-width: 760px; padding: 24px 34px; border-radius: 12px 40px 40px 40px; background: var(--paper); font-size: 50px; font-weight: 700; line-height: 1.34; box-shadow: 0 4px 0 rgba(17,17,20,.05); }
+.m.me p { background: var(--red); color: #fff; border-radius: 40px 12px 40px 40px; }
+
+/* 앱 화면 사진: 모바일 캡처(390px 폭 1배 좌표)의 y0부터 h만큼, 폭 680px(배율 680/390) */
+.shot { position: relative; width: 680px; height: calc(var(--h) * 1.7436px); border-radius: 30px; border: 4px solid var(--paper);
+  background: var(--img) 0 calc(var(--y0) * -1.7436px) / 680px auto no-repeat, #f2f1ef; box-shadow: 0 10px 30px rgba(17,17,20,.12); }
+.hl2 { position: absolute; border: 6px solid var(--red); border-radius: 20px; }
+.stk { position: absolute; font-family: var(--title); font-size: 56px; color: #fff; background: var(--red); padding: 14px 28px 10px; border-radius: 22px; white-space: nowrap; box-shadow: 0 16px 40px rgba(217,16,26,.35); transform-origin: 50% 100%; }
+.stk.y { background: var(--yellow); color: var(--ink); }
+.card { width: 700px; border-radius: 30px; overflow: hidden; background: var(--paper); box-shadow: 0 10px 30px rgba(17,17,20,.12); }
+.card .hero { background: var(--cream); padding: 48px 0; display: grid; place-items: center; }
+.card .hero img { width: 560px; display: block; }
+.card .tx { padding: 26px 34px 30px; }
+.card b { display: block; font-size: 44px; font-weight: 800; }
+.card span { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin-top: 6px; }
+.card i { display: block; font-size: 32px; font-weight: 600; font-style: normal; color: #9a9ca3; margin-top: 12px; }
+
+/* 훅: 채팅 위를 덮는 한 줄 */
+#hook { position: absolute; inset: 0; background: rgba(17,17,20,.88); z-index: 20; visibility: hidden; color: #fff; }
+#hook .a { position: absolute; left: 0; right: 0; top: 700px; font-size: 76px; }
+#hook .b { position: absolute; left: 0; right: 0; top: 840px; font-size: 190px; }
+#hook .red { color: #ff3b44; }
+
+/* 마무리: index.html과 같은 화면 */
+#outro { position: absolute; inset: 0; z-index: 30; visibility: hidden; background:
+    radial-gradient(1200px 900px at 85% 8%, rgba(217,16,26,.10), transparent 60%), radial-gradient(900px 900px at 0% 100%, rgba(255,210,63,.18), transparent 60%), var(--cream); }
+#outro .checker { position: absolute; left: -100px; right: -100px; height: 120px; background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / 120px 120px; }
+#logo { position: absolute; left: 50%; top: 560px; width: 880px; margin-left: -440px; }
+#outro .t-title { position: absolute; left: 0; right: 0; top: 880px; font-size: 112px; }
+#url { position: absolute; left: 50%; top: 1250px; background: var(--ink); color: #fff; border-radius: 999px; padding: 26px 56px 26px 44px; font-weight: 800; font-size: 64px; white-space: nowrap; display: flex; align-items: center; gap: 22px; }
+#url i { width: 26px; height: 26px; border-radius: 50%; background: var(--red); display: block; }
+#free { position: absolute; left: 0; right: 0; top: 1420px; text-align: center; font-size: 44px; font-weight: 700; color: var(--grey); }
+#wipe { position: absolute; top: -300px; bottom: -300px; width: 1500px; left: 0; z-index: 50; visibility: hidden;
+  background: linear-gradient(90deg, var(--red) 0 78%, var(--ink) 78% 84%, transparent 84% 88%, var(--ink) 88% 92%, transparent 92%); transform: skewX(-18deg); }
+#hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); color: #888; font: 600 13px var(--body); }
+body.render #hint { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="top"><span class="back">‹</span><span class="name">불금 치맥 모임 🍗<small>4</small></span><span class="menu"></span></div>
+  <div id="view"><div id="list">
+    <div class="day">오늘</div>
+    <div class="m" data-t="0"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>어제 F1 봤어?? 🏎️</p></div></div>
+    <div class="m" data-t="0.8"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>마지막에 역전한 거 실화냐 ㅋㅋㅋ</p></div></div>
+    <div class="m" data-t="1.6"><i class="av" style="--c:#19A974">서</i><div><b class="nm">서연</b><p>나 소리 질렀잖아 😱</p></div></div>
+    <div class="m" data-t="2.4"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>다음 경기 언제야? 같이 보자!</p></div></div>
+    <div class="m me" data-t="4.8"><p>나 F1 하나도 모르는데… 😢</p></div>
+    <div class="m" data-t="5.6"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>ㅋㅋ 걱정 마, 여기 보면 돼</p></div></div>
+    <div class="m cont" data-t="6.0"><div class="card"><div class="hero"><img src="img/logo.svg" alt="온더리밋"></div><div class="tx"><b>온더리밋</b><span>다음 경기·순위·레이스 리뷰를 한눈에</span><i>onthelimit.app</i></div></div></div>
+    <div class="m me" data-t="7.2"><p>다음 경기 언제야?</p></div>
+    <div class="m" data-t="8.0"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b>
+      <div class="shot" style="--img:url(img/schedule.jpg);--y0:90;--h:215">
+        <div class="hl2" data-t="8.3" style="left:12px;top:236px;width:440px;height:116px"></div>
+        <div class="stk" data-t="8.4" data-base="translate(-50%,-100%) rotate(5deg)" style="left:470px;top:246px">D-5</div>
+      </div></div></div>
+    <div class="m me" data-t="9.2"><p>지금 누가 1등이야?</p></div>
+    <div class="m" data-t="9.6"><i class="av" style="--c:#19A974">서</i><div><b class="nm">서연</b>
+      <div class="shot" style="--img:url(img/standings.jpg);--y0:270;--h:250">
+        <div class="hl2" data-t="9.9" style="left:6px;top:30px;width:660px;height:148px"></div>
+        <div class="stk" data-t="10.0" data-base="translate(-50%,-100%) rotate(6deg)" style="left:540px;top:44px">1등!</div>
+      </div></div></div>
+    <div class="m me" data-t="10.8"><p>경기 못 봤는데 무슨 일 있었어?</p></div>
+    <div class="m" data-t="11.2"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>이거 보면 다 알아 👀</p></div></div>
+    <div class="m cont" data-t="11.6"><div class="shot" style="--img:url(img/chart.jpg);--y0:560;--h:430"></div></div>
+    <div class="m cont" data-t="12.8"><div class="shot" style="--img:url(img/replay.jpg);--y0:385;--h:300">
+        <div class="hl2" data-t="13.1" style="left:306px;top:14px;width:210px;height:56px"></div>
+        <div class="stk y" data-t="13.2" data-base="translate(-50%,-100%) rotate(-5deg)" style="left:410px;top:24px">여기서 사고!</div>
+      </div></div>
+    <div class="m me" data-t="14.0"><p>오 이거 완전 편한데?? 😆</p></div>
+    <div class="m" data-t="14.8"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>그치? 이번 주엔 같이 보자 🏁</p></div></div>
+    <div class="m" data-t="15.6"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>콜!! 🙌</p></div></div>
+  </div></div>
+  <div id="bar"><span class="plus">+</span><span class="in">메시지 입력</span><span class="send"></span></div>
+
+  <div id="hook">
+    <div class="t-title a"><span class="w">요즘 다들 </span><span class="w">F1 얘기하던데…</span></div>
+    <div class="t-title b"><span class="w">나만 </span><span class="w red">몰라?</span></div>
+  </div>
+
+  <div id="outro">
+    <div class="checker" id="chkTop" style="top:0"></div>
+    <div class="checker" id="chkBot" style="bottom:0"></div>
+    <img id="logo" src="img/logo.svg" alt="온더리밋">
+    <div class="t-title"><span class="w">온더리밋에서</span><br><span class="w red">F1 입문</span><span class="w"> 시작</span></div>
+    <div id="url"><i></i>onthelimit.app</div>
+    <div id="free">가입 없이, 무료로</div>
+  </div>
+  <div id="wipe"></div>
+</div>
+<div id="hint">화면을 누르면 일시정지 / 재생 (음악은 누른 뒤부터)</div>
+<audio id="music" src="music/music.mp3" preload="auto"></audio>
+
+<script>
+(() => {
+// 음악은 index.html과 같은 곡(150BPM, 박 0.4초). 71.27초에서 시작하면 모든 data-t가 박 위에 오고,
+// 16.8초 마무리 와이프가 마디 첫 박, 18.4초 주소 등장이 곡의 마지막 화음에 온다.
+const OUT = 16.8, DUR = OUT + 6;
+window.__DUR = DUR; window.__MUSIC_START = 71.27;
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = {
+  out: (k) => 1 - Math.pow(1 - k, 3),
+  inOut: (k) => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  back: (k) => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+};
+const show = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; };
+function pop(layer, t, start, gap = .07, dur = .32) {
+  layer.querySelectorAll('.w').forEach((w, i) => {
+    const k = clamp((t - start - i * gap) / dur);
+    w.style.opacity = clamp(k * 2.2);
+    w.style.transform = `translateY(${lerp(60, 0, ease.out(k))}px) scale(${lerp(.4, 1, ease.back(k))})`;
+  });
+}
+const timed = [...document.querySelectorAll('[data-t]')];
+const rows = [...document.querySelectorAll('#list > .m')];
+const VIEW = 1920 - 190 - 160;
+// 새 말풍선이 뜰 때마다 맨 아래가 보이도록 올린다
+const target = (i) => (i < 0 ? 0 : Math.max(0, rows[i].offsetTop + rows[i].offsetHeight + 40 - VIEW));
+
+function render(t) {
+  t = clamp(t, 0, DUR);
+  for (const el of timed) {
+    const t0 = +el.dataset.t; show(el, t >= t0);
+    const k = clamp((t - t0) / .28);
+    el.style.opacity = clamp(k * 2.5);
+    el.style.transform = `${el.dataset.base || ''} translateY(${lerp(30, 0, ease.out(k))}px) scale(${lerp(.6, 1, ease.back(k))})`;
+  }
+  let i = -1; while (i + 1 < rows.length && t >= +rows[i + 1].dataset.t) i++;
+  const ks = i < 0 ? 0 : clamp((t - rows[i].dataset.t) / .3);
+  $('#list').style.transform = `translateY(${-lerp(target(i - 1), target(i), ease.out(ks))}px)`;
+
+  // 훅 3.2–4.8초(한 마디)
+  const hook = $('#hook'); const hOn = t >= 3.2 && t < 4.8; show(hook, hOn);
+  if (hOn) { hook.style.opacity = Math.min(clamp((t - 3.2) / .15), clamp((4.8 - t) / .12)); pop(hook, t, 3.25, .22, .3); }
+
+  // 와이프 → 마무리
+  const kw = (t - (OUT - .22)) / .44, w = $('#wipe');
+  show(w, kw >= 0 && kw <= 1); w.style.left = lerp(1500, -2400, ease.inOut(clamp(kw))) + 'px';
+  const out = $('#outro'); show(out, t >= OUT);
+  if (t >= OUT) {
+    const o = t - OUT;
+    const kl = clamp((o - .15) / .5);
+    $('#logo').style.opacity = clamp(kl * 3);
+    $('#logo').style.transform = `scale(${lerp(.3, 1, ease.back(kl))}) rotate(${lerp(-8, 0, ease.out(kl))}deg)`;
+    pop(out, t, OUT + .75, .22, .36);
+    const ku = clamp((o - 1.6) / .4), pulse = o > 2.6 ? 1 + Math.sin((o - 2.6) * 4.2) * .025 : 1;
+    $('#url').style.opacity = ku;
+    $('#url').style.transform = `translateX(-50%) translateY(${lerp(50, 0, ease.out(ku))}px) scale(${lerp(.7, 1, ease.back(ku)) * pulse})`;
+    $('#free').style.opacity = clamp((o - 2.1) / .4);
+    $('#chkTop').style.transform = `translateX(${-(o * 60) % 120}px) translateY(${lerp(-130, 0, ease.out(clamp(o / .4)))}px)`;
+    $('#chkBot').style.transform = `translateX(${-120 + (o * 60) % 120}px) translateY(${lerp(130, 0, ease.out(clamp(o / .4)))}px)`;
+  }
+}
+
+// ── 재생(index.html과 같음)
+function fit() { $('#stage').style.transform = `scale(${Math.min(innerWidth / 1080, innerHeight / 1920)})`; }
+const qs = new URLSearchParams(location.search);
+window.__seek = render;
+if (qs.has('render')) { document.body.classList.add('render'); render(0); return; }
+addEventListener('resize', fit); fit();
+if (qs.has('t')) { document.fonts.ready.then(() => render(parseFloat(qs.get('t')) || 0)); return; }
+const MUSIC_START = window.__MUSIC_START, music = $('#music');
+let t0 = null, paused = false, pausedAt = 0, armed = false;
+const syncMusic = (t) => { if (!armed || paused || t > DUR) { music.pause(); return; } music.currentTime = MUSIC_START + t; music.play().catch(() => {}); };
+document.addEventListener('click', () => {
+  if (!armed) { armed = true; t0 = performance.now(); pausedAt = 0; syncMusic(0); return; }
+  paused = !paused;
+  if (!paused) t0 = performance.now() - pausedAt * 1000;
+  syncMusic(pausedAt);
+});
+function tick(now) {
+  if (t0 === null) t0 = now;
+  if (!paused) { let t = (now - t0) / 1000; if (t > DUR + .5) { t0 = now; t = 0; syncMusic(0); } else if (t > DUR) music.pause(); pausedAt = t; render(t); }
+  requestAnimationFrame(tick);
+}
+document.fonts.ready.then(() => requestAnimationFrame(tick));
+})();
+</script>
+</body>
+</html>
