@@ -75,3 +75,14 @@ export const getRaceIncidents = (year: number, round: number, signal?: AbortSign
 // FIA documents (auto-summarized by the server)
 export const getFiaDocuments = (event: string | null, signal?: AbortSignal) =>
   api.get('/fia/documents', { params: { event: event ?? undefined }, signal }).then((r) => r.data);
+
+// Optional features the server has switched on
+export const getFeatures = (signal?: AbortSignal) =>
+  api.get('/features', { signal }).then((r) => r.data as { nextRace: boolean });
+
+// Next-race guide: the coming race, or one race pinned by year and round
+export const getNextRaceGuide = (year?: number, round?: number, signal?: AbortSignal) =>
+  api.get(year && round ? `/next-race/${year}/${round}` : '/next-race', { signal }).then((r) => r.data);
+
+// The season calendar feed, as a link the viewer's calendar app subscribes to
+export const calendarUrl = () => `${api.defaults.baseURL}/calendar.ics`;
