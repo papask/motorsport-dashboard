@@ -7,23 +7,23 @@ import path from 'path';
 // Threads switch it lives on the data disk, so each environment keeps its own
 // and a restart keeps it.
 //
-// The calendar feed has its own switch: once people subscribe, their
-// calendars keep polling it, so it can stay up while the guide is off. Left
-// unset, it follows the guide.
+// The calendar feed has its own switch, off until switched on (the subscribe
+// link stays hidden till then). Once people subscribe their calendars keep
+// polling it, so it stays up even while the guide is off.
 
 const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'next-race-settings.json');
 
 // Off until switched on, so a new deploy never starts collecting by itself
 let enabled = false;
-let calendar: boolean | undefined;
+let calendar = false;
 // Posting each guide to Threads once it's ready: off until switched on, and it
 // also needs the guide and the Threads switch on
 let threads = false;
 try {
   const saved = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
   enabled = saved.enabled === true;
-  if (typeof saved.calendar === 'boolean') calendar = saved.calendar;
+  calendar = saved.calendar === true;
   threads = saved.threads === true;
 } catch {
   // never switched
@@ -33,7 +33,7 @@ type Listener = (enabled: boolean) => void;
 const listeners: Listener[] = [];
 
 export const nextRaceEnabled = () => enabled;
-export const calendarEnabled = () => calendar ?? enabled;
+export const calendarEnabled = () => calendar;
 export const guideThreadsEnabled = () => threads;
 
 /** Called with the new value on every flip; services start or stop their work here. */
@@ -43,7 +43,7 @@ export function onNextRaceToggle(listener: Listener) {
 
 function save() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ enabled, ...(calendar !== undefined && { calendar }), ...(threads && { threads }) }));
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ enabled, ...(calendar && { calendar }), ...(threads && { threads }) }));
 }
 
 export function setGuideThreadsEnabled(value: boolean) {
@@ -60,11 +60,10 @@ export function setNextRaceEnabled(value: boolean) {
   for (const listener of listeners) listener(enabled);
 }
 
-/** true or false pins the calendar; null lets it follow the guide again. */
-export function setCalendarEnabled(value: boolean | null) {
-  calendar = value ?? undefined;
+export function setCalendarEnabled(value: boolean) {
+  calendar = value;
   save();
-  console.log(`[NextRace] calendar ${value === null ? 'follows the guide' : value ? 'on' : 'off'}`);
+  console.log(`[NextRace] calendar ${value ? 'on' : 'off'}`);
 }
 
 /** Thrown by a job that noticed the switch went off between two steps. */

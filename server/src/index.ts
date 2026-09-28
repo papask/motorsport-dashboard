@@ -80,15 +80,13 @@ const nextRaceStatus = () => ({
 app.get('/api/admin/next-race', (_req, res) => {
   res.json(nextRaceStatus());
 });
-// {"enabled": bool} flips the guide; {"calendar": bool|null} pins the calendar feed, null lets it
-// follow the guide; {"threads": bool} posts each guide to Threads once it's ready
+// {"enabled": bool} flips the guide; {"calendar": bool} the calendar feed and its subscribe
+// link; {"threads": bool} posts each guide to Threads once it's ready
 app.post('/api/admin/next-race', (req, res) => {
   const { enabled, calendar, threads } = req.body ?? {};
-  const okEnabled = enabled === undefined || typeof enabled === 'boolean';
-  const okCalendar = calendar === undefined || calendar === null || typeof calendar === 'boolean';
-  const okThreads = threads === undefined || typeof threads === 'boolean';
-  if (!okEnabled || !okCalendar || !okThreads || (enabled === undefined && calendar === undefined && threads === undefined)) {
-    res.status(400).json({ error: 'body must hold "enabled": true|false, "calendar": true|false|null and/or "threads": true|false' });
+  const given = [enabled, calendar, threads].filter((v) => v !== undefined);
+  if (!given.length || !given.every((v) => typeof v === 'boolean')) {
+    res.status(400).json({ error: 'body must hold "enabled", "calendar" and/or "threads": true|false' });
     return;
   }
   if (enabled !== undefined) setNextRaceEnabled(enabled);

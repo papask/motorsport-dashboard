@@ -133,7 +133,7 @@ Switched on, it:
 
 `{"threads": true}` posts each race's guide to Threads once, when it is ready: the previous race's standings and stewards' decisions are in, the pole lap profile (where the circuit has one) and the race forecast are there, and practice hasn't started. It also needs the Threads switch (`/api/admin/threads`) on. Waiting guides log what they are missing (`[NextRace] Threads post … waiting for: …`).
 
-The calendar feed follows the guide switch unless pinned with `{"calendar": true|false}` (`null` unpins). Pin it on once people subscribe, so switching the guide off doesn't break their calendars.
+The calendar feed (`/api/calendar.ics`) and its subscribe link stay off until `{"calendar": true}`. Once on, it stays up even while the guide is off, so subscribers' calendars keep updating.
 
 Tests: `cd server && npm test`.
 

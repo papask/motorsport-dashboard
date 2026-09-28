@@ -86,15 +86,15 @@ test('flipping the switch is saved and announced', async () => {
   assert.throws(() => settings.assertNextRaceEnabled(), settings.NextRaceDisabledError);
 });
 
-test('the calendar follows the guide unless pinned', async () => {
+test('the calendar stays off until switched on, then outlives the guide', async () => {
   const settings = await import('../src/services/nextRaceSettings');
   settings.setNextRaceEnabled(true);
-  assert.equal(settings.calendarEnabled(), true);
+  assert.equal(settings.calendarEnabled(), false, 'the guide alone does not open it');
   settings.setCalendarEnabled(true);
   settings.setNextRaceEnabled(false);
-  assert.equal(settings.calendarEnabled(), true, 'pinned on: subscribers keep their feed');
+  assert.equal(settings.calendarEnabled(), true, 'subscribers keep their feed');
   const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'next-race-settings.json'), 'utf8'));
   assert.deepEqual(saved, { enabled: false, calendar: true });
-  settings.setCalendarEnabled(null);
-  assert.equal(settings.calendarEnabled(), false, 'unpinned: follows the guide again');
+  settings.setCalendarEnabled(false);
+  assert.equal(settings.calendarEnabled(), false);
 });
