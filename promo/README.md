@@ -1,5 +1,7 @@
 # 온더리밋 홍보 영상
 
+> 인스타 릴스·쇼츠용 세로 영상 두 편(1080×1920, 각 26초)은 [`shorts/`](shorts/README.md)에 있습니다.
+
 ## 현재 버전 — `onthelimit-promo-v5.mp4`
 
 ![poster](poster-v5.jpg)

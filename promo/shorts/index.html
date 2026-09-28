@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온더리밋 쇼츠</title>
+<!--
+  온더리밋 세로 홍보 영상 (1080×1920, 26초, 자동재생).
+  - 그냥 열면 자동재생하고 끝나면 처음부터 반복합니다. 첫 클릭에 음악과 함께 처음부터, 그다음부터는 일시정지/재생.
+  - ?t=12.5  : 그 시점에서 멈춘 화면
+  - ?render  : 녹화용. window.__seek(t)로 프레임을 직접 그립니다(scripts/render.cjs).
+  - ?chat    : 단톡방 편. 0–7초 훅·공감 대신 단톡방 대화가 나오고, 친구가 보낸 링크 미리보기가 화면 가득 커지며
+               기능 장면으로 넘어갑니다. 7초 이후는 기본 편과 같습니다. 말풍선 등장 시각은 각 요소의 data-t(초)입니다.
+  서체 파일은 fonts/에 두고 저장소에는 넣지 않습니다(README 참고).
+-->
+<style>
+@font-face { font-family: 'Jalnan 2'; src: local('Jalnan 2'), local('Jalnan2TTF'), url('fonts/Jalnan2TTF.ttf') format('truetype'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 600; src: url('fonts/Pretendard-SemiBold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 700; src: url('fonts/Pretendard-Bold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 800; src: url('fonts/Pretendard-ExtraBold.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-ExtraBold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Pretendard'; font-weight: 900; src: url('fonts/Pretendard-Black.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Black.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 800; font-style: italic; src: url('fonts/barlow-condensed-latin-800-italic.woff2') format('woff2'), url('https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed@5/files/barlow-condensed-latin-800-italic.woff2') format('woff2'); font-display: block; }
+
+:root {
+  --red: #D9101A;
+  --ink: #111114;
+  --paper: #FFFFFF;
+  --cream: #FFF6EF;
+  --grey: #5B5B66;
+  --yellow: #FFD23F;
+  --title: 'Jalnan 2', 'Pretendard', sans-serif;
+  --body: 'Pretendard', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  --num: 'Barlow Condensed', 'Pretendard', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #1a1a1d; overflow: hidden; }
+body { display: flex; align-items: center; justify-content: center; }
+#stage {
+  position: relative; width: 1080px; height: 1920px; overflow: hidden; flex: none;
+  background: var(--cream); color: var(--ink); font-family: var(--body);
+  transform-origin: center center;
+}
+body.render { display: block; background: var(--cream); }
+body.render #stage { transform: none !important; }
+.abs { position: absolute; }
+.layer { position: absolute; inset: 0; visibility: hidden; }
+
+/* background */
+#bg { position: absolute; inset: 0;
+  background:
+    radial-gradient(1200px 900px at 85% 8%, rgba(217,16,26,.10), transparent 60%),
+    radial-gradient(900px 900px at 0% 100%, rgba(255,210,63,.18), transparent 60%),
+    var(--cream); }
+#grid { position: absolute; inset: -200px; opacity: .5;
+  background-image: linear-gradient(rgba(17,17,20,.05) 2px, transparent 2px), linear-gradient(90deg, rgba(17,17,20,.05) 2px, transparent 2px);
+  background-size: 90px 90px; }
+#lines { position: absolute; inset: 0; pointer-events: none; }
+.sl { position: absolute; height: 10px; border-radius: 10px; background: var(--red); transform-origin: left center; }
+.sl.k { background: var(--ink); }
+.sl.w { background: rgba(17,17,20,.14); }
+
+/* text */
+.t-title { font-family: var(--title); font-weight: 400; letter-spacing: -1px; line-height: 1.18; text-align: center; }
+.red { color: var(--red); }
+.w { display: inline-block; white-space: pre; will-change: transform, opacity; }
+.mark { position: relative; display: inline-block; }
+.mark::before { content: ''; position: absolute; left: -8px; right: -8px; bottom: 6px; height: 34%; background: var(--yellow); z-index: -1;
+  transform-origin: left center; transform: scaleX(var(--mk, 0)); border-radius: 6px; }
+
+/* hook */
+#hookA { top: 0; }
+#hookA .t-title { position: absolute; left: 0; right: 0; top: 700px; font-size: 128px; }
+#hookB .t-title { position: absolute; left: 0; right: 0; top: 760px; font-size: 200px; }
+.qm { position: absolute; font-family: var(--num); font-style: italic; font-weight: 800; color: var(--red); font-size: 220px; line-height: 1; }
+
+/* empathy */
+#empA .t-title { position: absolute; left: 0; right: 0; top: 640px; font-size: 118px; }
+#empB .t-title { position: absolute; left: 0; right: 0; top: 480px; font-size: 128px; }
+.chip { position: absolute; padding: 18px 34px; border-radius: 999px; background: var(--paper); font-weight: 800; font-size: 46px;
+  box-shadow: 0 14px 40px rgba(17,17,20,.12); border: 3px solid var(--ink); white-space: nowrap; }
+.chip.r { background: var(--red); color: #fff; border-color: var(--red); }
+.chip.y { background: var(--yellow); }
+
+/* feature captions */
+.cap { position: absolute; left: 0; right: 0; top: 0; padding: 150px 0 150px; text-align: center;
+  background: linear-gradient(to bottom, var(--cream) 0, var(--cream) 74%, rgba(255,246,239,0) 100%); }
+.kick { display: inline-block; font-weight: 800; font-size: 40px; color: #fff; background: var(--ink); padding: 12px 30px 12px 26px; border-radius: 999px; letter-spacing: .5px; }
+.kick b { font-family: var(--num); font-style: italic; color: var(--red); margin-right: 14px; font-size: 44px; }
+.cap .t-title { font-size: 104px; margin-top: 26px; }
+.cap .sub { font-size: 44px; font-weight: 700; color: var(--grey); margin-top: 18px; }
+
+/* phone */
+#phone { position: absolute; left: 50%; top: 0; width: 560px; height: 1166px; margin-left: -280px; border-radius: 78px; background: #0d0d10;
+  box-shadow: 0 60px 120px rgba(17,17,20,.28), 0 0 0 3px #2a2a30 inset; padding: 20px; transform-origin: 50% 0; visibility: hidden; }
+#screen { position: relative; width: 520px; height: 1126px; border-radius: 60px; overflow: hidden; background: #f2f1ef; }
+.page { position: absolute; left: 0; top: 0; width: 520px; visibility: hidden; }
+.page img { display: block; width: 520px; }
+#hdr { position: absolute; left: 0; top: 0; width: 520px; z-index: 4; }
+#hdr img { display: block; width: 520px; }
+.hl { position: absolute; border: 6px solid var(--red); border-radius: 22px; box-shadow: 0 0 0 9999px rgba(17,17,20,.0); visibility: hidden; z-index: 3; }
+.sticker { position: absolute; z-index: 6; visibility: hidden; font-family: var(--title); font-size: 58px; color: #fff; background: var(--red);
+  padding: 14px 30px 10px; border-radius: 22px; white-space: nowrap; box-shadow: 0 16px 40px rgba(217,16,26,.35); transform-origin: 50% 100%; }
+.sticker.y { background: var(--yellow); color: var(--ink); box-shadow: 0 16px 40px rgba(17,17,20,.2); }
+.sticker::after { content: ''; position: absolute; left: 50%; bottom: -16px; margin-left: -16px; border: 16px solid transparent; border-bottom: 0; border-top-color: inherit; }
+.sticker.r::after { border-top-color: var(--red); }
+.sticker.y::after { border-top-color: var(--yellow); }
+#reveal { position: absolute; background: #e9e8e5; z-index: 2; visibility: hidden; }
+#tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 6px solid var(--red); z-index: 7; visibility: hidden; }
+
+/* PC */
+#pc .t-title { font-size: 104px; margin-top: 26px; }
+#mon { position: absolute; left: 40px; top: 600px; width: 1000px; transform-origin: 50% 40%; }
+#mon .bezel { background: #0d0d10; border-radius: 26px; padding: 18px; box-shadow: 0 60px 120px rgba(17,17,20,.28); }
+#mon .scr { position: relative; width: 964px; height: 542px; overflow: hidden; border-radius: 8px; background: #f2f1ef; }
+#mon .scr img { position: absolute; left: 0; top: 0; width: 964px; }
+#mon .neck { width: 150px; height: 90px; margin: 0 auto; background: linear-gradient(#2a2a30, #17171b); }
+#mon .foot { width: 400px; height: 22px; margin: 0 auto; background: #17171b; border-radius: 14px 14px 6px 6px; }
+#pcChips { position: absolute; left: 0; right: 0; top: 1380px; display: flex; justify-content: center; gap: 12px; }
+#pcChips span { font-weight: 800; font-size: 38px; padding: 14px 22px; border-radius: 999px; background: var(--paper); border: 3px solid var(--ink); white-space: nowrap; }
+#pcChips span.on { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* 단톡방 편(?chat) */
+#chat { position: absolute; inset: 0; z-index: 40; background: #EEF1F5; display: none; }
+#chat .top { position: absolute; left: 0; right: 0; top: 0; height: 190px; background: var(--paper); border-bottom: 2px solid #dde1e7; display: flex; align-items: center; padding: 50px 40px 0; gap: 26px; z-index: 5; }
+#chat .back { font-size: 90px; font-weight: 600; line-height: 1; margin-top: -12px; }
+#chat .name { font-size: 50px; font-weight: 800; flex: 1; }
+#chat .name small { color: var(--grey); font-weight: 700; margin-left: 12px; }
+#chat .menu { width: 54px; height: 40px; background: linear-gradient(var(--ink) 0 6px, transparent 6px 17px, var(--ink) 17px 23px, transparent 23px 34px, var(--ink) 34px 40px); border-radius: 3px; }
+#chat .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 160px; background: var(--paper); border-top: 2px solid #dde1e7; display: flex; align-items: center; gap: 22px; padding: 0 36px 20px; z-index: 5; }
+#chat .plus { width: 76px; height: 76px; border-radius: 50%; background: #e6e8ec; font-size: 60px; font-weight: 600; color: var(--grey); display: grid; place-items: center; line-height: 1; }
+#chat .in { flex: 1; height: 86px; border-radius: 43px; background: #f1f2f5; font-size: 40px; color: #a3a6ad; display: flex; align-items: center; padding: 0 34px; font-weight: 600; }
+#chat .send { width: 86px; height: 86px; border-radius: 50%; background: var(--red); }
+#chat .view { position: absolute; left: 0; right: 0; top: 190px; bottom: 160px; overflow: hidden; }
+#chatList { position: relative; padding: 30px 36px 40px; }
+#chat .day { margin: 0 auto 30px; width: max-content; padding: 10px 30px; border-radius: 999px; background: rgba(17,17,20,.08); color: var(--grey); font-size: 32px; font-weight: 700; }
+#chat .m { display: flex; gap: 22px; margin-top: 30px; align-items: flex-start; transform-origin: 0 100%; }
+#chat .m.cont { margin-top: 14px; padding-left: 132px; }
+#chat .m.me { justify-content: flex-end; transform-origin: 100% 100%; }
+#chat .av { flex: none; width: 110px; height: 110px; border-radius: 40px; background: var(--c); color: #fff; font: 400 52px/110px var(--title); text-align: center; font-style: normal; }
+#chat .nm { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin: 0 0 10px 6px; }
+#chat .m p { display: inline-block; max-width: 760px; padding: 24px 34px; border-radius: 12px 40px 40px 40px; background: var(--paper); font-size: 50px; font-weight: 700; line-height: 1.34; box-shadow: 0 4px 0 rgba(17,17,20,.05); }
+#chat .m.me p { background: var(--red); color: #fff; border-radius: 40px 12px 40px 40px; }
+#card { width: 700px; border-radius: 30px; overflow: hidden; background: var(--paper); box-shadow: 0 10px 30px rgba(17,17,20,.12); }
+#card .hero { height: 250px; background: var(--cream); display: grid; place-items: center; }
+#card .hero img { width: 560px; display: block; }
+#card .tx { padding: 26px 34px 30px; }
+#card b { display: block; font-size: 44px; font-weight: 800; }
+#card span { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin-top: 6px; }
+#card i { display: block; font-size: 32px; font-weight: 600; font-style: normal; color: #9a9ca3; margin-top: 12px; }
+#ctap { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; background: rgba(217,16,26,.25); border: 6px solid var(--red); z-index: 6; visibility: hidden; }
+#chook { position: absolute; inset: 0; background: rgba(17,17,20,.88); z-index: 20; visibility: hidden; color: #fff; }
+#chook .a { position: absolute; left: 0; right: 0; top: 700px; font-size: 76px; }
+#chook .b { position: absolute; left: 0; right: 0; top: 840px; font-size: 190px; }
+#chook .red { color: #ff3b44; }
+/* 링크 미리보기가 화면 가득 커지는 판 */
+#grow { position: absolute; z-index: 45; overflow: hidden; display: none; background:
+    radial-gradient(1200px 900px at 85% 8%, rgba(217,16,26,.10), transparent 60%), radial-gradient(900px 900px at 0% 100%, rgba(255,210,63,.18), transparent 60%), var(--cream); }
+#grow img { position: absolute; left: 50%; top: 50%; }
+
+/* outro */
+#outro .checker { position: absolute; left: -100px; right: -100px; height: 120px;
+  background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / 120px 120px; }
+#logo { position: absolute; left: 50%; top: 560px; width: 880px; margin-left: -440px; }
+#outro .t-title { position: absolute; left: 0; right: 0; top: 880px; font-size: 112px; }
+#url { position: absolute; left: 50%; top: 1250px; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 999px;
+  padding: 26px 56px 26px 44px; font-weight: 800; font-size: 64px; white-space: nowrap; display: flex; align-items: center; gap: 22px; }
+#url i { width: 26px; height: 26px; border-radius: 50%; background: var(--red); display: block; }
+#free { position: absolute; left: 0; right: 0; top: 1420px; text-align: center; font-size: 44px; font-weight: 700; color: var(--grey); }
+
+/* wipe */
+#wipe { position: absolute; top: -300px; bottom: -300px; width: 1500px; left: 0; z-index: 50; visibility: hidden;
+  background: linear-gradient(90deg, var(--red) 0 78%, var(--ink) 78% 84%, transparent 84% 88%, var(--ink) 88% 92%, transparent 92%);
+  transform: skewX(-18deg); }
+#flash { position: absolute; inset: 0; background: #fff; z-index: 49; opacity: 0; pointer-events: none; }
+#hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); color: #888; font: 600 13px var(--body); }
+body.render #hint { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"><div id="grid"></div></div>
+  <div id="lines"></div>
+
+  <!-- 1. 훅 -->
+  <div class="layer" id="hookA">
+    <div class="t-title"><span class="w">요즘 다들</span><br><span class="w red">F1 </span><span class="w">얘기하던데…</span></div>
+  </div>
+  <div class="layer" id="hookB">
+    <div class="qm" style="left:110px;top:520px">?</div>
+    <div class="qm" style="left:840px;top:430px;font-size:170px">?</div>
+    <div class="qm" style="left:800px;top:1130px;font-size:260px">?</div>
+    <div class="t-title"><span class="w">나만 </span><span class="w red">몰라?</span></div>
+  </div>
+
+  <!-- 2. 공감 -->
+  <div class="layer" id="empA">
+    <div class="chip r" style="left:120px;top:430px">누가 1등?</div>
+    <div class="chip" style="left:600px;top:470px">추월했대!</div>
+    <div class="chip y" style="left:170px;top:1060px">사고 났대…</div>
+    <div class="chip" style="left:620px;top:1110px">다음 경기는?</div>
+    <div class="t-title"><span class="w">누가 이겼는지,</span><br><span class="w">뭐가 재밌었는지</span></div>
+  </div>
+  <div class="layer" id="empB">
+    <div class="t-title"><span class="w mark">한눈에</span><br><span class="w">보고 싶다면?</span></div>
+  </div>
+
+  <!-- 폰 목업 -->
+  <div id="phone"><div id="screen">
+    <div class="page" id="pgS"><img src="img/schedule.jpg" alt=""></div>
+    <div class="page" id="pgR"><img src="img/standings.jpg" alt=""></div>
+    <div class="page" id="pgC"><img src="img/chart.jpg" alt=""></div>
+    <div class="page" id="pgV"><img src="img/replay.jpg" alt=""></div>
+    <div id="reveal"></div>
+    <div id="hdr"><img src="img/header.jpg" alt=""></div>
+    <div class="hl" id="hl"></div>
+    <div id="tap"></div>
+  </div></div>
+  <!-- 3. 기능 캡션 -->
+  <div class="layer" id="capS"><div class="cap">
+    <span class="kick"><b>01</b>스케줄</span>
+    <div class="t-title"><span class="w">"다음 경기 </span><span class="w red">언제야?</span><span class="w">"</span></div>
+    <div class="sub">남은 시간까지 바로 확인</div>
+  </div></div>
+  <div class="layer" id="capR"><div class="cap">
+    <span class="kick"><b>02</b>순위</span>
+    <div class="t-title"><span class="w">"지금 누가 </span><span class="w red">1등</span><span class="w">이야?"</span></div>
+    <div class="sub">선수·팀 순위를 한눈에</div>
+  </div></div>
+  <div class="layer" id="capV"><div class="cap">
+    <span class="kick"><b>03</b>레이스 리뷰</span>
+    <div class="t-title" style="font-size:96px"><span class="w">경기 안 봐도</span><br><span class="w red">무슨 일</span><span class="w"> 있었는지</span></div>
+    <div class="sub" id="subV">랩마다 바뀐 순위, 한 장에</div>
+  </div></div>
+
+  <div class="sticker r" id="stk1">1등!</div>
+  <div class="sticker y" id="stk2">여기서 사고!</div>
+  <div class="sticker r" id="stk3">D-5</div>
+
+  <!-- 3.5 PC: 한 박(0.4초)에 한 화면씩 -->
+  <div class="layer" id="pc">
+    <div id="mon"><div class="bezel"><div class="scr">
+      <img src="img/pc-next.jpg" alt=""><img src="img/pc-standings.jpg" alt=""><img src="img/pc-schedule.jpg" alt=""><img src="img/pc-docs.jpg" alt=""><img src="img/pc-timeline.jpg" alt="">
+    </div></div><div class="neck"></div><div class="foot"></div></div>
+    <div id="pcChips"><span>다음 경기</span><span>순위</span><span>스케줄</span><span>문서</span><span>타임라인</span></div>
+    <div class="cap">
+      <span class="kick"><b>+</b>PC에서도</span>
+      <div class="t-title"><span class="w">큰 화면으로 </span><span class="w red">한눈에!</span></div>
+    </div>
+  </div>
+
+  <!-- 단톡방 편(?chat) 0–7초 -->
+  <div id="chat">
+    <div class="top"><span class="back">‹</span><span class="name">불금 치맥 모임 🍗<small>4</small></span><span class="menu"></span></div>
+    <div class="view"><div id="chatList">
+      <div class="day">오늘</div>
+      <div class="m" data-t="0"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>어제 F1 봤어?? 🏎️</p></div></div>
+      <div class="m" data-t="0.8"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>마지막에 역전한 거 실화냐 ㅋㅋㅋ</p></div></div>
+      <div class="m" data-t="1.6"><i class="av" style="--c:#19A974">서</i><div><b class="nm">서연</b><p>나 소리 질렀잖아 😱</p></div></div>
+      <div class="m" data-t="2.4"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>다음 경기 언제야? 같이 보자!</p></div></div>
+      <div class="m me" data-t="4.8"><p>나 F1 하나도 모르는데… 😢</p></div>
+      <div class="m" data-t="5.2"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>ㅋㅋ 걱정 마, 여기 보면 돼</p></div></div>
+      <div class="m cont" data-t="5.6"><div id="card"><div class="hero"><img src="img/logo.svg" alt="온더리밋"></div><div class="tx"><b>온더리밋</b><span>다음 경기·순위·레이스 리뷰를 한눈에</span><i>onthelimit.app</i></div></div></div>
+    </div></div>
+    <div class="bar"><span class="plus">+</span><span class="in">메시지 입력</span><span class="send"></span></div>
+    <div id="ctap"></div>
+    <div id="chook">
+      <div class="t-title a"><span class="w">요즘 다들 </span><span class="w">F1 얘기하던데…</span></div>
+      <div class="t-title b"><span class="w">나만 </span><span class="w red">몰라?</span></div>
+    </div>
+  </div>
+  <div id="grow"><img src="img/logo.svg" alt=""></div>
+
+  <!-- 4. 마무리 -->
+  <div class="layer" id="outro">
+    <div class="checker" id="chkTop" style="top:0"></div>
+    <div class="checker" id="chkBot" style="bottom:0"></div>
+    <img id="logo" src="img/logo.svg" alt="온더리밋">
+    <div class="t-title"><span class="w">온더리밋에서</span><br><span class="w red">F1 입문</span><span class="w"> 시작</span></div>
+    <div id="url"><i></i>onthelimit.app</div>
+    <div id="free">가입 없이, 무료로</div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="wipe"></div>
+</div>
+<div id="hint">화면을 누르면 일시정지 / 재생 (음악은 누른 뒤부터)</div>
+<audio id="music" src="music/music.mp3" preload="auto"></audio>
+
+<script>
+(() => {
+const DUR = 26;
+const CHAT = new URLSearchParams(location.search).has('chat');
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = {
+  lin: (k) => k,
+  out: (k) => 1 - Math.pow(1 - k, 3),
+  inOut: (k) => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  back: (k) => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+};
+// 구간 보간: kf(t, [[t0, v0], [t1, v1], ...], easing)
+function kf(t, keys, e = ease.inOut) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1] = keys[i];
+    if (t <= t1) { const [t0, v0] = keys[i - 1]; return lerp(v0, v1, e(clamp((t - t0) / (t1 - t0)))); }
+  }
+  return keys[keys.length - 1][1];
+}
+const show = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; };
+const inRange = (t, a, b) => t >= a && t < b;
+
+// 단어가 톡톡 튀어나오는 등장
+function pop(layer, t, start, gap = .07, dur = .32) {
+  layer.querySelectorAll('.w').forEach((w, i) => {
+    const k = clamp((t - start - i * gap) / dur);
+    const s = lerp(.4, 1, ease.back(k));
+    w.style.opacity = clamp(k * 2.2);
+    w.style.transform = `translateY(${lerp(60, 0, ease.out(k))}px) scale(${s})`;
+  });
+}
+
+// 속도선
+const lines = $('#lines');
+const LINES = [];
+function addLines(t0, list) { list.forEach(([y, len, cls, delay, dir]) => {
+  const d = document.createElement('div'); d.className = 'sl ' + (cls || ''); d.style.top = y + 'px'; d.style.width = len + 'px';
+  lines.appendChild(d); LINES.push({ d, t0: t0 + (delay || 0), len, dir: dir || 1 }); }); }
+addLines(0.0, [[330, 520, '', 0], [420, 300, 'k', .05], [1480, 640, '', .1], [1560, 260, 'w', .02], [1640, 420, 'k', .12]]);
+addLines(2.95, [[260, 700, '', 0, -1], [360, 380, 'k', .06, -1], [1580, 560, '', .04, -1], [1680, 300, 'w', .1, -1]]);
+addLines(10.72, [[1500, 800, '', 0], [1590, 420, 'k', .05]]);
+addLines(14.32, [[1500, 800, '', 0, -1], [1590, 420, 'k', .05, -1]]);
+addLines(17.95, [[1500, 800, '', 0], [1590, 420, 'k', .05]]);
+addLines(19.95, [[520, 760, '', 0], [610, 380, 'k', .06], [1560, 620, '', .03], [1650, 300, 'w', .1]]);
+function drawLines(t) {
+  for (const L of LINES) {
+    const k = (t - L.t0) / .55;
+    if (k < 0 || k > 1) { L.d.style.visibility = 'hidden'; continue; }
+    L.d.style.visibility = 'visible';
+    const x = lerp(-L.len - 50, 1180, ease.inOut(k));
+    const px = L.dir > 0 ? x : 1080 - x - L.len;
+    L.d.style.transform = `translateX(${px}px) scaleX(${lerp(.3, 1, Math.sin(Math.PI * k))})`;
+  }
+}
+
+// 사선 와이프: 전환 시점 c를 가운데로 0.44초
+const WIPES = CHAT ? [10.8, 14.4, 18.0, 20.0] : [3.0, 10.8, 14.4, 18.0, 20.0];
+function drawWipe(t) {
+  const w = $('#wipe');
+  for (const c of WIPES) {
+    const k = (t - (c - .22)) / .44;
+    if (k >= 0 && k <= 1) { show(w, true); w.style.left = lerp(1500, -2400, ease.inOut(k)) + 'px'; return; }
+  }
+  show(w, false);
+}
+
+// 폰 화면 좌표: 페이지 1x(390px 폭) → 화면 520px, 배율 4/3
+const PX = 520 / 390;
+const pages = { S: $('#pgS'), R: $('#pgR'), C: $('#pgC'), V: $('#pgV') };
+function page(id, scrollY) { for (const k in pages) show(pages[k], k === id); if (id) pages[id].style.transform = `translateY(${-scrollY * PX}px)`; }
+function hl(on, x, y, w, h, scrollY, k = 1) {
+  const el = $('#hl'); show(el, on && k > 0); if (!on) return;
+  el.style.left = (x * PX) + 'px'; el.style.top = ((y - scrollY) * PX) + 'px';
+  el.style.width = (w * PX) + 'px'; el.style.height = (h * PX) + 'px';
+  el.style.opacity = k; el.style.transform = `scale(${lerp(1.15, 1, ease.out(k))})`;
+}
+// 폰 배치: 무대 기준 (중심 x, 위쪽 y, 배율). 확대할 때는 화면 안의 점(1x 좌표)을 무대의 한 점에 맞춘다.
+function phoneAt(cx, top, s, rot = 0) {
+  const p = $('#phone');
+  p.style.transform = `translate(${cx - 540}px, ${top}px) rotate(${rot}deg) scale(${s})`;
+}
+// 페이지의 (px, py) 지점(1x, 스크롤 반영)을 무대의 (sx, sy)에 두는 폰 위치
+function focus(px, py, scrollY, s, sx, sy) {
+  const lx = 20 + px * PX, ly = 20 + (py - scrollY) * PX; // 폰 좌상단 기준
+  const cx = sx - (lx - 280) * s;
+  const top = sy - ly * s;
+  return [cx, top, s];
+}
+function sticker(id, on, sx, sy, k, rot = -4) {
+  const el = $(id); show(el, on && k > 0); if (!on) return;
+  el.style.left = sx + 'px'; el.style.top = sy + 'px';
+  el.style.transform = `translate(-50%, -100%) rotate(${rot}deg) scale(${lerp(0, 1, ease.back(clamp(k)))})`;
+}
+
+// ── 단톡방 편: 말풍선이 박마다 뜨고 → 3.2–4.8초 "나만 몰라?" → 링크 미리보기를 누르면(6.0초) 화면 가득 커진다(6.4–6.9초)
+// ?chat=<이름>: 같은 박자에 방 이름·등장인물·대사만 바꾼 판. 줄마다 [이름, 프로필 색, 대사], 내 말은 이름이 null.
+const CHATS = {
+  brunch: { room: '8/6 브런치 모임', count: 5, rows: [
+    ['젬젬', '#FF8A5B', '어제 F1 봤어?? 🏎️'],
+    ['습도', '#4C7DF0', '마지막에 역전한 거 실화냐 ㅋㅋㅋ'],
+    ['테스트', '#19A974', '나 소리 질렀잖아 😱'],
+    ['습도', '#4C7DF0', '다음 경기 언제야? 같이 보자!'],
+    [null, null, '챠드는 F1 하나도 모르는뎅...'],
+    ['션', '#8B5CF6', '챠또몰... 이거야 이거'],
+  ] },
+};
+const chatCfg = CHATS[new URLSearchParams(location.search).get('chat')];
+if (chatCfg) {
+  $('#chat .name').innerHTML = `${chatCfg.room}<small>${chatCfg.count}</small>`;
+  document.querySelectorAll('#chatList > .m:not(.cont)').forEach((row, i) => {
+    const [who, color, text] = chatCfg.rows[i];
+    row.querySelector('p').textContent = text;
+    if (!who) return;
+    const av = row.querySelector('.av'); av.textContent = who[0]; av.style.setProperty('--c', color);
+    row.querySelector('.nm').textContent = who;
+  });
+}
+const chatTimed = [...document.querySelectorAll('#chat [data-t]')];
+const chatRows = [...document.querySelectorAll('#chatList > .m')];
+const CHAT_VIEW = 1920 - 190 - 160;
+const chatTarget = (i) => (i < 0 ? 0 : Math.max(0, chatRows[i].offsetTop + chatRows[i].offsetHeight + 40 - CHAT_VIEW));
+function stageRect(el) { // 재생 중에는 #stage가 축소돼 있으니 무대 좌표로 되돌린다
+  const st = $('#stage').getBoundingClientRect(), r = el.getBoundingClientRect(), k = 1080 / st.width;
+  return [(r.left - st.left) * k, (r.top - st.top) * k, r.width * k, r.height * k];
+}
+function renderChat(t) {
+  const chat = $('#chat'), grow = $('#grow'), card = $('#card');
+  chat.style.display = t < 6.9 ? 'block' : 'none';
+  grow.style.display = t >= 6.4 && t < 7.2 ? 'block' : 'none';
+  const gimg = grow.querySelector('img'); gimg.style.opacity = 1 - clamp((t - 6.88) / .1);
+  if (t >= 6.9) { grow.style.opacity = 1 - clamp((t - 6.9) / .3); return; }
+  for (const el of chatTimed) {
+    const t0 = +el.dataset.t; show(el, t >= t0);
+    const k = clamp((t - t0) / .28);
+    el.style.opacity = clamp(k * 2.5);
+    el.style.transform = `translateY(${lerp(30, 0, ease.out(k))}px) scale(${lerp(.6, 1, ease.back(k))})`;
+  }
+  let i = -1; while (i + 1 < chatRows.length && t >= +chatRows[i + 1].dataset.t) i++;
+  const ks = i < 0 ? 0 : clamp((t - chatRows[i].dataset.t) / .3);
+  $('#chatList').style.transform = `translateY(${-lerp(chatTarget(i - 1), chatTarget(i), ease.out(ks))}px)`;
+  const hook = $('#chook'); const hOn = t >= 3.2 && t < 4.8; show(hook, hOn);
+  if (hOn) { hook.style.opacity = Math.min(clamp((t - 3.2) / .15), clamp((4.8 - t) / .12)); pop(hook, t, 3.25, .22, .3); }
+  // 링크를 톡 누르고(6.0초) → 미리보기 카드가 화면 가득(6.4–6.9초)
+  card.style.visibility = t >= 6.4 ? 'hidden' : '';
+  const [cx, cy, cw, ch] = stageRect(card);
+  const tap = $('#ctap'), kt = clamp((t - 6.0) / .35);
+  show(tap, kt > 0 && kt < 1); tap.style.left = (cx + cw / 2) + 'px'; tap.style.top = (cy + ch * .4) + 'px';
+  tap.style.opacity = 1 - kt; tap.style.transform = `scale(${lerp(.4, 1.6, ease.out(kt))})`;
+  if (t >= 6.4) {
+    const k = ease.inOut(clamp((t - 6.4) / .5));
+    grow.style.opacity = 1;
+    grow.style.left = lerp(cx, 0, k) + 'px'; grow.style.top = lerp(cy, 0, k) + 'px';
+    grow.style.width = lerp(cw, 1080, k) + 'px'; grow.style.height = lerp(ch, 1920, k) + 'px';
+    grow.style.borderRadius = lerp(30, 0, k) + 'px';
+    // 로고는 카드 윗부분(미리보기 그림)에서 화면 가운데로
+    const img = grow.querySelector('img');
+    img.style.width = lerp(560, 880, k) + 'px';
+    img.style.transform = `translate(-50%, -50%) translateY(${lerp(125 - ch / 2, 0, k)}px)`;
+  }
+}
+
+const L = (id) => $(id);
+function render(t) {
+  t = clamp(t, 0, DUR);
+  drawLines(t); drawWipe(t);
+  $('#grid').style.transform = `translate(${-(t * 30) % 90}px, ${(t * 18) % 90}px)`;
+
+  if (CHAT) renderChat(t);
+  // ── 1. 훅 0–3초
+  show(L('#hookA'), !CHAT && inRange(t, 0, 1.55));
+  if (!CHAT && inRange(t, 0, 1.55)) pop(L('#hookA'), t, .12, .16, .36);
+  show(L('#hookB'), !CHAT && inRange(t, 1.55, 3.0));
+  if (!CHAT && inRange(t, 1.55, 3.0)) {
+    const lb = L('#hookB'); pop(lb, t, 1.55, .12, .3);
+    const punch = kf(t, [[1.55, 1.12], [1.8, 1]], ease.out);
+    lb.style.transform = `scale(${punch})`;
+    lb.querySelectorAll('.qm').forEach((q, i) => {
+      const k = clamp((t - 1.85 - i * .12) / .3);
+      q.style.opacity = k; q.style.transform = `rotate(${[-14, 12, 8][i] + Math.sin(t * 6 + i) * 6}deg) scale(${ease.back(k)})`;
+    });
+    $('#flash').style.opacity = kf(t, [[1.55, .8], [1.75, 0]], ease.out);
+  } else $('#flash').style.opacity = 0;
+
+  // ── 2. 공감 3–7초
+  show(L('#empA'), !CHAT && inRange(t, 3.0, 5.0));
+  if (!CHAT && inRange(t, 3.0, 5.0)) {
+    const la = L('#empA'); pop(la, t, 3.12, .32, .38);
+    la.querySelectorAll('.chip').forEach((c, i) => {
+      const k = clamp((t - 3.3 - i * .18) / .35);
+      c.style.opacity = k;
+      c.style.transform = `translateY(${Math.sin(t * 2.4 + i * 1.7) * 12}px) rotate(${[-6, 5, 4, -5][i]}deg) scale(${ease.back(k)})`;
+    });
+  }
+  show(L('#empB'), !CHAT && inRange(t, 5.0, 7.0));
+  if (!CHAT && inRange(t, 5.0, 7.0)) {
+    const lb = L('#empB'); pop(lb, t, 5.05, .18, .34);
+    lb.querySelector('.mark').style.setProperty('--mk', kf(t, [[5.45, 0], [5.8, 1]], ease.out));
+    lb.style.transform = `translateY(${kf(t, [[6.25, 0], [6.9, -120]])}px)`;
+  }
+
+  // ── 폰 (6.3–18초)
+  const phone = $('#phone');
+  const phoneOn = inRange(t, 6.3, 18.0);
+  phone.style.visibility = 'visible'; phone.style.display = phoneOn ? 'block' : 'none';
+  let P = [540, 1920, 1], rot = 0;
+  let hlArgs = [false];
+  let stk = { s1: [false], s2: [false], s3: [false] };
+  show($('#reveal'), false); show($('#tap'), false);
+  if (phoneOn) {
+    if (t < 10.8) {
+      // 스케줄: 올라와서 카운트다운 확대 → 세션 일정으로 스크롤
+      const sy = kf(t, [[9.3, 0], [10.2, 250]]);
+      page('S', sy);
+      const rest = [540, 700, .92];
+      const zoom = focus(195, 262, sy, 1.55, 540, 1010);
+      if (t < 7.0) { P = [540, kf(t, [[6.3, 1960], [7.0, 700]], ease.out), .92]; rot = kf(t, [[6.3, 8], [7.0, 0]], ease.out); }
+      else {
+        const k = kf(t, [[7.9, 0], [8.35, 1], [9.2, 1], [9.65, 0]]);
+        P = [lerp(rest[0], zoom[0], k), lerp(rest[1], zoom[1], k), lerp(rest[2], zoom[2], k)];
+      }
+      hlArgs = [true, 10, 228, 250, 64, sy, kf(t, [[8.2, 0], [8.45, 1], [9.2, 1], [9.4, 0]], ease.lin)];
+      stk.s3 = [true, 0, 0, kf(t, [[8.4, 0], [8.7, 1], [9.15, 1], [9.35, 0]], ease.lin)];
+      if (stk.s3[0]) { const lx = 20 + 250 * PX, ly = 20 + (226 - sy) * PX; stk.s3[1] = P[0] + (lx - 280) * P[2]; stk.s3[2] = P[1] + ly * P[2]; }
+    } else if (t < 14.4) {
+      // 순위: 오른쪽에서 밀려 들어와 1등 줄 확대
+      page('R', 0);
+      const rest = [540, 700, .92];
+      const zoom = focus(195, 330, 0, 1.6, 540, 1060);
+      const inX = kf(t, [[10.8, 1500], [11.15, 540]], ease.out);
+      const k = kf(t, [[11.7, 0], [12.2, 1], [13.6, 1], [14.1, .6]]);
+      P = [lerp(inX, zoom[0], k), lerp(rest[1], zoom[1], k), lerp(rest[2], zoom[2], k)];
+      rot = kf(t, [[10.8, 6], [11.15, 0]], ease.out);
+      hlArgs = [true, 6, 290, 378, 82, 0, kf(t, [[11.35, 0], [11.6, 1]], ease.lin)];
+      const kk = kf(t, [[12.25, 0], [12.55, 1]], ease.lin);
+      const lx = 20 + 300 * PX, ly = 20 + 292 * PX;
+      stk.s1 = [true, P[0] + (lx - 280) * P[2], P[1] + ly * P[2], kk, 6];
+    } else {
+      // 레이스 리뷰: 순위 변동 차트가 그려지고 → 리플레이의 옐로 플래그
+      const inX = kf(t, [[14.4, -420], [14.75, 540]], ease.out);
+      rot = kf(t, [[14.4, -6], [14.75, 0]], ease.out);
+      if (t < 16.3) {
+        const sy = 240;
+        page('C', sy);
+        // 차트 영역(1x): x 140–355, y 535–990 → 오른쪽부터 걷어 내며 랩이 진행되는 느낌
+        const rv = $('#reveal'); show(rv, true);
+        const k = kf(t, [[14.8, 0], [16.0, 1]], ease.inOut);
+        const x0 = 150, x1 = 360;
+        const xl = lerp(x0, x1, k);
+        rv.style.left = (xl * PX) + 'px'; rv.style.top = ((528 - sy) * PX) + 'px';
+        rv.style.width = ((x1 - xl) * PX + 2) + 'px'; rv.style.height = ((470) * PX) + 'px';
+        rv.style.visibility = k >= 1 ? 'hidden' : 'visible';
+        const zoom = focus(250, 760, sy, 1.25, 540, 1150);
+        const zk = kf(t, [[15.0, 0], [15.6, 1]]);
+        P = [lerp(inX, zoom[0], zk), lerp(700, zoom[1], zk), lerp(.92, zoom[2], zk)];
+      } else {
+        page('V', 0);
+        const rest = [540, 700, .92];
+        const zoom = focus(236, 409, 0, 1.75, 540, 1080);
+        const flip = kf(t, [[16.3, 0], [16.5, 1]], ease.out);
+        const k = kf(t, [[16.5, 0], [16.95, 1]]);
+        P = [lerp(rest[0], zoom[0], k), lerp(rest[1], zoom[1], k) + (1 - flip) * 40, lerp(rest[2], zoom[2], k)];
+        hlArgs = [true, 180, 398, 112, 24, 0, kf(t, [[16.8, 0], [17.0, 1]], ease.lin)];
+        const lx = 20 + 236 * PX, ly = 20 + 395 * PX;
+        stk.s2 = [true, P[0] + (lx - 280) * P[2], P[1] + ly * P[2], kf(t, [[17.0, 0], [17.3, 1]], ease.lin), -5];
+      }
+    }
+    phoneAt(P[0], P[1], P[2], rot);
+  }
+  hl(...hlArgs);
+  sticker('#stk1', stk.s1[0], stk.s1[1], stk.s1[2], stk.s1[3], stk.s1[4]);
+  sticker('#stk2', stk.s2[0], stk.s2[1], stk.s2[2], stk.s2[3], stk.s2[4]);
+  sticker('#stk3', stk.s3[0], stk.s3[1], stk.s3[2], stk.s3[3], 5);
+
+  // 기능 캡션: 폰 위에 떠 있고, 확대된 폰은 캡션 뒤로 들어간다
+  const caps = [['#capS', 7.0, 10.8], ['#capR', 10.8, 14.4], ['#capV', 14.4, 18.0]];
+  for (const [id, a, b] of caps) {
+    const el = L(id); const on = inRange(t, a, b); show(el, on);
+    if (!on) continue;
+    pop(el, t, a + .08, .09, .3);
+    const kick = el.querySelector('.kick'); const sub = el.querySelector('.sub');
+    const kk = clamp((t - a) / .3); kick.style.opacity = kk; kick.style.transform = `translateY(${lerp(-30, 0, ease.out(kk))}px)`;
+    const ks = clamp((t - a - .45) / .3); sub.style.opacity = ks; sub.style.transform = `translateY(${lerp(20, 0, ease.out(ks))}px)`;
+  }
+  // 리뷰 설명은 차트 → 사고 장면에서 바뀐다
+  if (inRange(t, 14.4, 18.0)) {
+    const sub = $('#subV'); const txt = t < 16.3 ? '랩마다 바뀐 순위, 한 장에' : '사고 장면도 콕 집어서';
+    if (sub.textContent !== txt) sub.textContent = txt;
+    if (t >= 16.3) { const ks = clamp((t - 16.3) / .3); sub.style.opacity = ks; sub.style.transform = `translateY(${lerp(20, 0, ease.out(ks))}px)`; }
+  }
+
+  // ── PC 18–20초: 박자(0.4초)마다 다음 경기 → 순위 → 스케줄 → 문서 → 타임라인
+  const pc = L('#pc'); pc.style.visibility = 'visible'; pc.style.display = inRange(t, 18.0, 20.0) ? 'block' : 'none';
+  if (inRange(t, 18.0, 20.0)) {
+    pop(pc, t, 18.05, .09, .3);
+    const kk = clamp((t - 18.0) / .3); const kick = pc.querySelector('.kick'); kick.style.opacity = kk; kick.style.transform = `translateY(${lerp(-30, 0, ease.out(kk))}px)`;
+    const idx = Math.min(4, Math.floor((t - 18.0) / .4)), kb = clamp((t - 18.0 - idx * .4) / .12);
+    const km = clamp((t - 18.0) / .3);
+    $('#mon').style.opacity = clamp(km * 3);
+    $('#mon').style.transform = `scale(${lerp(.6, 1, ease.back(km)) * (idx ? lerp(1.025, 1, ease.out(kb)) : 1)})`;
+    pc.querySelectorAll('.scr img').forEach((im, i) => {
+      show(im, i <= idx);
+      im.style.transform = `translateX(${i === idx && i ? lerp(420, 0, ease.out(kb)) : 0}px)`;
+    });
+    pc.querySelectorAll('#pcChips span').forEach((c, i) => {
+      c.classList.toggle('on', i === idx);
+      const kc = clamp((t - 18.1 - i * .05) / .25);
+      c.style.opacity = kc; c.style.transform = `scale(${ease.back(kc) * (i === idx ? lerp(1.18, 1.06, ease.out(kb)) : 1)})`;
+    });
+  }
+
+  // ── 4. 마무리 20–26초
+  t -= 2.0; // 아래 시각은 PC 장면을 넣기 전(마무리 18초 시작) 기준
+  const out = L('#outro'); const oOn = t >= 18.0; show(out, oOn);
+  if (oOn) {
+    const kl = clamp((t - 18.15) / .5);
+    $('#logo').style.opacity = clamp(kl * 3);
+    $('#logo').style.transform = `scale(${lerp(.3, 1, ease.back(kl))}) rotate(${lerp(-8, 0, ease.out(kl))}deg)`;
+    pop(out, t, 18.75, .22, .36);
+    const ku = clamp((t - 19.6) / .4);
+    const pulse = t > 20.6 ? 1 + Math.sin((t - 20.6) * 4.2) * .025 : 1;
+    $('#url').style.opacity = ku;
+    $('#url').style.transform = `translateX(-50%) translateY(${lerp(50, 0, ease.out(ku))}px) scale(${lerp(.7, 1, ease.back(ku)) * pulse})`;
+    const kf2 = clamp((t - 20.1) / .4); $('#free').style.opacity = kf2;
+    $('#chkTop').style.transform = `translateX(${-((t - 18) * 60) % 120}px) translateY(${lerp(-130, 0, ease.out(clamp((t - 18) / .4)))}px)`;
+    $('#chkBot').style.transform = `translateX(${-120 + ((t - 18) * 60) % 120}px) translateY(${lerp(130, 0, ease.out(clamp((t - 18) / .4)))}px)`;
+  }
+}
+
+// ── 재생
+function fit() {
+  const s = Math.min(innerWidth / 1080, innerHeight / 1920);
+  $('#stage').style.transform = `scale(${s})`;
+}
+const qs = new URLSearchParams(location.search);
+window.__seek = render;
+window.__DUR = DUR;
+// 음악(music/music.mp3, 저장소에는 없음): Mixkit "Summer's Here"(150BPM). 곡의 68.07초가 영상 0초라서 박이 0.4초 격자에 오고,
+// 20.0초 마무리 와이프가 마디 첫 박, 21.6초 주소 등장이 곡의 마지막 화음에 온다. 곡은 원래 엔딩으로 끝난다.
+window.__MUSIC_START = 68.07;
+if (qs.has('render')) { document.body.classList.add('render'); render(0); return; }
+addEventListener('resize', fit); fit();
+if (qs.has('t')) { render(parseFloat(qs.get('t')) || 0); return; }
+// 브라우저 정책상 음악은 첫 클릭부터 나온다.
+const MUSIC_START = window.__MUSIC_START, music = $('#music');
+let t0 = null, paused = false, pausedAt = 0, armed = false;
+const syncMusic = (t) => { if (!armed || paused || t > DUR) { music.pause(); return; } music.currentTime = MUSIC_START + t; music.play().catch(() => {}); };
+document.addEventListener('click', () => {
+  if (!armed) { armed = true; t0 = performance.now(); pausedAt = 0; syncMusic(0); return; }
+  paused = !paused;
+  if (!paused) t0 = performance.now() - pausedAt * 1000;
+  syncMusic(pausedAt);
+});
+function tick(now) {
+  if (t0 === null) t0 = now;
+  if (!paused) { let t = (now - t0) / 1000; if (t > DUR + .5) { t0 = now; t = 0; syncMusic(0); } else if (t > DUR) music.pause(); pausedAt = t; render(t); }
+  requestAnimationFrame(tick);
+}
+document.fonts.ready.then(() => requestAnimationFrame(tick));
+})();
+</script>
+</body>
+</html>
