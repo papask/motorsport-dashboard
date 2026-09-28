@@ -216,7 +216,7 @@ function SpeedTrace({ track, label }: { track: TrackProfile; label: string }) {
   const x = (d: number) => (d / maxD) * W;
   const y = (s: number) => H - (s / top) * H;
   return (
-    <svg className="guide-trace" viewBox={`0 -14 ${W} ${H + 40}`} role="img" aria-label={label}>
+    <svg className="guide-trace" viewBox={`0 -14 ${W} ${H + 28}`} role="img" aria-label={label}>
       {[100, 200, 300].filter((s) => s < top).map((s) => (
         <g key={s}>
           <line x1={0} x2={W} y1={y(s)} y2={y(s)} stroke="var(--border-faint)" vectorEffect="non-scaling-stroke" />
@@ -225,11 +225,10 @@ function SpeedTrace({ track, label }: { track: TrackProfile; label: string }) {
       ))}
       <polyline points={track.trace.map((p) => `${x(p.d).toFixed(1)},${y(p.s).toFixed(1)}`).join(' ')}
         fill="none" stroke="var(--trace-speed)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-      {track.corners.map((c, i) => {
-        // Corners closer than 3% of the lap drop to a second row so their numbers don't run together
-        const crowded = i % 2 === 1 && c.distance - track.corners[i - 1].distance < maxD * 0.03;
-        return <text key={c.number} className="guide-trace-corner" x={x(c.distance)} y={H + (crowded ? 23 : 12)} fontSize={9} textAnchor="middle" fill="var(--text-muted)">{c.number}</text>;
-      })}
+      {/* Odd corners only, so neighbouring numbers don't run together; the map has them all */}
+      {track.corners.filter((c) => parseInt(c.number) % 2 === 1).map((c) => (
+        <text key={c.number} className="guide-trace-corner" x={x(c.distance)} y={H + 12} fontSize={9} textAnchor="middle" fill="var(--text-muted)">{c.number}</text>
+      ))}
     </svg>
   );
 }
@@ -479,7 +478,7 @@ export default function NextRace() {
                 <h2 id="nr-profile" className="card-title" style={{ margin: 0 }}>{t('nrPoleLap', { year: tr.year })}</h2>
                 <span className="guide-note" style={{ margin: 0 }}>
                   {getDriverNameKR(g.lastRace?.qualifying[0]?.driverId ?? '', tr.driver.name)} · {getTeamNameKR(tr.driver.team)}
-                  {tr.lapTime != null && ` · ${lapTimeText(tr.lapTime)}`} · FastF1
+                  {tr.lapTime != null && ` · ${lapTimeText(tr.lapTime)}`} · {t('nrProfileSource')}
                 </span>
               </div>
               {era && <div className="guide-warning" role="note">{t('nrEraNote', { year: tr.year, now: g.year, change: lang === 'en' ? era.en : era.ko })}</div>}
