@@ -57,7 +57,7 @@ test('the post: Korea time, top 3, grid penalties so far', () => {
   assert.equal(more.length, 0);
   assert.equal(post, [
     '2026 16 라운드 바레인 그랑프리 (말레이시아) 가이드',
-    '🔗 https://www.onthelimit.app/next/2026/16',
+    '🔗 https://www.onthelimit.app/next/16',
     '',
     '🗓 레이스 10/4 (일) 16:00 · 퀄리파잉 10/3 (토) 17:00 (KST)',
     '🏆 1위 안드레아 키미 안토넬리 302 · 2위 조지 러셀 236 (−66) · 3위 루이스 해밀턴 199 (−103)',

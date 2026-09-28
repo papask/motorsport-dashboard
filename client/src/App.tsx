@@ -326,10 +326,10 @@ function FooterAd() {
 
 // The guide's pages exist only while it is switched on; until the server
 // answers nothing renders, then a switched-off guide sends the visitor home.
-function NextRaceRoute() {
+function NextRaceRoute({ year }: { year: number }) {
   const { nextRace, loaded } = useFeatures();
   if (!loaded) return null;
-  return nextRace ? <NextRace /> : <Navigate to="/" replace />;
+  return nextRace ? <NextRace year={year} /> : <Navigate to="/" replace />;
 }
 
 function App() {
@@ -354,8 +354,9 @@ function App() {
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
             <Route path="/docs" element={<FiaDocuments />} />
-            <Route path="/next" element={<NextRaceRoute />} />
-            <Route path="/next/:year/:round" element={<NextRaceRoute />} />
+            <Route path="/next" element={<NextRaceRoute year={selectedYear} />} />
+            {/* The season comes from the header's selector, not the address */}
+            <Route path="/next/:round" element={<NextRaceRoute year={selectedYear} />} />
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
             <Route path="/privacy" element={<Privacy />} />

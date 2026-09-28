@@ -63,7 +63,7 @@ export function seasonCalendar(year: number, races: ScheduleRace[], site: string
         `DTEND:${stamp(s.start + minutes * 60_000)}`,
         `SUMMARY:${escapeText(`F1 R${race.round} ${race.raceName} · ${name}`)}`,
         `LOCATION:${escapeText(`${race.circuit.name}, ${race.circuit.locality}, ${race.circuit.country}`)}`,
-        ...(site ? [`URL:${site}/next/${year}/${race.round}`] : []),
+        ...(site ? [`URL:${site}/next/${race.round}`] : []),
         'END:VEVENT',
       );
     }

@@ -47,7 +47,7 @@ function docsBody() {
 const NEXT_RACE: [string, string] = ['다음 경기 가이드', '다음 그랑프리의 한국 시간 일정, 챔피언십 현황, 확정된 페널티와 서킷 역대 기록.'];
 // The guide's pages exist only while it is switched on
 const pageFor = (pathname: string) =>
-  PAGES[pathname] ?? (nextRaceEnabled() && /^\/next(\/\d{4}\/\d{1,2})?$/.test(pathname) ? NEXT_RACE : undefined);
+  PAGES[pathname] ?? (nextRaceEnabled() && /^\/next(\/\d{1,2})?$/.test(pathname) ? NEXT_RACE : undefined);
 
 export function renderPage(template: string, pathname: string, site: string) {
   const page = pageFor(pathname);

@@ -81,8 +81,15 @@ export const getFeatures = (signal?: AbortSignal) =>
   api.get('/features', { signal }).then((r) => r.data as { nextRace: boolean; calendar: boolean });
 
 // Next-race guide: the coming race, or one race pinned by year and round
+// A guide not open yet (a later race than the current one) comes back as { notOpen, current }
 export const getNextRaceGuide = (year?: number, round?: number, signal?: AbortSignal) =>
-  api.get(year && round ? `/next-race/${year}/${round}` : '/next-race', { signal }).then((r) => r.data);
+  api.get(year && round ? `/next-race/${year}/${round}` : '/next-race', { signal })
+    .then((r) => r.data)
+    .catch((err) => {
+      const body = err.response?.data;
+      if (err.response?.status === 404 && body?.error === 'not_open') return { notOpen: true, current: body.current };
+      throw err;
+    });
 
 // The season calendar feed, as a link the viewer's calendar app subscribes to
 export const calendarUrl = () => `${api.defaults.baseURL}/calendar.ics`;

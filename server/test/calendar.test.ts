@@ -17,7 +17,7 @@ test('the season as an iCalendar feed', () => {
   assert.match(race, /DTSTART:20261004T070000Z/);
   assert.match(race, /DTEND:20261004T090000Z/);
   assert.match(race.replace(/\r\n /g, ''), /SUMMARY:F1 R16 Bahrain Grand Prix in Malaysia · 레이스/);
-  assert.match(race.replace(/\r\n /g, ''), /URL:https:\/\/www.onthelimit.app\/next\/2026\/16/);
+  assert.match(race.replace(/\r\n /g, ''), /URL:https:\/\/www.onthelimit.app\/next\/16/);
   // Singapore has a sprint weekend
   assert.ok(ics.includes('UID:2026-17-sprint@onthelimit'));
 });

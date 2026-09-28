@@ -113,7 +113,7 @@ interface TrackProfile {
   outline: [number, number][];
 }
 
-type Response = Guide | { seasonOver: true; year: number };
+type Response = Guide | { seasonOver: true; year: number } | { notOpen: true; current: { year: number; round: number } | null };
 
 const SESSION_NAME: Record<SessionKey, string> = {
   firstPractice: 'Practice 1',
@@ -342,13 +342,14 @@ function PenaltyRow({ p }: { p: Penalty }) {
   );
 }
 
-export default function NextRace() {
+/** `year` is the header's season; the address only names the round (/next/16). */
+export default function NextRace({ year: season }: { year: number }) {
   const t = useT();
   const { lang } = useLang();
   const { calendar } = useFeatures();
   const params = useParams();
-  const year = params.year ? Number(params.year) : undefined;
   const round = params.round ? Number(params.round) : undefined;
+  const year = round ? season : undefined; // plain /next follows the calendar
   const { data, loading, error, refetch, failures } = useApi<Response>(
     (signal) => getNextRaceGuide(year, round, signal), [year, round]);
   // Marks the sessions already under way when the page was opened
@@ -363,6 +364,15 @@ export default function NextRace() {
   }
   if (error || !data) {
     return <div className="page-container"><ErrorBanner detail={error} onRetry={refetch} attempts={failures} /></div>;
+  }
+  if ('notOpen' in data) {
+    return (
+      <div className="page-container">
+        <PageMasthead title={t('nrTitle')} subtitle="Next Grand Prix" />
+        <StateBlock title={t('nrNotOpen', { round: round ?? '' })} reason={t('nrNotOpenReason')}
+          actions={[{ label: t('nrCurrentGuide'), href: '/next', primary: true }]} />
+      </div>
+    );
   }
   if (data.seasonOver) {
     return (

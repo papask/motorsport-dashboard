@@ -65,7 +65,7 @@ export function guidePosts(g: Guide, site: string) {
   if (g.notices?.firstTime) lines.push('📍 첫 개최 서킷');
   else if (g.notices?.yearsSince) lines.push(`📍 ${g.notices.lastHeld}년 이후 ${g.notices.yearsSince}년 만의 개최`);
 
-  const head = [`${gpHeading(g.year, g.round, g.raceName)} 가이드`, site && `🔗 ${site}/next/${g.year}/${g.round}`]
+  const head = [`${gpHeading(g.year, g.round, g.raceName)} 가이드`, site && `🔗 ${site}/next/${g.round}`]
     .filter(Boolean).join('\n');
   return packPosts([[head, ''], ...lines.map((line, i): [string, string] => [line, i ? '\n' : '\n\n'])]);
 }

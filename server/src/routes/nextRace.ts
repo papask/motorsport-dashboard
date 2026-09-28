@@ -170,7 +170,15 @@ router.get('/:year/:round', async (req, res) => {
     return;
   }
   try {
-    const guide = await guideFor(year, round, Date.now());
+    const now = Date.now();
+    // Guides open one race at a time: nothing past the one /next shows now
+    const thisYear = new Date(now).getUTCFullYear();
+    const current = guideRace((await getSeasonSchedule(thisYear)).races, now);
+    if (year > thisYear || (year === thisYear && current && round > current.round)) {
+      res.status(404).json({ error: 'not_open', current: current ? { year: thisYear, round: current.round } : null });
+      return;
+    }
+    const guide = await guideFor(year, round, now);
     if (!guide) {
       res.status(404).json({ error: 'no such race' });
       return;
