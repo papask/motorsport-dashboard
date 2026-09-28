@@ -548,6 +548,21 @@ export default function NextRace({ year: season }: { year: number }) {
         </section>
 
         {/* Pole lap profile: the circuit as last year's fastest qualifying lap drove it */}
+        {/* No pole lap to draw: say so where the map would be, rather than leave it out silently */}
+        {!g.track && n && (
+          <section className="card guide-span" aria-labelledby="nr-profile">
+            <h2 id="nr-profile" className="card-title">{t('nrTrackMap')}</h2>
+            <div className="guide-empty">
+              <strong style={{ color: 'var(--text-primary)' }}>{t(n.noTelemetry ? 'nrNoMap' : 'nrTrackPreparing')}</strong>
+              {n.noTelemetry && (
+                <div style={{ marginTop: 4 }}>
+                  {n.firstTime ? t('nrNoMapFirst') : t('nrNoTelemetry', { year: n.lastHeld! })}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {g.track && (() => {
           const tr = g.track;
           const [slow, medium, fast] = cornerBands(tr.corners);
@@ -638,12 +653,6 @@ export default function NextRace({ year: season }: { year: number }) {
             <div className="guide-empty">{t('nrFirstTimeHistory')}</div>
           ) : (
             <>
-              {/* Why there is no pole-lap section, or when it is coming */}
-              {n && (n.noTelemetry || !g.track) && (
-                <p className="guide-note" style={{ marginTop: 0, marginBottom: 12 }}>
-                  {n.noTelemetry ? t('nrNoTelemetry', { year: n.lastHeld! }) : t('nrTrackPreparing')}
-                </p>
-              )}
               <div className="guide-tiles guide-tiles--fit">
                 <Tile label={t('nrTimesHeld')} value={String(g.history.races)}
                   note={n?.lastHeld ? t('nrLastHeld', { year: n.lastHeld }) : undefined} />
