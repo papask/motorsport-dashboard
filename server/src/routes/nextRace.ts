@@ -1,11 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { getConstructorStandings, getDriverStandings, getSeasonSchedule } from '../services/jolpicaService';
 import {
-  canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, regulationChange, remainingMax, reprimandCounts,
+  canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, regulationChange, remainingMax,
   sessionsOf, startOf, SWITCH_AFTER_MS, type DatedDecision, type ScheduleRace,
 } from '../services/guideRules';
 import { readGuide, type GuideFile } from '../services/guideBuilder';
-import { decisionEntries, seasonCaughtUp } from '../services/stewardDecisions';
+import { decisionEntries } from '../services/stewardDecisions';
 import { fiaLastChecked, storedFiaDocuments } from '../services/fiaService';
 import { nextRaceEnabled } from '../services/nextRaceSettings';
 import { sessionWeather } from '../services/weatherService';
@@ -101,10 +101,6 @@ function penalties(year: number, race: ScheduleRace, races: ScheduleRace[], guid
     checkedAt: fiaLastChecked(),
     carried: carried.map(shape),
     weekend: weekend.map(shape),
-    // Counts need the whole season read; until then they would undercount
-    reprimands: seasonCaughtUp(year)
-      ? reprimandCounts(decisions, year, startOf(race)).map((r) => ({ ...r, ...who(r.car) }))
-      : null,
   };
 }
 

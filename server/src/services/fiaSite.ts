@@ -1,6 +1,6 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 
-// Reads the FIA F1 document pages: the season's events and each event's PDFs.
+// Reads the FIA F1 document page (the latest event's PDFs) and those PDFs.
 // Shared by the summary watcher (fiaService), the steward decisions store and
 // the guide builder (entry lists).
 
@@ -78,15 +78,4 @@ function documentsOf(html: string): ListedDocument[] {
 /** Documents of the event the season page shows (the latest one). */
 export async function listDocuments() {
   return documentsOf(await getHtml(await currentSeasonUrl()));
-}
-
-/** Every event page of the current season, from the page's event dropdown. */
-export async function listSeasonEvents() {
-  const html = await getHtml(await currentSeasonUrl());
-  const paths = [...html.matchAll(/<option value="([^"]*\/season\/season-\d{4}-\d+\/event\/[^"]+)"/g)].map((m) => m[1]);
-  return [...new Set(paths)].map((p) => FIA + p);
-}
-
-export async function listEventDocuments(eventUrl: string) {
-  return documentsOf(await getHtml(eventUrl));
 }

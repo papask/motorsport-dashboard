@@ -5,7 +5,7 @@ import path from 'path';
 import { parseDecision } from '../src/services/decisionParser';
 import {
   canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, regulationChange,
-  remainingMax, reprimandCounts, startOf, SWITCH_AFTER_MS, targetRound,
+  remainingMax, startOf, SWITCH_AFTER_MS, targetRound,
   type DatedDecision, type ScheduleRace,
 } from '../src/services/guideRules';
 
@@ -112,12 +112,4 @@ test('a replaced decision drops out', () => {
   };
   const { carried } = gridPenaltiesFor(races, 16, [original, correction]);
   assert.deepEqual(carried.map((d) => d.decision.gridDrop), [3]);
-});
-
-test('reprimand counts keep each driver’s latest printed count', () => {
-  const first = decision('reprimand-1st', 'Italian Grand Prix', '2026-09-06T13:33:00Z');
-  const third = decision('reprimand-3rd', 'Italian Grand Prix', '2026-09-06T13:33:00Z');
-  const counts = reprimandCounts([first, third], 2026, startOf(sepang));
-  assert.deepEqual(counts.map((c) => [c.car, c.count]), [[11, 3], [43, 1]]);
-  assert.equal(reprimandCounts([third], 2026, Date.parse('2026-09-01T00:00:00Z')).length, 0, 'only before the cutoff');
 });

@@ -49,7 +49,7 @@ The Express server exposes a REST API under `/api`. Lightweight data (standings,
 - **Telemetry** — driver telemetry charts (speed, throttle, etc.) via FastF1
 - **Incidents** — race incident / flag review
 - **FiA Documents** — the latest Grand Prix's FiA documents, checked every 30 minutes and summarized in Korean and English by Claude (needs `ANTHROPIC_API_KEY`)
-- **Next Race Guide** (`/next`, off by default) — objective facts about the coming Grand Prix: session times, a calendar feed, standings and title arithmetic, grid penalties and reprimands read from the stewards' decisions, and the circuit's race history. No AI: decisions are read from the PDF text with fixed patterns. See [Next race guide](#next-race-guide)
+- **Next Race Guide** (`/next`, off by default) — objective facts about the coming Grand Prix: session times, a calendar feed, standings and title arithmetic, grid penalties read from the stewards' decisions, and the circuit's race history. No AI: decisions are read from the PDF text with fixed patterns. See [Next race guide](#next-race-guide)
 - Season selector (2023–2026)
 
 ## API Endpoints
@@ -129,7 +129,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" https://<host>/api/admin/next-race 
 Switched on, it:
 
 - builds `DATA_DIR/guides/<year>-<round>.json` for the coming race and the one after, hourly: circuit history, the current drivers' record there (from the event's FiA entry list once published), and, when the circuit was last used in 2018 or later, that race's results and its pole lap profile (map, speed trace, corners) from FastF1;
-- reads every stewards' decision the FiA watcher sees into `DATA_DIR/steward-decisions.json`, and once per season reads the season's earlier decisions (paced, retried hourly until complete). New decisions need the FiA watcher, so `ANTHROPIC_API_KEY` must be set.
+- reads every stewards' decision the FiA watcher sees into `DATA_DIR/steward-decisions.json`, plus, when switched on, the stored ones it missed while off (paced, retried hourly). New decisions need the FiA watcher, so `ANTHROPIC_API_KEY` must be set.
 
 `{"threads": true}` posts each race's guide to Threads once, when it is ready: the previous race's standings and stewards' decisions are in, the pole lap profile (where the circuit has one) and the race forecast are there, and practice hasn't started. It also needs the Threads switch (`/api/admin/threads`) on. Waiting guides log what they are missing (`[NextRace] Threads post … waiting for: …`).
 
@@ -224,7 +224,7 @@ Express 서버는 `/api` 아래에 REST API를 제공합니다. 가벼운 데이
 - **텔레메트리** — FastF1 기반 드라이버 텔레메트리 차트(속도, 스로틀 등)
 - **인시던트** — 레이스 인시던트 / 플래그 리뷰
 - **FiA 문서** — 최신 그랑프리의 FiA 문서를 30분마다 확인해 Claude로 한국어·영어 요약 (`ANTHROPIC_API_KEY` 필요)
-- **다음 경기 가이드** (`/next`, 기본값 꺼짐) — 다음 그랑프리의 객관적 정보: 세션 일정과 캘린더 구독, 챔피언십 현황과 확정 가능 여부, 스튜어드 결정문에서 읽은 그리드 페널티와 견책, 서킷 역대 기록. AI를 쓰지 않고 결정문 PDF 텍스트를 정해진 패턴으로 읽습니다. 관리자 API `POST /api/admin/next-race {"enabled": true}`로 켜고 끕니다.
+- **다음 경기 가이드** (`/next`, 기본값 꺼짐) — 다음 그랑프리의 객관적 정보: 세션 일정과 캘린더 구독, 챔피언십 현황과 확정 가능 여부, 스튜어드 결정문에서 읽은 그리드 페널티, 서킷 역대 기록. AI를 쓰지 않고 결정문 PDF 텍스트를 정해진 패턴으로 읽습니다. 관리자 API `POST /api/admin/next-race {"enabled": true}`로 켜고 끕니다.
 - 시즌 선택기 (2023–2026)
 
 ## API 엔드포인트

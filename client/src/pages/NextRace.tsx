@@ -59,7 +59,6 @@ interface Guide {
     checkedAt: string | null;
     carried: Penalty[];
     weekend: Penalty[];
-    reprimands: null | { car: number; driver?: string; driverId?: string; code?: string; team?: string; count: number; kind?: string; url: string }[];
   };
   notices: null | {
     firstTime: boolean; lastHeld: number | null; yearsSince: number | null; noTelemetry: boolean; notHeldLastYear: boolean; lastLaps: number | null;
@@ -531,20 +530,6 @@ export default function NextRace({ year: season }: { year: number }) {
                 : <div className="guide-empty">{t('nrNoneYet')}</div>}
             </div>
           </div>
-          <div className="guide-subhead">{t('nrReprimands')}</div>
-          {g.penalties.reprimands === null ? (
-            <div className="guide-empty">{t('nrReprimandsPending')}</div>
-          ) : g.penalties.reprimands.length === 0 ? (
-            <div className="guide-empty">{t('nrNone')}</div>
-          ) : (
-            <div className="guide-chips">
-              {g.penalties.reprimands.map((r) => (
-                <a key={r.car} className="stat-badge" href={r.url} target="_blank" rel="noreferrer" title={r.kind}>
-                  {r.code ?? r.driver ?? `#${r.car}`} {t('nrReprimandCount', { n: r.count })}
-                </a>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* Pole lap profile: the circuit as last year's fastest qualifying lap drove it */}

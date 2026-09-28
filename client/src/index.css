@@ -1124,12 +1124,6 @@ body {
   white-space: nowrap;
 }
 
-.guide-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .guide-profile {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);

@@ -1,18 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import { parseDecision, type StewardDecision } from './decisionParser';
-import { getPdf, listEventDocuments, listSeasonEvents, pdfText, type ListedDocument } from './fiaSite';
+import { getPdf, pdfText, type ListedDocument } from './fiaSite';
 import { onFiaDocument, storedFiaDocuments } from './fiaService';
 import { assertNextRaceEnabled, nextRaceEnabled, NextRaceDisabledError, onNextRaceToggle } from './nextRaceSettings';
 
 // Keeps what each stewards' decision decided (grid drops, pit lane starts,
-// reprimands, ...), read from the PDF text by decisionParser. New decisions
-// arrive through the FIA watcher, which hands over the PDF it already
-// downloaded; switching the guide on also reads the season's earlier
-// decisions once. Everything here stops while the guide is switched off.
-//
-// Kept apart from fia-documents.json so the season's earlier decisions don't
-// show up on the documents page without a summary.
+// ...), read from the PDF text by decisionParser. New decisions arrive through
+// the FIA watcher, which hands over the PDF it already downloaded; switching
+// the guide on reads the stored ones it missed. Everything here stops while
+// the guide is switched off.
 
 const DATA_FILE = path.join(
   process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'),
@@ -27,12 +24,10 @@ export interface DecisionEntry extends ListedDocument {
 }
 
 interface Store {
-  /** Seasons whose earlier decisions have all been read */
-  seasonsCaughtUp: number[];
   entries: DecisionEntry[];
 }
 
-let store: Store = { seasonsCaughtUp: [], entries: [] };
+let store: Store = { entries: [] };
 try {
   store = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
 } catch {
@@ -78,7 +73,8 @@ let catchingUp = false;
 
 /**
  * Reads what was missed: stored FIA documents the watcher saw while the guide
- * was off, then (once per season) every earlier event of the season.
+ * was off. Those hold the previous race's decisions, which is all the grid
+ * penalties need; a failed read is tried again on the next catch-up.
  */
 export async function catchUpDecisions() {
   if (catchingUp || !nextRaceEnabled()) return;
@@ -90,35 +86,6 @@ export async function catchUpDecisions() {
       await record(doc).catch((err) => console.error(`[Decisions] ${doc.title}:`, err.message));
       await sleep(CATCH_UP_DELAY_MS);
     }
-    const season = new Date().getUTCFullYear();
-    if (!store.seasonsCaughtUp.includes(season)) {
-      const events = await listSeasonEvents();
-      let failed = 0;
-      for (const eventUrl of events) {
-        assertNextRaceEnabled();
-        const docs = await listEventDocuments(eventUrl).catch((err) => {
-          failed++; // the FIA site answers 504 now and then; the next catch-up tries again
-          console.error(`[Decisions] ${decodeURIComponent(eventUrl.split('/').pop() ?? '')}:`, err.message);
-          return [];
-        });
-        await sleep(CATCH_UP_DELAY_MS);
-        for (const doc of docs) {
-          if (!isCandidate(doc.url) || known(doc.url)) continue;
-          assertNextRaceEnabled();
-          await record(doc).catch((err) => {
-            failed++;
-            console.error(`[Decisions] ${doc.title}:`, err.message);
-          });
-          await sleep(CATCH_UP_DELAY_MS);
-        }
-      }
-      // Only a clean pass counts; a failed PDF is tried again on the next catch-up
-      if (!failed) {
-        store.seasonsCaughtUp.push(season);
-        save();
-      }
-      console.log(`[Decisions] ${season} caught up: ${store.entries.length} documents read, ${failed} failed`);
-    }
   } catch (err: any) {
     if (err instanceof NextRaceDisabledError) console.log('[Decisions] catch-up stopped: switched off');
     else console.error('[Decisions] catch-up failed:', err.message);
@@ -128,7 +95,6 @@ export async function catchUpDecisions() {
 }
 
 export const decisionEntries = (): readonly DecisionEntry[] => store.entries;
-export const seasonCaughtUp = (season: number) => store.seasonsCaughtUp.includes(season);
 
 const RETRY_EVERY_MS = 60 * 60 * 1000;
 let retryTimer: NodeJS.Timeout | undefined;

@@ -171,18 +171,3 @@ export function gridPenaltiesFor(races: ScheduleRace[], round: number, decisions
     weekend: applying.filter((d) => Date.parse(d.published) >= weekendStart),
   };
 }
-
-/** Each driver's latest printed reprimand count this season, as of `before`. */
-export function reprimandCounts(decisions: DatedDecision[], season: number, before: number) {
-  const latest = new Map<number, { car: number; driver?: string; count: number; kind?: string; url: string; published: string }>();
-  for (const d of decisions) {
-    const { reprimand, car } = d.decision;
-    if (!reprimand?.count || car === undefined) continue;
-    if (Number(d.published.slice(0, 4)) !== season || Date.parse(d.published) >= before) continue;
-    const prev = latest.get(car);
-    if (!prev || reprimand.count > prev.count) {
-      latest.set(car, { car, driver: d.decision.driver, count: reprimand.count, kind: reprimand.kind, url: d.url, published: d.published });
-    }
-  }
-  return [...latest.values()].sort((a, b) => b.count - a.count || a.car - b.car);
-}
