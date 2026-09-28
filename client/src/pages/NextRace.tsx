@@ -356,9 +356,10 @@ export default function NextRace() {
         </div>
       )}
 
-      <div className="card-grid card-grid-2" style={{ alignItems: 'start' }}>
+      {/* Cards sharing a row stretch to the same height; the full-width ones below have no neighbour */}
+      <div className="card-grid card-grid-2">
         {/* Schedule */}
-        <section className="card" aria-labelledby="nr-schedule">
+        <section className="card" aria-labelledby="nr-schedule" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="guide-card-head">
             <h2 id="nr-schedule" className="card-title" style={{ margin: 0 }}>{t('nrSchedule')}</h2>
             {calendar && <a className="btn-primary" href={icsWebcal()}>{t('nrSubscribe')}</a>}
@@ -379,7 +380,8 @@ export default function NextRace() {
               </tbody>
             </table>
           </div>
-          {calendar && <p className="guide-note">{t('nrCalendarNote')} <a href={icsHttp()}>{t('nrIcsFile')}</a></p>}
+          {/* Pinned to the foot, so the stretched card's spare height sits above it */}
+          {calendar && <p className="guide-note" style={{ marginTop: 'auto', paddingTop: 12 }}>{t('nrCalendarNote')} <a href={icsHttp()}>{t('nrIcsFile')}</a></p>}
         </section>
 
         {/* Championship */}
