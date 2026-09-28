@@ -1165,6 +1165,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.guide-next-session {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  background: var(--surface-base);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.guide-next-session .num {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
 .guide-weather-inline {
   display: none;
   margin-top: 4px;

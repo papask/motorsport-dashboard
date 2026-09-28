@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import useFeatures from '../hooks/useFeatures';
@@ -148,6 +148,35 @@ const localTime = (iso: string) => `${formatLocalShort({ date: iso.slice(0, 10),
 function driverLabel(p: { driverId?: string; driver?: string | null; name?: string; code?: string }) {
   if (p.driverId) return getDriverNameKR(p.driverId, p.name ?? p.driver ?? undefined);
   return p.driver ?? p.name ?? p.code ?? '–';
+}
+
+/**
+ * The next session still to start, counting down, and the one after it once
+ * it starts. Hidden once only the race is left (the masthead counts to that)
+ * and after the race has started.
+ */
+function NextSession({ sessions }: { sessions: Guide['sessions'] }) {
+  const t = useT();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const next = sessions.find((s) => s.timeKnown && Date.parse(s.start) > now);
+  if (!next || next.key === 'race') return null;
+  const left = Math.floor((Date.parse(next.start) - now) / 1000);
+  const d = Math.floor(left / 86400);
+  const hms = [Math.floor((left % 86400) / 3600), Math.floor((left % 3600) / 60), left % 60]
+    .map((n) => String(n).padStart(2, '0')).join(':');
+  return (
+    <div className="guide-next-session" role="timer" aria-live="off">
+      <span className="guide-tile-label">{t('nrNextSession')}</span>
+      <span style={{ fontWeight: 700 }}>{getSessionNameKR(SESSION_NAME[next.key])}</span>
+      <span className="num" style={{ fontSize: 26, lineHeight: 1 }}>
+        {d > 0 && <>{d}<span className="en" style={{ fontSize: 13 }}>{t('nrDays')}</span> </>}{hms}
+      </span>
+    </div>
+  );
 }
 
 function Countdown({ to }: { to: string }) {
@@ -418,8 +447,11 @@ export default function NextRace() {
               {t(finished ? 'nrWeatherFrozen' : 'nrWeatherSource', { time: localTime(g.weatherAt) })}
             </p>
           )}
-          {/* Pinned to the foot, so the stretched card's spare height sits above it */}
-          {calendar && <p className="guide-note" style={{ marginTop: 'auto', paddingTop: 12 }}>{t('nrCalendarNote')} <a href={icsHttp()}>{t('nrIcsFile')}</a></p>}
+          {/* The stretched card's spare height, pushed to the foot with the calendar note */}
+          <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+            {!finished && <NextSession sessions={g.sessions} />}
+            {calendar && <p className="guide-note">{t('nrCalendarNote')} <a href={icsHttp()}>{t('nrIcsFile')}</a></p>}
+          </div>
         </section>
 
         {/* Championship */}
