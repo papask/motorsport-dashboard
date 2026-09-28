@@ -6,10 +6,10 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const FPS = 30;
-// Mixkit "Sports Highlights"(125BPM). 72.333초 = 188번째 박(마디 첫 박)이 영상 18.0초(마무리 와이프)에 오고,
-// 곡의 마지막 화음(92.25초)이 19.92초 주소 등장에 맞는다. 곡은 원래 엔딩으로 끝난다.
+// Mixkit "Sports Highlights"(125BPM, 한 마디 1.92초). 70.413초에서 시작하면 18.0초(PC)와 19.92초(마무리 와이프)가
+// 마디 첫 박에 오고, 곡의 마지막 화음(92.25초)이 21.84초 주소 등장에 맞는다. 곡은 원래 엔딩으로 끝난다.
 const MUSIC = path.resolve(__dirname, '..', 'music', 'music.mp3');
-const MUSIC_START = 72.333;
+const MUSIC_START = 70.413;
 (async () => {
   const args = process.argv.slice(2);
   const si = args.indexOf('--stills');
@@ -30,7 +30,7 @@ const MUSIC_START = 72.333;
     ...(fs.existsSync(MUSIC)
       ? ['-ss', String(MUSIC_START), '-i', MUSIC, '-af', `volume=0.8,afade=t=in:d=0.12,afade=t=out:st=${dur - 0.8}:d=0.8,aresample=48000`, '-t', String(dur)]
       : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-shortest']),
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-r', String(FPS),
+    '-vf', 'scale=in_range=pc:out_range=tv', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   console.log('music:', fs.existsSync(MUSIC) ? MUSIC : '(없음, 무음)');
   const n = Math.round(dur * FPS);

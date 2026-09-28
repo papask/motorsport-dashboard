@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>온더리밋 쇼츠</title>
 <!--
-  온더리밋 세로 홍보 영상 (1080×1920, 24초, 자동재생).
+  온더리밋 세로 홍보 영상 (1080×1920, 25초, 자동재생).
   - 그냥 열면 자동재생하고 끝나면 처음부터 반복합니다. 첫 클릭에 음악과 함께 처음부터, 그다음부터는 일시정지/재생.
   - ?t=12.5  : 그 시점에서 멈춘 화면
   - ?render  : 녹화용. window.__seek(t)로 프레임을 직접 그립니다(scripts/render.cjs).
@@ -105,6 +105,19 @@ body.render #stage { transform: none !important; }
 #reveal { position: absolute; background: #e9e8e5; z-index: 2; visibility: hidden; }
 #tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 6px solid var(--red); z-index: 7; visibility: hidden; }
 
+/* PC */
+#pc .t-title { font-size: 104px; margin-top: 26px; }
+#mon { position: absolute; left: 40px; top: 730px; width: 1000px; }
+#mon .bezel { background: #0d0d10; border-radius: 26px; padding: 18px; box-shadow: 0 60px 120px rgba(17,17,20,.28); }
+#mon img { display: block; width: 964px; border-radius: 8px; }
+#mon .neck { width: 150px; height: 90px; margin: 0 auto; background: linear-gradient(#2a2a30, #17171b); }
+#mon .foot { width: 400px; height: 22px; margin: 0 auto; background: #17171b; border-radius: 14px 14px 6px 6px; }
+#mini { position: absolute; left: 70px; top: 1150px; width: 200px; height: 416px; border-radius: 30px; background: #0d0d10; padding: 8px;
+  box-shadow: 0 30px 60px rgba(17,17,20,.3); }
+#mini div { width: 184px; height: 400px; border-radius: 23px; overflow: hidden; background: #f2f1ef; }
+#mini img { display: block; width: 184px; margin-top: -210px; }
+.tag { position: absolute; font-family: var(--title); font-size: 46px; padding: 10px 26px 6px; border-radius: 18px; white-space: nowrap; }
+
 /* outro */
 #outro .checker { position: absolute; left: -100px; right: -100px; height: 120px;
   background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / 120px 120px; }
@@ -184,6 +197,19 @@ body.render #hint { display: none; }
   <div class="sticker y" id="stk2">여기서 사고!</div>
   <div class="sticker r" id="stk3">D-5</div>
 
+  <!-- 3.5 PC -->
+  <div class="layer" id="pc">
+    <div id="mon"><div class="bezel"><img src="img/desktop.jpg" alt=""></div><div class="neck"></div><div class="foot"></div></div>
+    <div id="mini"><div><img src="img/chart.jpg" alt=""></div></div>
+    <div class="tag" id="tagPC" style="left:760px;top:690px;background:var(--red);color:#fff">PC</div>
+    <div class="tag" id="tagM" style="left:92px;top:1580px;background:var(--ink);color:#fff;font-size:36px">폰</div>
+    <div class="cap">
+      <span class="kick"><b>+</b>PC에서도</span>
+      <div class="t-title"><span class="w">큰 화면으로 </span><span class="w red">한눈에!</span></div>
+      <div class="sub">51랩 전체가 한 화면에</div>
+    </div>
+  </div>
+
   <!-- 4. 마무리 -->
   <div class="layer" id="outro">
     <div class="checker" id="chkTop" style="top:0"></div>
@@ -202,7 +228,7 @@ body.render #hint { display: none; }
 
 <script>
 (() => {
-const DUR = 24;
+const DUR = 25;
 const $ = (s) => document.querySelector(s);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -244,7 +270,8 @@ addLines(0.0, [[330, 520, '', 0], [420, 300, 'k', .05], [1480, 640, '', .1], [15
 addLines(2.95, [[260, 700, '', 0, -1], [360, 380, 'k', .06, -1], [1580, 560, '', .04, -1], [1680, 300, 'w', .1, -1]]);
 addLines(10.62, [[1500, 800, '', 0], [1590, 420, 'k', .05]]);
 addLines(14.22, [[1500, 800, '', 0, -1], [1590, 420, 'k', .05, -1]]);
-addLines(17.95, [[520, 760, '', 0], [610, 380, 'k', .06], [1560, 620, '', .03], [1650, 300, 'w', .1]]);
+addLines(17.95, [[1500, 800, '', 0], [1590, 420, 'k', .05]]);
+addLines(19.87, [[520, 760, '', 0], [610, 380, 'k', .06], [1560, 620, '', .03], [1650, 300, 'w', .1]]);
 function drawLines(t) {
   for (const L of LINES) {
     const k = (t - L.t0) / .55;
@@ -257,7 +284,7 @@ function drawLines(t) {
 }
 
 // 사선 와이프: 전환 시점 c를 가운데로 0.44초
-const WIPES = [3.0, 10.7, 14.3, 18.0];
+const WIPES = [3.0, 10.7, 14.3, 18.0, 19.92];
 function drawWipe(t) {
   const w = $('#wipe');
   for (const c of WIPES) {
@@ -423,7 +450,23 @@ function render(t) {
     if (t >= 16.3) { const ks = clamp((t - 16.3) / .3); sub.style.opacity = ks; sub.style.transform = `translateY(${lerp(20, 0, ease.out(ks))}px)`; }
   }
 
-  // ── 4. 마무리 18–24초
+  // ── PC 18–19.92초(한 마디): 모니터가 커지며 들어오고, 옆의 작은 폰과 비교
+  const pc = L('#pc'); show(pc, inRange(t, 18.0, 19.92));
+  if (inRange(t, 18.0, 19.92)) {
+    pop(pc, t, 18.08, .09, .3);
+    const kk = clamp((t - 18.0) / .3); const kick = pc.querySelector('.kick'); kick.style.opacity = kk; kick.style.transform = `translateY(${lerp(-30, 0, ease.out(kk))}px)`;
+    const ks = clamp((t - 18.45) / .3); const sub = pc.querySelector('.sub'); sub.style.opacity = ks; sub.style.transform = `translateY(${lerp(20, 0, ease.out(ks))}px)`;
+    const km = clamp((t - 18.05) / .5);
+    $('#mon').style.opacity = clamp(km * 3);
+    $('#mon').style.transform = `scale(${lerp(.55, 1, ease.back(km)) * kf(t, [[18.6, 1], [19.92, 1.04]], ease.lin)})`;
+    const kp = clamp((t - 18.5) / .35);
+    $('#mini').style.opacity = kp; $('#mini').style.transform = `translateY(${lerp(200, 0, ease.out(kp))}px) rotate(${lerp(-12, -4, ease.out(kp))}deg)`;
+    const kt = clamp((t - 18.75) / .3);
+    $('#tagPC').style.transform = `rotate(6deg) scale(${ease.back(kt)})`; $('#tagM').style.transform = `rotate(-4deg) scale(${ease.back(clamp((t - 18.9) / .3))})`;
+  }
+
+  // ── 4. 마무리 19.92–25초
+  t -= 1.92; // 아래 시각은 PC 장면을 넣기 전(마무리 18초 시작) 기준
   const out = L('#outro'); const oOn = t >= 18.0; show(out, oOn);
   if (oOn) {
     const kl = clamp((t - 18.15) / .5);
@@ -451,8 +494,8 @@ window.__DUR = DUR;
 if (qs.has('render')) { document.body.classList.add('render'); render(0); return; }
 addEventListener('resize', fit); fit();
 if (qs.has('t')) { render(parseFloat(qs.get('t')) || 0); return; }
-// 음악(music/music.mp3, 저장소에는 없음): 곡의 72.333초가 영상 0초. 브라우저 정책상 첫 클릭부터 소리가 난다.
-const MUSIC_START = 72.333, music = $('#music');
+// 음악(music/music.mp3, 저장소에는 없음): 곡의 70.413초가 영상 0초. 브라우저 정책상 첫 클릭부터 소리가 난다.
+const MUSIC_START = 70.413, music = $('#music');
 let t0 = null, paused = false, pausedAt = 0, armed = false;
 const syncMusic = (t) => { if (!armed || paused || t > DUR) { music.pause(); return; } music.currentTime = MUSIC_START + t; music.play().catch(() => {}); };
 document.addEventListener('click', () => {
