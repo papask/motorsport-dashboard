@@ -3,12 +3,11 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getSeasonSchedule } from './jolpicaService';
 import { gpHeading, packPosts, postToThreads } from './threadsService';
+import { getPdf, listDocuments, parisToUtc, type ListedDocument } from './fiaSite';
 
 // Watches the FIA F1 document page and keeps a Korean/English summary of each
 // new PDF (steward decisions, summons, race director notes, ...).
 
-const FIA = 'https://www.fia.com';
-const CHAMPIONSHIP = `${FIA}/documents/championships/fia-formula-one-world-championship-14`;
 const DATA_FILE = path.join(
   process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'),
   'fia-documents.json',
@@ -37,22 +36,6 @@ export interface FiaDocument {
   };
 }
 
-/**
- * The FIA prints Paris wall-clock time ("24.09.26 18:05", labelled CET even in
- * summer). Convert it to UTC so the client can show the viewer's local time.
- */
-function parisToUtc(printed: string) {
-  const m = printed.match(/^(\d\d)\.(\d\d)\.(\d\d) (\d\d):(\d\d)$/);
-  if (!m) return printed; // already ISO, or unparseable
-  const wall = Date.UTC(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
-  // ponytail: offset taken at the wall time itself; off by an hour only inside the DST switch hour
-  const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', timeZoneName: 'longOffset' })
-    .formatToParts(wall).find((p) => p.type === 'timeZoneName')!.value; // "GMT+02:00"
-  const [, sign, h, min] = offset.match(/([+-])(\d\d):(\d\d)/) ?? ['', '+', '00', '00'];
-  const offsetMs = (sign === '-' ? -1 : 1) * (+h * 60 + +min) * 60000;
-  return new Date(wall - offsetMs).toISOString().replace('.000Z', 'Z');
-}
-
 // The site writes the federation as "FiA". Only text fields are touched; the
 // URL is the document's key and must stay exactly as the FIA serves it.
 const fiA = (s: string) => s.replaceAll('FIA', 'FiA');
@@ -78,40 +61,6 @@ function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(documents, null, 2));
 }
 
-async function getHtml(url: string) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!res.ok) throw new Error(`FIA ${res.status} ${url}`);
-  return res.text();
-}
-
-const clean = (s: string) => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-
-/** The season URL changes every year; read it from the season dropdown. */
-async function currentSeasonUrl() {
-  const html = await getHtml(CHAMPIONSHIP);
-  const seasons = [...html.matchAll(/\/season\/season-(\d{4})-\d+/g)];
-  if (!seasons.length) throw new Error('FIA season list not found');
-  const latest = seasons.reduce((a, b) => (Number(b[1]) > Number(a[1]) ? b : a));
-  return `${CHAMPIONSHIP}${latest[0]}`;
-}
-
-/** Documents of the event the season page shows (the latest one). */
-async function listDocuments() {
-  const html = await getHtml(await currentSeasonUrl());
-  const event = clean(html.match(/event-title active">([^<]*)</)?.[1] ?? '');
-  return html.split('<li class="document-row').slice(1).flatMap((row) => {
-    const href = row.match(/href="([^"]+\.pdf)"/)?.[1];
-    const title = row.match(/<div class="title">([\s\S]*?)<\/div>/)?.[1];
-    if (!href || !title) return [];
-    return [{
-      url: FIA + href,
-      event,
-      title: clean(title),
-      published: parisToUtc(clean(row.match(/date-display-single"[^>]*>([^<]*)</)?.[1] ?? '')),
-    }];
-  });
-}
-
 const SUMMARY_SCHEMA = {
   type: 'object',
   properties: {
@@ -129,8 +78,8 @@ const SUMMARY_SCHEMA = {
 
 let client: Anthropic | undefined;
 
-async function summarize(url: string) {
-  const pdf = Buffer.from(await (await fetch(url)).arrayBuffer()).toString('base64');
+async function summarize(pdfBytes: Buffer) {
+  const pdf = pdfBytes.toString('base64');
   client ??= new Anthropic();
   const response = await client.beta.messages.create({
     model: 'claude-opus-5',
@@ -192,7 +141,22 @@ export function threadsPosts(d: FiaDocument, round?: number) {
   return packPosts(units);
 }
 
+type DocumentListener = (doc: ListedDocument, pdf: Buffer | undefined) => Promise<void>;
+const documentListeners: DocumentListener[] = [];
+
+/** Called for every newly listed document, with its PDF when the summary step downloaded it. */
+export function onFiaDocument(listener: DocumentListener) {
+  documentListeners.push(listener);
+}
+
+/** Every stored document, newest first as saved. */
+export const storedFiaDocuments = (): readonly FiaDocument[] => documents;
+
 let running = false;
+let lastChecked: string | null = null;
+
+/** When the last check of the FIA page finished without error; null before the first. */
+export const fiaLastChecked = () => lastChecked;
 
 export async function checkFiaDocuments() {
   if (running) return;
@@ -206,13 +170,19 @@ export async function checkFiaDocuments() {
       const prev = known.get(doc.url);
       if (prev && prev.status !== 'failed') continue;
       let entry: FiaDocument = { ...doc, status: 'skipped' };
+      let pdf: Buffer | undefined;
       if (!SKIP_SUMMARY.test(doc.title)) {
         try {
-          entry = { ...doc, status: 'summarized', summary: await summarize(doc.url) };
+          pdf = await getPdf(doc.url);
+          entry = { ...doc, status: 'summarized', summary: await summarize(pdf) };
         } catch (err: any) {
           console.error(`[FIA] ${doc.title}:`, err.message);
           entry = { ...doc, status: 'failed' };
         }
+      }
+      // Listeners get the PDF already downloaded for the summary, so a document is fetched once
+      for (const listener of documentListeners) {
+        await listener(doc, pdf).catch((err) => console.error(`[FIA] listener ${doc.title}:`, err.message));
       }
       const branded = brand(entry);
       documents = [branded, ...documents.filter((d) => d.url !== doc.url)];
@@ -225,6 +195,7 @@ export async function checkFiaDocuments() {
         await postToThreads(threadsPosts(branded, round)).catch((err) => console.error(`[Threads] ${doc.title}:`, err.message));
       }
     }
+    lastChecked = new Date().toISOString();
   } catch (err: any) {
     console.error('[FIA] check failed:', err.message);
   } finally {

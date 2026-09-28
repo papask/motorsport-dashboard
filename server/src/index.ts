@@ -8,9 +8,17 @@ import standingsRouter from './routes/standings';
 import scheduleRouter from './routes/schedule';
 import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
+import nextRaceRouter from './routes/nextRace';
+import calendarRouter from './routes/calendar';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import { setThreadsEnabled, startThreadsTokenRefresh, threadsStatus } from './services/threadsService';
 import { startResultsPoster } from './services/resultsPoster';
+import {
+  calendarEnabled, guideThreadsEnabled, nextRaceEnabled, setCalendarEnabled, setGuideThreadsEnabled, setNextRaceEnabled,
+} from './services/nextRaceSettings';
+import { checkGuidePost, startGuidePoster } from './services/guidePoster';
+import { guideBuilderStatus, startGuideBuilder } from './services/guideBuilder';
+import { decisionEntries, startStewardDecisions } from './services/stewardDecisions';
 import { renderPage } from './pageMeta';
 
 const app = express();
@@ -24,6 +32,13 @@ app.use('/api/standings', standingsRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/telemetry', telemetryRouter);
+app.use('/api/next-race', nextRaceRouter);
+app.use('/api', calendarRouter);
+
+// Which optional features are on, so the client can hide what is off
+app.get('/api/features', (_req, res) => {
+  res.json({ nextRace: nextRaceEnabled(), calendar: calendarEnabled() });
+});
 app.get('/api/fia/documents', (req, res) => {
   res.json(getFiaDocuments(typeof req.query.event === 'string' ? req.query.event : undefined));
 });
@@ -53,6 +68,36 @@ app.post('/api/admin/threads', (req, res) => {
   res.json(threadsStatus());
 });
 
+// Next-race guide on/off without a restart. Off, it makes no outside calls
+// and its pages and API are gone; on, it catches up on what it missed.
+const nextRaceStatus = () => ({
+  enabled: nextRaceEnabled(),
+  calendar: calendarEnabled(),
+  threads: guideThreadsEnabled(),
+  ...guideBuilderStatus(),
+  decisionsRead: decisionEntries().length,
+});
+app.get('/api/admin/next-race', (_req, res) => {
+  res.json(nextRaceStatus());
+});
+// {"enabled": bool} flips the guide; {"calendar": bool} the calendar feed and its subscribe
+// link; {"threads": bool} posts each guide to Threads once it's ready
+app.post('/api/admin/next-race', (req, res) => {
+  const { enabled, calendar, threads } = req.body ?? {};
+  const given = [enabled, calendar, threads].filter((v) => v !== undefined);
+  if (!given.length || !given.every((v) => typeof v === 'boolean')) {
+    res.status(400).json({ error: 'body must hold "enabled", "calendar" and/or "threads": true|false' });
+    return;
+  }
+  if (enabled !== undefined) setNextRaceEnabled(enabled);
+  if (calendar !== undefined) setCalendarEnabled(calendar);
+  if (threads !== undefined) {
+    setGuideThreadsEnabled(threads);
+    if (threads) checkGuidePost(); // a guide already ready goes out now, not in an hour
+  }
+  res.json(nextRaceStatus());
+});
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -77,6 +122,9 @@ app.listen(PORT, () => {
   startFiaWatcher();
   startThreadsTokenRefresh();
   startResultsPoster();
+  startStewardDecisions();
+  startGuideBuilder();
+  startGuidePoster();
 });
 
 export default app;

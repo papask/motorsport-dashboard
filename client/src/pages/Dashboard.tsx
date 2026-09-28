@@ -10,6 +10,7 @@ import { podiumColor } from '../theme/tokens';
 import { SkeletonRegion, SkeletonTable, SkeletonBlock } from '../components/Skeleton';
 import ErrorBanner from '../components/ErrorBanner';
 import useDeferredLoading from '../hooks/useDeferredLoading';
+import useFeatures from '../hooks/useFeatures';
 import { useT } from '../i18n';
 
 interface DashboardProps {
@@ -58,6 +59,7 @@ interface LastRaceResult {
 
 export default function Dashboard({ year }: DashboardProps) {
   const t = useT();
+  const { nextRace: guideOn } = useFeatures();
   const schedule = useApi((signal) => getSeasonSchedule(year, signal), [year]);
   const standings = useApi((signal) => getDriverStandings(year, signal), [year]);
   const teams = useApi((signal) => getConstructorStandings(year, signal), [year]);
@@ -118,6 +120,7 @@ export default function Dashboard({ year }: DashboardProps) {
               <div className="en">
                 {t('roundAndDate', { round: nextRace.round, datetime: formatLocalDateTime(nextRace) })}
               </div>
+              {guideOn && <Link to="/next" style={{ fontSize: 13, fontWeight: 600 }}>{t('nrOpenGuide')} →</Link>}
             </>
           ) : seasonOver ? (
             <>

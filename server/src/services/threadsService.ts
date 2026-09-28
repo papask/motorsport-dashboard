@@ -123,12 +123,18 @@ const GP_NAMES_KO: Record<string, string> = {
   Belgian: '벨기에', Hungarian: '헝가리', Dutch: '네덜란드', Italian: '이탈리아', Azerbaijan: '아제르바이잔',
   Singapore: '싱가포르', 'United States': '미국', 'Mexico City': '멕시코시티', Brazilian: '브라질',
   'São Paulo': '상파울루', 'Las Vegas': '라스베이거스', Qatar: '카타르', 'Abu Dhabi': '아부다비',
+  // Host countries for an event held away from home ("Bahrain Grand Prix in Malaysia")
+  Malaysia: '말레이시아',
 };
 
-/** "2026 15 라운드 아제르바이잔 그랑프리"; the round is left out when unknown. */
+/**
+ * "2026 15 라운드 아제르바이잔 그랑프리"; the round is left out when unknown. An
+ * event held elsewhere keeps its name and adds the host: "바레인 그랑프리 (말레이시아)".
+ */
 export function gpHeading(year: string | number, round: number | undefined, raceName: string) {
   const gp = raceName.replace(/ Grand Prix.*$/i, '');
-  return `${year}${round ? ` ${round} 라운드` : ''} ${GP_NAMES_KO[gp] ?? gp} 그랑프리`;
+  const host = raceName.match(/ Grand Prix in (.+)$/i)?.[1];
+  return `${year}${round ? ` ${round} 라운드` : ''} ${GP_NAMES_KO[gp] ?? gp} 그랑프리${host ? ` (${GP_NAMES_KO[host] ?? host})` : ''}`;
 }
 
 const POST_MAX_CHARS = 500; // Threads' limit per post

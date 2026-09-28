@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import useCountdown from '../hooks/useCountdown';
 import AdSlot from '../components/AdSlot';
@@ -28,6 +29,12 @@ const CATEGORY_KEYS = {
   other: 'fiaCatOther',
 } as const;
 
+// "Doc 66 - ..." → "doc-66": the anchor the next-race guide links to
+const docAnchor = (d: FiaDocument) => {
+  const n = d.title.match(/^Doc (\d+)/i)?.[1];
+  return n ? `doc-${n}` : undefined;
+};
+
 interface FiaResponse {
   events: string[]; // oldest first, e.g. "2026 Singapore Grand Prix"
   event: string | null;
@@ -39,8 +46,9 @@ interface FiaResponse {
 export default function FiaDocuments() {
   const t = useT();
   const { lang } = useLang();
-  // null = let the server pick the latest event
-  const [event, setEvent] = useState<string | null>(null);
+  // null = let the server pick the latest event; ?event= opens a given one (links from the next-race guide)
+  const [searchParams] = useSearchParams();
+  const [event, setEvent] = useState<string | null>(searchParams.get('event'));
   const { data, loading, error, refetch, failures, refresh } = useApi<FiaResponse>((signal) => getFiaDocuments(event, signal), [event]);
   // Keep the selector and countdown up while the next event loads (useApi clears data on a switch)
   const last = useRef<FiaResponse | null>(null);
@@ -57,6 +65,11 @@ export default function FiaDocuments() {
     const id = setTimeout(refresh, Math.max(Date.parse(data.nextCheck) - Date.now() + 30_000, 60_000));
     return () => clearTimeout(id);
   }, [data]);
+  // #doc-66 scrolls to that document once the list is in
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash && data) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+  }, [hash, data]);
   const { minutes, seconds } = useCountdown(nextCheck);
   const remaining = minutes + seconds > 0 ? `${minutes}:${String(seconds).padStart(2, '0')}` : null;
   const kicker = [
@@ -98,7 +111,7 @@ export default function FiaDocuments() {
             const shown = i + 1;
             return (
               <Fragment key={d.url}>
-              <article className="card" style={{ padding: '16px 20px' }}>
+              <article className="card" id={docAnchor(d)} style={{ padding: '16px 20px', scrollMarginTop: 80 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                   {category && <span className="stat-badge" style={{ fontSize: 11 }}>{t(category)}</span>}
                   <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatLocalShort({ date: d.published.slice(0, 10), time: d.published.slice(11) })} {getLocalTZLabel()}</span>

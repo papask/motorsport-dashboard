@@ -9,17 +9,21 @@ import RaceTimeline from './pages/RaceTimeline';
 import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import FiaDocuments from './pages/FiaDocuments';
+import NextRace from './pages/NextRace';
 import Privacy from './pages/Privacy';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
+import useFeatures from './hooks/useFeatures';
 import { useLang, useT, type Lang } from './i18n';
 import { useTheme, type ThemePref } from './theme/useTheme';
 import './index.css';
 
 // Nav labels are resolved per-language; `id` is a stable key used for layout
 // decisions (e.g. where the season selector attaches) so it survives translation.
-function getNavItems(t: (k: any) => string) {
+function getNavItems(t: (k: any) => string, nextRace: boolean) {
   return [
+    // Only while the server has the guide switched on
+    ...(nextRace ? [{ id: 'next', path: '/next', label: t('navNext') }] : []),
     {
       id: 'news',
       label: t('navNews'),
@@ -177,7 +181,8 @@ function SettingsButton() {
 function NavContent({ selectedYear, setSelectedYear }: { selectedYear: number; setSelectedYear: (y: number) => void }) {
   const location = useLocation();
   const t = useT();
-  const navItems = getNavItems(t);
+  const { nextRace } = useFeatures();
+  const navItems = getNavItems(t, nextRace);
 
   // Picking an item should dismiss its menu straight away. Hover alone cannot:
   // after the click the pointer is still inside the menu, so it would stay open
@@ -319,6 +324,14 @@ function FooterAd() {
   );
 }
 
+// The guide's pages exist only while it is switched on; until the server
+// answers nothing renders, then a switched-off guide sends the visitor home.
+function NextRaceRoute({ year }: { year: number }) {
+  const { nextRace, loaded } = useFeatures();
+  if (!loaded) return null;
+  return nextRace ? <NextRace year={year} /> : <Navigate to="/" replace />;
+}
+
 function App() {
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   // Subscribe App to language changes so the whole page tree re-renders (and
@@ -341,6 +354,9 @@ function App() {
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
             <Route path="/docs" element={<FiaDocuments />} />
+            <Route path="/next" element={<NextRaceRoute year={selectedYear} />} />
+            {/* The season comes from the header's selector, not the address */}
+            <Route path="/next/:round" element={<NextRaceRoute year={selectedYear} />} />
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
             <Route path="/privacy" element={<Privacy />} />

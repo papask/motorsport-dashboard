@@ -137,6 +137,11 @@ export async function getSessionResults(year: string | number, round: string | n
   return runFastF1('session_results', [String(year), String(round), session]);
 }
 
+/** An event's pole lap read as a circuit profile: speed trace, outline, corners, totals. */
+export async function getTrackProfile(year: string | number, round: string | number) {
+  return runFastF1('track_profile', [String(year), String(round)]);
+}
+
 export async function getDrivers(year: string | number, round: string | number) {
   return runFastF1('drivers', [String(year), String(round)]);
 }

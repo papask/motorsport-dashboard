@@ -563,3 +563,32 @@ export async function getRawPitStops(year: string | number, round: string | numb
 
   return allPitStops;
 }
+
+// Every Grand Prix run on a circuit, whatever the event was called, with its
+// full classification. Pages split a race's results where they fall, so rows
+// are merged back by season and round.
+export async function getCircuitRaceHistory(circuitId: string) {
+  const pageUrl = (offset: number) => `${BASE_URL}/circuits/${encodeURIComponent(circuitId)}/results.json?limit=100&offset=${offset}`;
+  const first: any = await cachedGet(pageUrl(0));
+  const total = parseInt(first?.MRData?.total || '0');
+  const pages = [first];
+  // One page at a time: the limiter spaces them anyway, and a failure stops the build early
+  for (let offset = 100; offset < total; offset += 100) pages.push(await cachedGet(pageUrl(offset)));
+
+  const byRace = new Map<string, any>();
+  for (const page of pages) {
+    for (const race of page?.MRData?.RaceTable?.Races || []) {
+      const key = `${race.season}-${race.round}`;
+      const merged = byRace.get(key) ?? { season: parseInt(race.season), round: parseInt(race.round), raceName: race.raceName, results: [] };
+      merged.results.push(...race.Results.map((r: any) => ({
+        position: parseInt(r.position),
+        grid: parseInt(r.grid),
+        laps: parseInt(r.laps),
+        driver: { id: r.Driver.driverId, code: r.Driver.code, firstName: r.Driver.givenName, lastName: r.Driver.familyName },
+        constructor: { id: r.Constructor.constructorId, name: r.Constructor.name },
+      })));
+      byRace.set(key, merged);
+    }
+  }
+  return [...byRace.values()].sort((a, b) => a.season - b.season || a.round - b.round);
+}
