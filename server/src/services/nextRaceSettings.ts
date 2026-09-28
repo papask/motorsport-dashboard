@@ -17,10 +17,14 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'next-race-settings.json');
 // Off until switched on, so a new deploy never starts collecting by itself
 let enabled = false;
 let calendar: boolean | undefined;
+// Posting each guide to Threads once it's ready: off until switched on, and it
+// also needs the guide and the Threads switch on
+let threads = false;
 try {
   const saved = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
   enabled = saved.enabled === true;
   if (typeof saved.calendar === 'boolean') calendar = saved.calendar;
+  threads = saved.threads === true;
 } catch {
   // never switched
 }
@@ -30,6 +34,7 @@ const listeners: Listener[] = [];
 
 export const nextRaceEnabled = () => enabled;
 export const calendarEnabled = () => calendar ?? enabled;
+export const guideThreadsEnabled = () => threads;
 
 /** Called with the new value on every flip; services start or stop their work here. */
 export function onNextRaceToggle(listener: Listener) {
@@ -38,7 +43,13 @@ export function onNextRaceToggle(listener: Listener) {
 
 function save() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ enabled, ...(calendar !== undefined && { calendar }) }));
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ enabled, ...(calendar !== undefined && { calendar }), ...(threads && { threads }) }));
+}
+
+export function setGuideThreadsEnabled(value: boolean) {
+  threads = value;
+  save();
+  console.log(`[NextRace] Threads posting ${value ? 'on' : 'off'}`);
 }
 
 export function setNextRaceEnabled(value: boolean) {

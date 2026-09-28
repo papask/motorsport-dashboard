@@ -27,7 +27,7 @@ const SESSIONS = [
 
 // By FastF1 abbreviation, which every session carries (sprint qualifying has
 // no driver ids). Names follow client/src/constants/koreanTerms.ts.
-const DRIVERS_KO: Record<string, string> = {
+export const DRIVERS_KO: Record<string, string> = {
   VER: '막스 베르스타펜', HAM: '루이스 해밀턴', NOR: '랜도 노리스', LEC: '샤를 르클레르', SAI: '카를로스 사인츠',
   PIA: '오스카 피아스트리', RUS: '조지 러셀', PER: '세르히오 페레즈', ALO: '페르난도 알론소', STR: '랜스 스트롤',
   GAS: '피에르 가슬리', OCO: '에스테반 오콘', ALB: '알렉산더 알본', TSU: '유키 츠노다', BOT: '발테리 보타스',

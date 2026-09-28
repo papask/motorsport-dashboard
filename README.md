@@ -131,6 +131,8 @@ Switched on, it:
 - builds `DATA_DIR/guides/<year>-<round>.json` for the coming race and the one after, hourly: circuit history, the current drivers' record there (from the event's FiA entry list once published), and, when the circuit was last used in 2018 or later, that race's results and its pole lap profile (map, speed trace, corners) from FastF1;
 - reads every stewards' decision the FiA watcher sees into `DATA_DIR/steward-decisions.json`, and once per season reads the season's earlier decisions (paced, retried hourly until complete). New decisions need the FiA watcher, so `ANTHROPIC_API_KEY` must be set.
 
+`{"threads": true}` posts each race's guide to Threads once, when it is ready: the previous race's standings and stewards' decisions are in, the pole lap profile (where the circuit has one) and the race forecast are there, and practice hasn't started. It also needs the Threads switch (`/api/admin/threads`) on. Waiting guides log what they are missing (`[NextRace] Threads post … waiting for: …`).
+
 The calendar feed follows the guide switch unless pinned with `{"calendar": true|false}` (`null` unpins). Pin it on once people subscribe, so switching the guide off doesn't break their calendars.
 
 Tests: `cd server && npm test`.

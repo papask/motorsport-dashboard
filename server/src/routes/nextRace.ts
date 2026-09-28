@@ -108,7 +108,8 @@ function penalties(year: number, race: ScheduleRace, races: ScheduleRace[], guid
   };
 }
 
-async function guideFor(year: number, round: number, now: number) {
+/** Everything the guide page shows for one race; null when there is no such race. */
+export async function guideFor(year: number, round: number, now: number) {
   const { races } = await getSeasonSchedule(year);
   const race: ScheduleRace | undefined = races.find((r: ScheduleRace) => r.round === round);
   if (!race) return null;

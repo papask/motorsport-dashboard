@@ -13,7 +13,10 @@ import calendarRouter from './routes/calendar';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import { setThreadsEnabled, startThreadsTokenRefresh, threadsStatus } from './services/threadsService';
 import { startResultsPoster } from './services/resultsPoster';
-import { calendarEnabled, nextRaceEnabled, setCalendarEnabled, setNextRaceEnabled } from './services/nextRaceSettings';
+import {
+  calendarEnabled, guideThreadsEnabled, nextRaceEnabled, setCalendarEnabled, setGuideThreadsEnabled, setNextRaceEnabled,
+} from './services/nextRaceSettings';
+import { checkGuidePost, startGuidePoster } from './services/guidePoster';
 import { guideBuilderStatus, startGuideBuilder } from './services/guideBuilder';
 import { decisionEntries, startStewardDecisions } from './services/stewardDecisions';
 import { renderPage } from './pageMeta';
@@ -70,23 +73,30 @@ app.post('/api/admin/threads', (req, res) => {
 const nextRaceStatus = () => ({
   enabled: nextRaceEnabled(),
   calendar: calendarEnabled(),
+  threads: guideThreadsEnabled(),
   ...guideBuilderStatus(),
   decisionsRead: decisionEntries().length,
 });
 app.get('/api/admin/next-race', (_req, res) => {
   res.json(nextRaceStatus());
 });
-// {"enabled": bool} flips the guide; {"calendar": bool|null} pins the calendar feed, null lets it follow the guide
+// {"enabled": bool} flips the guide; {"calendar": bool|null} pins the calendar feed, null lets it
+// follow the guide; {"threads": bool} posts each guide to Threads once it's ready
 app.post('/api/admin/next-race', (req, res) => {
-  const { enabled, calendar } = req.body ?? {};
+  const { enabled, calendar, threads } = req.body ?? {};
   const okEnabled = enabled === undefined || typeof enabled === 'boolean';
   const okCalendar = calendar === undefined || calendar === null || typeof calendar === 'boolean';
-  if (!okEnabled || !okCalendar || (enabled === undefined && calendar === undefined)) {
-    res.status(400).json({ error: 'body must be {"enabled": true|false} and/or {"calendar": true|false|null}' });
+  const okThreads = threads === undefined || typeof threads === 'boolean';
+  if (!okEnabled || !okCalendar || !okThreads || (enabled === undefined && calendar === undefined && threads === undefined)) {
+    res.status(400).json({ error: 'body must hold "enabled": true|false, "calendar": true|false|null and/or "threads": true|false' });
     return;
   }
   if (enabled !== undefined) setNextRaceEnabled(enabled);
   if (calendar !== undefined) setCalendarEnabled(calendar);
+  if (threads !== undefined) {
+    setGuideThreadsEnabled(threads);
+    if (threads) checkGuidePost(); // a guide already ready goes out now, not in an hour
+  }
   res.json(nextRaceStatus());
 });
 
@@ -116,6 +126,7 @@ app.listen(PORT, () => {
   startResultsPoster();
   startStewardDecisions();
   startGuideBuilder();
+  startGuidePoster();
 });
 
 export default app;
