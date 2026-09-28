@@ -87,5 +87,25 @@ export function parseDecision(raw: string): ParseResult {
   return { status: 'parsed', decision: result };
 }
 
+export interface EntryListDriver {
+  number: number;
+  code: string;
+  name: string;
+  /** Team and constructor as printed together, e.g. "BWT Alpine F1 Team Alpine Mercedes" */
+  entrant: string;
+}
+
+/**
+ * An event's entry list: one row per car, "81 PIA Oscar Piastri AUS McLaren ...".
+ * Returns the cars in the order printed, or null when no row matches.
+ */
+export function parseEntryList(raw: string): EntryListDriver[] | null {
+  const rows = raw.split('\n').flatMap((line) => {
+    const m = line.trim().match(/^(\d{1,2}) ([A-Z]{3}) (.+?) ([A-Z]{3}) (.+)$/);
+    return m ? [{ number: Number(m[1]), code: m[2], name: m[3], entrant: m[5] }] : [];
+  });
+  return rows.length ? rows : null;
+}
+
 /** Whether a decision moves the driver on the starting grid. */
 export const affectsGrid = (d: StewardDecision) => Boolean(d.gridDrop || d.pitLaneStart);

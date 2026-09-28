@@ -1,5 +1,8 @@
+import { extractText, getDocumentProxy } from 'unpdf';
+
 // Reads the FIA F1 document pages: the season's events and each event's PDFs.
-// Shared by the summary watcher (fiaService) and the steward decisions store.
+// Shared by the summary watcher (fiaService), the steward decisions store and
+// the guide builder (entry lists).
 
 export const FIA = 'https://www.fia.com';
 const CHAMPIONSHIP = `${FIA}/documents/championships/fia-formula-one-world-championship-14`;
@@ -37,6 +40,12 @@ export async function getPdf(url: string) {
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!res.ok) throw new Error(`FIA ${res.status} ${url}`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/** A PDF's text, pages joined, as the fixed-pattern readers expect it. */
+export async function pdfText(pdf: Buffer) {
+  const { text } = await extractText(await getDocumentProxy(new Uint8Array(pdf)), { mergePages: true });
+  return text;
 }
 
 const clean = (s: string) => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();

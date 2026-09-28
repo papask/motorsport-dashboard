@@ -13,7 +13,7 @@ import calendarRouter from './routes/calendar';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import { setThreadsEnabled, startThreadsTokenRefresh, threadsStatus } from './services/threadsService';
 import { startResultsPoster } from './services/resultsPoster';
-import { nextRaceEnabled, setNextRaceEnabled } from './services/nextRaceSettings';
+import { calendarEnabled, nextRaceEnabled, setCalendarEnabled, setNextRaceEnabled } from './services/nextRaceSettings';
 import { guideBuilderStatus, startGuideBuilder } from './services/guideBuilder';
 import { decisionEntries, startStewardDecisions } from './services/stewardDecisions';
 import { renderPage } from './pageMeta';
@@ -34,7 +34,7 @@ app.use('/api', calendarRouter);
 
 // Which optional features are on, so the client can hide what is off
 app.get('/api/features', (_req, res) => {
-  res.json({ nextRace: nextRaceEnabled() });
+  res.json({ nextRace: nextRaceEnabled(), calendar: calendarEnabled() });
 });
 app.get('/api/fia/documents', (req, res) => {
   res.json(getFiaDocuments(typeof req.query.event === 'string' ? req.query.event : undefined));
@@ -69,18 +69,24 @@ app.post('/api/admin/threads', (req, res) => {
 // and its pages and API are gone; on, it catches up on what it missed.
 const nextRaceStatus = () => ({
   enabled: nextRaceEnabled(),
+  calendar: calendarEnabled(),
   ...guideBuilderStatus(),
   decisionsRead: decisionEntries().length,
 });
 app.get('/api/admin/next-race', (_req, res) => {
   res.json(nextRaceStatus());
 });
+// {"enabled": bool} flips the guide; {"calendar": bool|null} pins the calendar feed, null lets it follow the guide
 app.post('/api/admin/next-race', (req, res) => {
-  if (typeof req.body?.enabled !== 'boolean') {
-    res.status(400).json({ error: 'body must be {"enabled": true|false}' });
+  const { enabled, calendar } = req.body ?? {};
+  const okEnabled = enabled === undefined || typeof enabled === 'boolean';
+  const okCalendar = calendar === undefined || calendar === null || typeof calendar === 'boolean';
+  if (!okEnabled || !okCalendar || (enabled === undefined && calendar === undefined)) {
+    res.status(400).json({ error: 'body must be {"enabled": true|false} and/or {"calendar": true|false|null}' });
     return;
   }
-  setNextRaceEnabled(req.body.enabled);
+  if (enabled !== undefined) setNextRaceEnabled(enabled);
+  if (calendar !== undefined) setCalendarEnabled(calendar);
   res.json(nextRaceStatus());
 });
 

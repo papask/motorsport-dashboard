@@ -944,6 +944,79 @@ def get_drivers(year, round_num):
     return {'drivers': drivers}
 
 
+def get_track_profile(year, round_num):
+    """What a circuit asks of a car, read off that event's pole lap.
+
+    For the next-race guide: the fastest qualifying lap's speed trace and
+    outline, the corners with their minimum speed on that lap, and a few
+    totals (top speed, full-throttle share, heavy braking zones).
+    """
+    session = fastf1.get_session(int(year), int(round_num), 'Q')
+    session.load(laps=True, telemetry=True, weather=False, messages=False)
+    lap = session.laps.pick_fastest()
+    if lap is None or (hasattr(lap, 'empty') and lap.empty):
+        return {'error': 'no qualifying lap'}
+    tel = lap.get_telemetry().dropna(subset=['Distance', 'Speed'])
+    dist = tel['Distance'].to_numpy()
+    speed = tel['Speed'].to_numpy()
+    length = float(dist[-1] - dist[0])
+
+    # Share of lap time at full throttle, the figure usually quoted; weighted by
+    # time because samples don't arrive at even intervals
+    secs = tel['Time'].dt.total_seconds().to_numpy()
+    dt = np.diff(secs, append=secs[-1])
+    full_throttle = float(dt[(tel['Throttle'] >= 98).to_numpy()].sum() / dt.sum()) if dt.sum() else None
+
+    # A heavy braking zone: brakes on, and the car sheds at least 80 km/h before letting off
+    brake = tel['Brake'].astype(bool).to_numpy()
+    zones, i = 0, 0
+    while i < len(brake):
+        if brake[i]:
+            j = i
+            while j < len(brake) and brake[j]:
+                j += 1
+            if speed[i] - speed[i:j].min() >= 80:
+                zones += 1
+            i = j
+        else:
+            i += 1
+
+    info = session.get_circuit_info()
+    corners = []
+    for _, c in info.corners.iterrows():
+        near = (dist >= c['Distance'] - 30) & (dist <= c['Distance'] + 30)
+        low = float(speed[near].min()) if near.any() else None
+        corners.append({
+            'number': f"{int(c['Number'])}{c['Letter'] or ''}",
+            'x': float(c['X']), 'y': float(c['Y']),
+            'distance': float(c['Distance']),
+            'minSpeed': low,
+        })
+
+    every = max(1, len(tel) // 300)
+    sampled = tel.iloc[::every]
+    driver = session.results[session.results['DriverNumber'] == str(lap['DriverNumber'])]
+    lap_time = lap['LapTime'].total_seconds() if pd.notna(lap['LapTime']) else None
+    return {
+        'year': int(year),
+        'round': int(round_num),
+        'driver': {
+            'code': str(lap['Driver']),
+            'name': f"{driver.iloc[0]['FirstName']} {driver.iloc[0]['LastName']}" if not driver.empty else str(lap['Driver']),
+            'team': str(lap['Team']),
+        },
+        'lapTime': lap_time,
+        'length': length,
+        'topSpeed': float(speed.max()),
+        'fullThrottle': full_throttle,
+        'heavyBraking': zones,
+        'corners': corners,
+        'rotation': float(info.rotation),
+        'trace': [{'d': round(float(r['Distance'])), 's': round(float(r['Speed']))} for _, r in sampled.iterrows()],
+        'outline': [[round(float(r['X'])), round(float(r['Y']))] for _, r in sampled.iterrows()],
+    }
+
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({'error': 'No action specified'}), file=sys.stdout)
@@ -994,6 +1067,8 @@ def main():
             year = sys.argv[2]
             round_num = sys.argv[3]
             result = get_drivers(year, round_num)
+        elif action == 'track_profile':
+            result = get_track_profile(sys.argv[2], sys.argv[3])
         else:
             result = {'error': f'Unknown action: {action}'}
         

@@ -1126,11 +1126,44 @@ body {
   gap: 8px;
 }
 
+.guide-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.guide-map,
+.guide-trace {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.guide-map {
+  max-height: 360px;
+}
+
+.guide-warning {
+  background: var(--status-safety-car-tint);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
 .guide-finished {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .guide-profile {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 600px) {
@@ -1141,6 +1174,11 @@ body {
 
   .guide-penalty {
     flex-wrap: wrap;
+  }
+
+  /* Too small to read at phone width; the map above carries the numbers */
+  .guide-trace-corner {
+    display: none;
   }
 }
 

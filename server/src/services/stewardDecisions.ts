@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { extractText, getDocumentProxy } from 'unpdf';
 import { parseDecision, type StewardDecision } from './decisionParser';
-import { getPdf, listEventDocuments, listSeasonEvents, type ListedDocument } from './fiaSite';
+import { getPdf, listEventDocuments, listSeasonEvents, pdfText, type ListedDocument } from './fiaSite';
 import { onFiaDocument, storedFiaDocuments } from './fiaService';
 import { assertNextRaceEnabled, nextRaceEnabled, NextRaceDisabledError, onNextRaceToggle } from './nextRaceSettings';
 
@@ -53,10 +52,6 @@ const isCandidate = (url: string) =>
 
 const known = (url: string) => store.entries.some((e) => e.url === url);
 
-async function pdfText(pdf: Buffer) {
-  const { text } = await extractText(await getDocumentProxy(new Uint8Array(pdf)), { mergePages: true });
-  return text;
-}
 
 // URLs being read right now: the watcher and a catch-up can meet on the same document
 const reading = new Set<string>();

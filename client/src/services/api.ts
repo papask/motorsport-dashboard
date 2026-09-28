@@ -78,7 +78,7 @@ export const getFiaDocuments = (event: string | null, signal?: AbortSignal) =>
 
 // Optional features the server has switched on
 export const getFeatures = (signal?: AbortSignal) =>
-  api.get('/features', { signal }).then((r) => r.data as { nextRace: boolean });
+  api.get('/features', { signal }).then((r) => r.data as { nextRace: boolean; calendar: boolean });
 
 // Next-race guide: the coming race, or one race pinned by year and round
 export const getNextRaceGuide = (year?: number, round?: number, signal?: AbortSignal) =>

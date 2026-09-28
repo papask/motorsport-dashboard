@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { getSeasonSchedule } from '../services/jolpicaService';
 import { sessionsOf, type ScheduleRace, type SessionKey } from '../services/guideRules';
-import { nextRaceEnabled } from '../services/nextRaceSettings';
+import { calendarEnabled } from '../services/nextRaceSettings';
 import { sendRouteError } from '../utils/errorResponse';
 
 // The season's sessions as an iCalendar feed (RFC 5545). Times go out in UTC,
 // so each subscriber's calendar shows them in its own time zone. Part of the
-// next-race guide, so it follows the guide's switch.
+// next-race guide; its switch follows the guide's unless pinned on its own.
 
 const router = Router();
 
@@ -73,7 +73,7 @@ export function seasonCalendar(year: number, races: ScheduleRace[], site: string
 }
 
 router.get('/calendar.ics', async (req, res) => {
-  if (!nextRaceEnabled()) {
+  if (!calendarEnabled()) {
     res.status(404).json({ error: 'disabled' });
     return;
   }

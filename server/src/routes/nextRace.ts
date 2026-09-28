@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { getConstructorStandings, getDriverStandings, getSeasonSchedule } from '../services/jolpicaService';
 import {
-  canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, remainingMax, reprimandCounts,
+  canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, regulationChange, remainingMax, reprimandCounts,
   sessionsOf, startOf, SWITCH_AFTER_MS, type DatedDecision, type ScheduleRace,
 } from '../services/guideRules';
 import { readGuide, type GuideFile } from '../services/guideBuilder';
@@ -126,9 +126,15 @@ async function guideFor(year: number, round: number, now: number) {
     championship: await standingsBefore(year, round, races),
     penalties: penalties(year, race, races, guide),
     // Built in the background; null means "being prepared"
-    notices: guide ? { ...circuitNotices(guide.history.seasons, year), lastLaps: lastHeld ? guide.history.lastLaps : null } : null,
+    notices: guide ? {
+      ...circuitNotices(guide.history.seasons, year),
+      lastLaps: lastHeld ? guide.history.lastLaps : null,
+      regulationChange: guide.track ? regulationChange(guide.track.year, year) : null,
+    } : null,
     history: guide?.history ?? null,
     grid: guide?.grid ?? null,
+    lastRace: guide?.lastRace ?? null,
+    track: guide?.track ?? null,
   };
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
-import { parseDecision, affectsGrid } from '../src/services/decisionParser';
+import { parseDecision, parseEntryList, affectsGrid } from '../src/services/decisionParser';
 
 // Texts extracted from real FiA decision PDFs (unpdf, pages merged)
 const fixture = (name: string) =>
@@ -78,4 +78,12 @@ test('a corrected decision names the document it replaces', () => {
     assert.equal(result.decision.doc, 71);
     assert.equal(result.decision.replacesDoc, 66);
   }
+});
+
+test('an entry list gives each car its number and driver', () => {
+  const cars = parseEntryList(fs.readFileSync(path.join(__dirname, 'fixtures', 'entry-list-baku.txt'), 'utf8'))!;
+  assert.equal(cars.length, 22);
+  assert.deepEqual(cars[0], { number: 81, code: 'PIA', name: 'Oscar Piastri', entrant: 'McLaren Mastercard F1 Team McLaren Mercedes' });
+  assert.deepEqual(cars.find((c) => c.code === 'ANT')?.name, 'Kimi Antonelli');
+  assert.equal(parseEntryList('No. TLA Driver Nat Team Constructor'), null);
 });

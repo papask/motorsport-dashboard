@@ -85,3 +85,16 @@ test('flipping the switch is saved and announced', async () => {
   assert.deepEqual(saved, { enabled: false });
   assert.throws(() => settings.assertNextRaceEnabled(), settings.NextRaceDisabledError);
 });
+
+test('the calendar follows the guide unless pinned', async () => {
+  const settings = await import('../src/services/nextRaceSettings');
+  settings.setNextRaceEnabled(true);
+  assert.equal(settings.calendarEnabled(), true);
+  settings.setCalendarEnabled(true);
+  settings.setNextRaceEnabled(false);
+  assert.equal(settings.calendarEnabled(), true, 'pinned on: subscribers keep their feed');
+  const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'next-race-settings.json'), 'utf8'));
+  assert.deepEqual(saved, { enabled: false, calendar: true });
+  settings.setCalendarEnabled(null);
+  assert.equal(settings.calendarEnabled(), false, 'unpinned: follows the guide again');
+});
