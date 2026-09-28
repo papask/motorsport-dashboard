@@ -8,7 +8,7 @@ const BASE = process.env.BASE || 'https://www.onthelimit.app';
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     locale: 'ko-KR', colorScheme: 'light', ignoreHTTPSErrors: true });
-  await ctx.addInitScript(() => { localStorage.setItem('theme-pref', 'light'); localStorage.setItem('app.lang', 'ko'); });
+  await ctx.addInitScript(() => { localStorage.setItem('theme-pref', 'light'); localStorage.setItem('app.lang', 'ko'); localStorage.setItem('no-track', '1'); });
   const p = await ctx.newPage();
   // 스타일시트가 늦게 붙는 경우가 있어서, 스타일이 적용될 때까지 다시 연다
   const open = async (r) => {

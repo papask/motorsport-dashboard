@@ -44,5 +44,7 @@ Thumbs.db
 *.sw?
 *.local
 
+*.mp4
+
 # FIA document summaries (server/data/fia-documents.json)
 server/data/
