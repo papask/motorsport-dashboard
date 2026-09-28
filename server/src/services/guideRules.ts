@@ -11,7 +11,7 @@ export interface ScheduleSession { date: string; time?: string }
 export interface ScheduleRace extends ScheduleSession {
   round: number;
   raceName: string;
-  circuit: { id: string; name: string; locality: string; country: string };
+  circuit: { id: string; name: string; locality: string; country: string; lat?: number; lng?: number };
   firstPractice?: ScheduleSession;
   secondPractice?: ScheduleSession;
   thirdPractice?: ScheduleSession;

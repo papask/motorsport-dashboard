@@ -1157,6 +1157,30 @@ body {
   margin-bottom: 16px;
 }
 
+.guide-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-weather-inline {
+  display: none;
+  margin-top: 4px;
+}
+
+.guide-rain {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Likely rain is the forecast's news, so it gets weight rather than a colour */
+.guide-rain--high {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
 .guide-finished {
   display: flex;
   flex-direction: column;
@@ -1178,6 +1202,14 @@ body {
 
   .guide-penalty {
     flex-wrap: wrap;
+  }
+
+  .guide-col-weather {
+    display: none;
+  }
+
+  .guide-weather-inline {
+    display: block;
   }
 
   /* Too small to read at phone width; the map above carries the numbers */

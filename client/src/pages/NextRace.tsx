@@ -42,7 +42,9 @@ interface Guide {
   totalRounds: number;
   raceName: string;
   circuit: { id: string; name: string; locality: string; country: string };
-  sessions: { key: SessionKey; start: string; timeKnown: boolean }[];
+  sessions: { key: SessionKey; start: string; timeKnown: boolean; weather: Weather | null }[];
+  /** When the forecast was fetched (Open-Meteo); null when there is none */
+  weatherAt: string | null;
   raceStart: string;
   switchesAt: string;
   phase: 'upcoming' | 'weekend' | 'race' | 'finished';
@@ -90,6 +92,12 @@ interface Guide {
     redFlags: number | null;
   };
   track: null | TrackProfile;
+}
+
+interface Weather {
+  temp: number;
+  rain: number;
+  kind: 'clear' | 'cloud' | 'rain' | 'storm';
 }
 
 interface TrackProfile {
@@ -163,7 +171,29 @@ function Tile({ label, value, note }: { label: string; value: string | number; n
   );
 }
 
-const lapTimeText = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}`;
+// Stroke icons for the forecast; the words are in the aria-label
+const WEATHER_PATHS: Record<Weather['kind'], string> = {
+  clear: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+  cloud: 'M7 18h10a4 4 0 0 0 0-8a6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z',
+  rain: 'M7 14h10a4 4 0 0 0 0-8a6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 14zM9 17l-1 3M13 17l-1 3M17 17l-1 3',
+  storm: 'M7 14h10a4 4 0 0 0 0-8a6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 14zM13 15l-2 3h3l-2 3',
+};
+
+function WeatherCell({ w }: { w: Weather }) {
+  const t = useT();
+  const label = t(`nrWeather_${w.kind}` as 'nrWeather_clear');
+  return (
+    <span className="guide-weather" aria-label={`${label}, ${w.temp}°C, ${t('nrRainChance', { n: w.rain })}`}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d={WEATHER_PATHS[w.kind]} />
+      </svg>
+      <span aria-hidden="true">{w.temp}°</span>
+      <span aria-hidden="true" className={w.rain >= 50 ? 'guide-rain guide-rain--high' : 'guide-rain'}>{t('nrRainShort', { n: w.rain })}</span>
+    </span>
+  );
+}
+
+const lapTimeText =(s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}`;
 
 // Corner speed bands, as commonly split: slow < 120, medium 120–200, fast > 200 km/h
 function cornerBands(corners: TrackProfile['corners']) {
@@ -366,7 +396,7 @@ export default function NextRace() {
           </div>
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>{t('nrSession')}</th><th>{t('nrMyTime', { tz: getLocalTZLabel() })}</th></tr></thead>
+              <thead><tr><th>{t('nrSession')}</th><th>{t('nrMyTime', { tz: getLocalTZLabel() })}</th><th className="guide-col-weather">{t('nrWeather')}</th></tr></thead>
               <tbody>
                 {g.sessions.map((s) => (
                   <tr key={s.key}>
@@ -374,12 +404,20 @@ export default function NextRace() {
                     <td>
                       {s.timeKnown ? localTime(s.start) : t('nrTimeTbc')}
                       {Date.parse(s.start) <= openedAt && <span className="stat-badge" style={{ marginLeft: 8, fontSize: 11 }}>{t('nrStarted')}</span>}
+                      {/* Phones: under the time instead of a third column that would scroll off */}
+                      {s.weather && <div className="guide-weather-inline"><WeatherCell w={s.weather} /></div>}
                     </td>
+                    <td className="guide-col-weather">{s.weather ? <WeatherCell w={s.weather} /> : <span className="guide-muted">–</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {g.weatherAt && (
+            <p className="guide-note">
+              {t(finished ? 'nrWeatherFrozen' : 'nrWeatherSource', { time: localTime(g.weatherAt) })}
+            </p>
+          )}
           {/* Pinned to the foot, so the stretched card's spare height sits above it */}
           {calendar && <p className="guide-note" style={{ marginTop: 'auto', paddingTop: 12 }}>{t('nrCalendarNote')} <a href={icsHttp()}>{t('nrIcsFile')}</a></p>}
         </section>

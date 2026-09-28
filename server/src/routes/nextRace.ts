@@ -8,6 +8,7 @@ import { readGuide, type GuideFile } from '../services/guideBuilder';
 import { decisionEntries, seasonCaughtUp } from '../services/stewardDecisions';
 import { fiaLastChecked, storedFiaDocuments } from '../services/fiaService';
 import { nextRaceEnabled } from '../services/nextRaceSettings';
+import { sessionWeather } from '../services/weatherService';
 import { sendRouteError } from '../utils/errorResponse';
 
 // The next-race guide: objective facts about the coming Grand Prix, assembled
@@ -113,13 +114,19 @@ async function guideFor(year: number, round: number, now: number) {
   if (!race) return null;
   const guide = readGuide(year, round);
   const lastHeld = guide?.history.lastHeld ?? null;
+  const sessions = sessionsOf(race).map((s) => ({ key: s.key, start: new Date(s.start).toISOString(), timeKnown: s.timeKnown }));
+  const { lat, lng } = race.circuit;
+  const weather = lat != null && lng != null
+    ? await sessionWeather(year, round, lat, lng, sessions.filter((s) => s.timeKnown).map((s) => s.start), startOf(race), now)
+    : null;
   return {
     year,
     round,
     totalRounds: races.length,
     raceName: race.raceName,
     circuit: race.circuit,
-    sessions: sessionsOf(race).map((s) => ({ key: s.key, start: new Date(s.start).toISOString(), timeKnown: s.timeKnown })),
+    sessions: sessions.map((s) => ({ ...s, weather: weather?.sessions[s.start] ?? null })),
+    weatherAt: weather?.fetchedAt ?? null,
     raceStart: new Date(startOf(race)).toISOString(),
     switchesAt: new Date(startOf(race) + SWITCH_AFTER_MS).toISOString(),
     phase: guidePhase(race, now),
