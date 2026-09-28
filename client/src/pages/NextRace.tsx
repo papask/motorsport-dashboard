@@ -428,20 +428,27 @@ export default function NextRace() {
         </section>
 
         {/* Penalties */}
-        <section className="card" aria-labelledby="nr-pen">
+        {/* Full width: the list grows through a weekend, and a half-width card beside it would leave a gap */}
+        <section className="card guide-span" aria-labelledby="nr-pen">
           <div className="guide-card-head">
             <h2 id="nr-pen" className="card-title" style={{ margin: 0 }}>{t(finished ? 'nrPenaltiesFinal' : gridSet ? 'nrPenaltiesGrid' : 'nrPenalties')}</h2>
             {g.penalties.checkedAt && !finished && (
               <span className="guide-note" style={{ margin: 0 }}>{t('nrCheckedAt', { time: localTime(g.penalties.checkedAt) })}</span>
             )}
           </div>
-          {!finished && <p className="guide-note">{t(gridSet ? 'nrPenaltiesGridNote' : 'nrPenaltiesNote')}</p>}
-          <div className="guide-subhead">{t('nrCarried', { n: g.penalties.carried.length })}</div>
-          {g.penalties.carried.length ? g.penalties.carried.map((p) => <PenaltyRow key={p.url} p={p} />)
-            : <div className="guide-empty">{t('nrNone')}</div>}
-          <div className="guide-subhead">{t('nrThisWeekend', { n: g.penalties.weekend.length })}</div>
-          {g.penalties.weekend.length ? g.penalties.weekend.map((p) => <PenaltyRow key={p.url} p={p} />)
-            : <div className="guide-empty">{t('nrNoneYet')}</div>}
+          {!finished && <p className="guide-note" style={{ marginTop: 0 }}>{t(gridSet ? 'nrPenaltiesGridNote' : 'nrPenaltiesNote')}</p>}
+          <div className="card-grid card-grid-2" style={{ gap: 20 }}>
+            <div>
+              <div className="guide-subhead">{t('nrCarried', { n: g.penalties.carried.length })}</div>
+              {g.penalties.carried.length ? g.penalties.carried.map((p) => <PenaltyRow key={p.url} p={p} />)
+                : <div className="guide-empty">{t('nrNone')}</div>}
+            </div>
+            <div>
+              <div className="guide-subhead">{t('nrThisWeekend', { n: g.penalties.weekend.length })}</div>
+              {g.penalties.weekend.length ? g.penalties.weekend.map((p) => <PenaltyRow key={p.url} p={p} />)
+                : <div className="guide-empty">{t('nrNoneYet')}</div>}
+            </div>
+          </div>
           <div className="guide-subhead">{t('nrReprimands')}</div>
           {g.penalties.reprimands === null ? (
             <div className="guide-empty">{t('nrReprimandsPending')}</div>
@@ -455,29 +462,6 @@ export default function NextRace() {
                 </a>
               ))}
             </div>
-          )}
-        </section>
-
-        {/* Track data */}
-        <section className="card" aria-labelledby="nr-track">
-          <h2 id="nr-track" className="card-title">{t('nrTrack')}</h2>
-          {!n ? (
-            <div className="guide-empty">{t('nrPreparing')}</div>
-          ) : (
-            <>
-              <div className="guide-tiles">
-                <Tile label={t('nrTimesHeld')} value={String(g.history?.races ?? 0)}
-                  note={n.lastHeld ? t('nrLastHeld', { year: n.lastHeld }) : t('nrFirstTime')} />
-                <Tile label={t('nrLaps')} value={t('nrLapsTbc')}
-                  note={n.lastLaps && n.lastHeld ? t('nrLapsLast', { year: n.lastHeld, n: n.lastLaps }) : undefined} />
-              </div>
-              {n.noTelemetry ? (
-                <p className="guide-note">{n.firstTime ? t('nrNoTelemetryFirst') : t('nrNoTelemetry', { year: n.lastHeld! })}</p>
-              ) : !g.track ? (
-                <p className="guide-note">{t('nrTrackPreparing')}</p>
-              ) : null}
-              {n.notHeldLastYear && <p className="guide-note">{t('nrNotHeldLastYear', { year: g.year - 1 })}</p>}
-            </>
           )}
         </section>
 
@@ -572,8 +556,17 @@ export default function NextRace() {
             <div className="guide-empty">{t('nrFirstTimeHistory')}</div>
           ) : (
             <>
-              <div className="guide-tiles guide-tiles--4">
-                <Tile label={t('nrTimesHeld')} value={String(g.history.races)} />
+              {/* Why there is no pole-lap section, or when it is coming */}
+              {n && (n.noTelemetry || !g.track) && (
+                <p className="guide-note" style={{ marginTop: 0, marginBottom: 12 }}>
+                  {n.noTelemetry ? t('nrNoTelemetry', { year: n.lastHeld! }) : t('nrTrackPreparing')}
+                </p>
+              )}
+              <div className="guide-tiles guide-tiles--fit">
+                <Tile label={t('nrTimesHeld')} value={String(g.history.races)}
+                  note={n?.lastHeld ? t('nrLastHeld', { year: n.lastHeld }) : undefined} />
+                <Tile label={t('nrLaps')} value={t('nrLapsTbc')}
+                  note={n?.lastLaps && n.lastHeld ? t('nrLapsLast', { year: n.lastHeld, n: n.lastLaps }) : undefined} />
                 <Tile label={t('nrPoleWins')} value={`${g.history.poleWins}`}
                   note={`${Math.round((g.history.poleWins / g.history.races) * 100)}%`} />
                 <Tile label={t('nrMostWinsDriver')}
