@@ -21,10 +21,12 @@ interface Saved {
   sessions: Record<string, SessionWeather | null>;
 }
 
-// WMO weather codes as Open-Meteo reports them
-function kindOf(code: number): SessionWeather['kind'] {
-  if (code >= 95) return 'storm';
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+// The icon follows the chance of rain shown beside it, so the two never
+// disagree; the WMO weather code only picks between clear and cloudy skies,
+// and marks a storm.
+export function kindOf(code: number, rain: number): SessionWeather['kind'] {
+  if (code >= 95 && rain >= 30) return 'storm';
+  if (rain >= 50) return 'rain';
   if (code <= 1) return 'clear';
   return 'cloud';
 }
@@ -52,8 +54,9 @@ async function fetchForecast(lat: number, lng: number, starts: string[], now: nu
   for (const start of starts) {
     const i = hourly.time.indexOf(start.slice(0, 13) + ':00'); // the hour the session starts in
     const temp = hourly.temperature_2m[i];
+    const rain = hourly.precipitation_probability[i] ?? 0;
     sessions[start] = i >= 0 && temp != null
-      ? { temp: Math.round(temp), rain: hourly.precipitation_probability[i] ?? 0, kind: kindOf(hourly.weather_code[i]) }
+      ? { temp: Math.round(temp), rain, kind: kindOf(hourly.weather_code[i], rain) }
       : null;
   }
   return { fetchedAt: new Date(now).toISOString(), sessions };

@@ -51,6 +51,15 @@ test('the hour a session starts in, saved, refetched at most hourly, frozen at l
   assert.deepEqual(frozen?.sessions[RACE], first?.sessions[RACE]);
 });
 
+test('the icon agrees with the chance of rain', async () => {
+  const { kindOf } = await import('../src/services/weatherService');
+  assert.equal(kindOf(3, 79), 'rain', 'overcast code, likely rain');
+  assert.equal(kindOf(51, 19), 'cloud', 'drizzle code, unlikely rain');
+  assert.equal(kindOf(0, 10), 'clear');
+  assert.equal(kindOf(95, 60), 'storm');
+  assert.equal(kindOf(95, 10), 'cloud');
+});
+
 test('a session beyond the forecast has none', async () => {
   const { sessionWeather } = await import('../src/services/weatherService');
   failNext = false;
