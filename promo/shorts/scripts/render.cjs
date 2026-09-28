@@ -1,5 +1,5 @@
 // 녹화: index.html?render 를 1080×1920으로 열고 프레임마다 __seek(t) → 스크린샷 → ffmpeg(H.264)
-//   node render.cjs [출력.mp4] [--page chat.html] [--stills 0.5,2,...]   (FFMPEG 환경변수로 ffmpeg 경로 지정 가능)
+//   node render.cjs [출력.mp4] [--page index.html?chat] [--stills 0.5,2,...]   (FFMPEG 환경변수로 ffmpeg 경로 지정 가능)
 //   음악: music/music.mp3 가 있으면 페이지의 window.__MUSIC_START초 지점부터 입힌다(없으면 무음 트랙).
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
@@ -11,11 +11,11 @@ const MUSIC = path.resolve(__dirname, '..', 'music', 'music.mp3');
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
   const stills = opt('--stills') && opt('--stills').split(',').map(Number);
-  const page = opt('--page') || 'index.html';
+  const [page, query] = (opt('--page') || 'index.html').split('?');
   const out = path.resolve(args.find((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--')) || 'onthelimit-shorts-v1.mp4');
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
-  await p.goto('file://' + path.resolve(__dirname, '..', page) + '?render');
+  await p.goto('file://' + path.resolve(__dirname, '..', page) + '?' + [query, 'render'].filter(Boolean).join('&'));
   await p.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map((i) => i.decode().catch(() => {}))); });
   const fonts = await p.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family + ' ' + f.weight));
   console.log('fonts:', [...new Set(fonts)].join(', '));

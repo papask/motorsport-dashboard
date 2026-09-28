@@ -9,6 +9,8 @@
   - 그냥 열면 자동재생하고 끝나면 처음부터 반복합니다. 첫 클릭에 음악과 함께 처음부터, 그다음부터는 일시정지/재생.
   - ?t=12.5  : 그 시점에서 멈춘 화면
   - ?render  : 녹화용. window.__seek(t)로 프레임을 직접 그립니다(scripts/render.cjs).
+  - ?chat    : 단톡방 편. 0–7초 훅·공감 대신 단톡방 대화가 나오고, 친구가 보낸 링크 미리보기가 화면 가득 커지며
+               기능 장면으로 넘어갑니다. 7초 이후는 기본 편과 같습니다. 말풍선 등장 시각은 각 요소의 data-t(초)입니다.
   서체 파일은 fonts/에 두고 저장소에는 넣지 않습니다(README 참고).
 -->
 <style>
@@ -27,7 +29,7 @@
   --grey: #5B5B66;
   --yellow: #FFD23F;
   --title: 'Jalnan 2', 'Pretendard', sans-serif;
-  --body: 'Pretendard', sans-serif;
+  --body: 'Pretendard', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   --num: 'Barlow Condensed', 'Pretendard', sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -116,6 +118,44 @@ body.render #stage { transform: none !important; }
 #pcChips { position: absolute; left: 0; right: 0; top: 1380px; display: flex; justify-content: center; gap: 12px; }
 #pcChips span { font-weight: 800; font-size: 38px; padding: 14px 22px; border-radius: 999px; background: var(--paper); border: 3px solid var(--ink); white-space: nowrap; }
 #pcChips span.on { background: var(--red); border-color: var(--red); color: #fff; }
+
+/* 단톡방 편(?chat) */
+#chat { position: absolute; inset: 0; z-index: 40; background: #EEF1F5; display: none; }
+#chat .top { position: absolute; left: 0; right: 0; top: 0; height: 190px; background: var(--paper); border-bottom: 2px solid #dde1e7; display: flex; align-items: center; padding: 50px 40px 0; gap: 26px; z-index: 5; }
+#chat .back { font-size: 90px; font-weight: 600; line-height: 1; margin-top: -12px; }
+#chat .name { font-size: 50px; font-weight: 800; flex: 1; }
+#chat .name small { color: var(--grey); font-weight: 700; margin-left: 12px; }
+#chat .menu { width: 54px; height: 40px; background: linear-gradient(var(--ink) 0 6px, transparent 6px 17px, var(--ink) 17px 23px, transparent 23px 34px, var(--ink) 34px 40px); border-radius: 3px; }
+#chat .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 160px; background: var(--paper); border-top: 2px solid #dde1e7; display: flex; align-items: center; gap: 22px; padding: 0 36px 20px; z-index: 5; }
+#chat .plus { width: 76px; height: 76px; border-radius: 50%; background: #e6e8ec; font-size: 60px; font-weight: 600; color: var(--grey); display: grid; place-items: center; line-height: 1; }
+#chat .in { flex: 1; height: 86px; border-radius: 43px; background: #f1f2f5; font-size: 40px; color: #a3a6ad; display: flex; align-items: center; padding: 0 34px; font-weight: 600; }
+#chat .send { width: 86px; height: 86px; border-radius: 50%; background: var(--red); }
+#chat .view { position: absolute; left: 0; right: 0; top: 190px; bottom: 160px; overflow: hidden; }
+#chatList { position: relative; padding: 30px 36px 40px; }
+#chat .day { margin: 0 auto 30px; width: max-content; padding: 10px 30px; border-radius: 999px; background: rgba(17,17,20,.08); color: var(--grey); font-size: 32px; font-weight: 700; }
+#chat .m { display: flex; gap: 22px; margin-top: 30px; align-items: flex-start; transform-origin: 0 100%; }
+#chat .m.cont { margin-top: 14px; padding-left: 132px; }
+#chat .m.me { justify-content: flex-end; transform-origin: 100% 100%; }
+#chat .av { flex: none; width: 110px; height: 110px; border-radius: 40px; background: var(--c); color: #fff; font: 400 52px/110px var(--title); text-align: center; font-style: normal; }
+#chat .nm { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin: 0 0 10px 6px; }
+#chat .m p { display: inline-block; max-width: 760px; padding: 24px 34px; border-radius: 12px 40px 40px 40px; background: var(--paper); font-size: 50px; font-weight: 700; line-height: 1.34; box-shadow: 0 4px 0 rgba(17,17,20,.05); }
+#chat .m.me p { background: var(--red); color: #fff; border-radius: 40px 12px 40px 40px; }
+#card { width: 700px; border-radius: 30px; overflow: hidden; background: var(--paper); box-shadow: 0 10px 30px rgba(17,17,20,.12); }
+#card .hero { height: 250px; background: var(--cream); display: grid; place-items: center; }
+#card .hero img { width: 560px; display: block; }
+#card .tx { padding: 26px 34px 30px; }
+#card b { display: block; font-size: 44px; font-weight: 800; }
+#card span { display: block; font-size: 34px; font-weight: 700; color: var(--grey); margin-top: 6px; }
+#card i { display: block; font-size: 32px; font-weight: 600; font-style: normal; color: #9a9ca3; margin-top: 12px; }
+#ctap { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; background: rgba(217,16,26,.25); border: 6px solid var(--red); z-index: 6; visibility: hidden; }
+#chook { position: absolute; inset: 0; background: rgba(17,17,20,.88); z-index: 20; visibility: hidden; color: #fff; }
+#chook .a { position: absolute; left: 0; right: 0; top: 700px; font-size: 76px; }
+#chook .b { position: absolute; left: 0; right: 0; top: 840px; font-size: 190px; }
+#chook .red { color: #ff3b44; }
+/* 링크 미리보기가 화면 가득 커지는 판 */
+#grow { position: absolute; z-index: 45; overflow: hidden; display: none; background:
+    radial-gradient(1200px 900px at 85% 8%, rgba(217,16,26,.10), transparent 60%), radial-gradient(900px 900px at 0% 100%, rgba(255,210,63,.18), transparent 60%), var(--cream); }
+#grow img { position: absolute; left: 50%; top: 50%; }
 
 /* outro */
 #outro .checker { position: absolute; left: -100px; right: -100px; height: 120px;
@@ -208,6 +248,28 @@ body.render #hint { display: none; }
     </div>
   </div>
 
+  <!-- 단톡방 편(?chat) 0–7초 -->
+  <div id="chat">
+    <div class="top"><span class="back">‹</span><span class="name">불금 치맥 모임 🍗<small>4</small></span><span class="menu"></span></div>
+    <div class="view"><div id="chatList">
+      <div class="day">오늘</div>
+      <div class="m" data-t="0"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>어제 F1 봤어?? 🏎️</p></div></div>
+      <div class="m" data-t="0.8"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>마지막에 역전한 거 실화냐 ㅋㅋㅋ</p></div></div>
+      <div class="m" data-t="1.6"><i class="av" style="--c:#19A974">서</i><div><b class="nm">서연</b><p>나 소리 질렀잖아 😱</p></div></div>
+      <div class="m" data-t="2.4"><i class="av" style="--c:#4C7DF0">준</i><div><b class="nm">준호</b><p>다음 경기 언제야? 같이 보자!</p></div></div>
+      <div class="m me" data-t="4.8"><p>나 F1 하나도 모르는데… 😢</p></div>
+      <div class="m" data-t="5.2"><i class="av" style="--c:#FF8A5B">민</i><div><b class="nm">민지</b><p>ㅋㅋ 걱정 마, 여기 보면 돼</p></div></div>
+      <div class="m cont" data-t="5.6"><div id="card"><div class="hero"><img src="img/logo.svg" alt="온더리밋"></div><div class="tx"><b>온더리밋</b><span>다음 경기·순위·레이스 리뷰를 한눈에</span><i>onthelimit.app</i></div></div></div>
+    </div></div>
+    <div class="bar"><span class="plus">+</span><span class="in">메시지 입력</span><span class="send"></span></div>
+    <div id="ctap"></div>
+    <div id="chook">
+      <div class="t-title a"><span class="w">요즘 다들 </span><span class="w">F1 얘기하던데…</span></div>
+      <div class="t-title b"><span class="w">나만 </span><span class="w red">몰라?</span></div>
+    </div>
+  </div>
+  <div id="grow"><img src="img/logo.svg" alt=""></div>
+
   <!-- 4. 마무리 -->
   <div class="layer" id="outro">
     <div class="checker" id="chkTop" style="top:0"></div>
@@ -227,6 +289,7 @@ body.render #hint { display: none; }
 <script>
 (() => {
 const DUR = 26;
+const CHAT = new URLSearchParams(location.search).has('chat');
 const $ = (s) => document.querySelector(s);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -282,7 +345,7 @@ function drawLines(t) {
 }
 
 // 사선 와이프: 전환 시점 c를 가운데로 0.44초
-const WIPES = [3.0, 10.8, 14.4, 18.0, 20.0];
+const WIPES = CHAT ? [10.8, 14.4, 18.0, 20.0] : [3.0, 10.8, 14.4, 18.0, 20.0];
 function drawWipe(t) {
   const w = $('#wipe');
   for (const c of WIPES) {
@@ -320,17 +383,63 @@ function sticker(id, on, sx, sy, k, rot = -4) {
   el.style.transform = `translate(-50%, -100%) rotate(${rot}deg) scale(${lerp(0, 1, ease.back(clamp(k)))})`;
 }
 
+// ── 단톡방 편: 말풍선이 박마다 뜨고 → 3.2–4.8초 "나만 몰라?" → 링크 미리보기를 누르면(6.0초) 화면 가득 커진다(6.4–6.9초)
+const chatTimed = [...document.querySelectorAll('#chat [data-t]')];
+const chatRows = [...document.querySelectorAll('#chatList > .m')];
+const CHAT_VIEW = 1920 - 190 - 160;
+const chatTarget = (i) => (i < 0 ? 0 : Math.max(0, chatRows[i].offsetTop + chatRows[i].offsetHeight + 40 - CHAT_VIEW));
+function stageRect(el) { // 재생 중에는 #stage가 축소돼 있으니 무대 좌표로 되돌린다
+  const st = $('#stage').getBoundingClientRect(), r = el.getBoundingClientRect(), k = 1080 / st.width;
+  return [(r.left - st.left) * k, (r.top - st.top) * k, r.width * k, r.height * k];
+}
+function renderChat(t) {
+  const chat = $('#chat'), grow = $('#grow'), card = $('#card');
+  chat.style.display = t < 6.9 ? 'block' : 'none';
+  grow.style.display = t >= 6.4 && t < 7.2 ? 'block' : 'none';
+  const gimg = grow.querySelector('img'); gimg.style.opacity = 1 - clamp((t - 6.88) / .1);
+  if (t >= 6.9) { grow.style.opacity = 1 - clamp((t - 6.9) / .3); return; }
+  for (const el of chatTimed) {
+    const t0 = +el.dataset.t; show(el, t >= t0);
+    const k = clamp((t - t0) / .28);
+    el.style.opacity = clamp(k * 2.5);
+    el.style.transform = `translateY(${lerp(30, 0, ease.out(k))}px) scale(${lerp(.6, 1, ease.back(k))})`;
+  }
+  let i = -1; while (i + 1 < chatRows.length && t >= +chatRows[i + 1].dataset.t) i++;
+  const ks = i < 0 ? 0 : clamp((t - chatRows[i].dataset.t) / .3);
+  $('#chatList').style.transform = `translateY(${-lerp(chatTarget(i - 1), chatTarget(i), ease.out(ks))}px)`;
+  const hook = $('#chook'); const hOn = t >= 3.2 && t < 4.8; show(hook, hOn);
+  if (hOn) { hook.style.opacity = Math.min(clamp((t - 3.2) / .15), clamp((4.8 - t) / .12)); pop(hook, t, 3.25, .22, .3); }
+  // 링크를 톡 누르고(6.0초) → 미리보기 카드가 화면 가득(6.4–6.9초)
+  card.style.visibility = t >= 6.4 ? 'hidden' : '';
+  const [cx, cy, cw, ch] = stageRect(card);
+  const tap = $('#ctap'), kt = clamp((t - 6.0) / .35);
+  show(tap, kt > 0 && kt < 1); tap.style.left = (cx + cw / 2) + 'px'; tap.style.top = (cy + ch * .4) + 'px';
+  tap.style.opacity = 1 - kt; tap.style.transform = `scale(${lerp(.4, 1.6, ease.out(kt))})`;
+  if (t >= 6.4) {
+    const k = ease.inOut(clamp((t - 6.4) / .5));
+    grow.style.opacity = 1;
+    grow.style.left = lerp(cx, 0, k) + 'px'; grow.style.top = lerp(cy, 0, k) + 'px';
+    grow.style.width = lerp(cw, 1080, k) + 'px'; grow.style.height = lerp(ch, 1920, k) + 'px';
+    grow.style.borderRadius = lerp(30, 0, k) + 'px';
+    // 로고는 카드 윗부분(미리보기 그림)에서 화면 가운데로
+    const img = grow.querySelector('img');
+    img.style.width = lerp(560, 880, k) + 'px';
+    img.style.transform = `translate(-50%, -50%) translateY(${lerp(125 - ch / 2, 0, k)}px)`;
+  }
+}
+
 const L = (id) => $(id);
 function render(t) {
   t = clamp(t, 0, DUR);
   drawLines(t); drawWipe(t);
   $('#grid').style.transform = `translate(${-(t * 30) % 90}px, ${(t * 18) % 90}px)`;
 
+  if (CHAT) renderChat(t);
   // ── 1. 훅 0–3초
-  show(L('#hookA'), inRange(t, 0, 1.55));
-  if (inRange(t, 0, 1.55)) pop(L('#hookA'), t, .12, .16, .36);
-  show(L('#hookB'), inRange(t, 1.55, 3.0));
-  if (inRange(t, 1.55, 3.0)) {
+  show(L('#hookA'), !CHAT && inRange(t, 0, 1.55));
+  if (!CHAT && inRange(t, 0, 1.55)) pop(L('#hookA'), t, .12, .16, .36);
+  show(L('#hookB'), !CHAT && inRange(t, 1.55, 3.0));
+  if (!CHAT && inRange(t, 1.55, 3.0)) {
     const lb = L('#hookB'); pop(lb, t, 1.55, .12, .3);
     const punch = kf(t, [[1.55, 1.12], [1.8, 1]], ease.out);
     lb.style.transform = `scale(${punch})`;
@@ -342,8 +451,8 @@ function render(t) {
   } else $('#flash').style.opacity = 0;
 
   // ── 2. 공감 3–7초
-  show(L('#empA'), inRange(t, 3.0, 5.0));
-  if (inRange(t, 3.0, 5.0)) {
+  show(L('#empA'), !CHAT && inRange(t, 3.0, 5.0));
+  if (!CHAT && inRange(t, 3.0, 5.0)) {
     const la = L('#empA'); pop(la, t, 3.12, .32, .38);
     la.querySelectorAll('.chip').forEach((c, i) => {
       const k = clamp((t - 3.3 - i * .18) / .35);
@@ -351,8 +460,8 @@ function render(t) {
       c.style.transform = `translateY(${Math.sin(t * 2.4 + i * 1.7) * 12}px) rotate(${[-6, 5, 4, -5][i]}deg) scale(${ease.back(k)})`;
     });
   }
-  show(L('#empB'), inRange(t, 5.0, 7.0));
-  if (inRange(t, 5.0, 7.0)) {
+  show(L('#empB'), !CHAT && inRange(t, 5.0, 7.0));
+  if (!CHAT && inRange(t, 5.0, 7.0)) {
     const lb = L('#empB'); pop(lb, t, 5.05, .18, .34);
     lb.querySelector('.mark').style.setProperty('--mk', kf(t, [[5.45, 0], [5.8, 1]], ease.out));
     lb.style.transform = `translateY(${kf(t, [[6.25, 0], [6.9, -120]])}px)`;
