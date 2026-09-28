@@ -31,15 +31,20 @@ const TOP = 5;
 
 async function standingsBefore(year: number, round: number, races: ScheduleRace[]) {
   if (round <= 1) return null; // nothing scored yet
-  const [drivers, teams] = await Promise.all([
+  let [drivers, teams] = await Promise.all([
     getDriverStandings(year, round - 1),
     getConstructorStandings(year, round - 1),
   ]);
-  if (!drivers.standings.length) return null;
+  // A guide opened ahead (R17 while R16 is still to run): the latest standings there are
+  if (!drivers.standings.length) {
+    [drivers, teams] = await Promise.all([getDriverStandings(year), getConstructorStandings(year)]);
+  }
+  const afterRound = Number(drivers.round);
+  if (!drivers.standings.length || !(afterRound < round)) return null;
   const driverGap = drivers.standings[0].points - (drivers.standings[1]?.points ?? 0);
   const teamGap = teams.standings.length ? teams.standings[0].points - (teams.standings[1]?.points ?? 0) : 0;
   return {
-    afterRound: round - 1,
+    afterRound,
     drivers: drivers.standings.slice(0, TOP).map((s: any) => ({
       position: s.position,
       driverId: s.driver.id,
@@ -55,10 +60,11 @@ async function standingsBefore(year: number, round: number, races: ScheduleRace[
       points: s.points,
       gap: s.points - teams.standings[0].points,
     })),
-    remaining: remainingMax(races, round, year),
+    // Counted from the first race after these standings, so a lagging table still adds up
+    remaining: remainingMax(races, afterRound + 1, year),
     canClinch: {
-      driver: canClinchAt(driverGap, races, round, year, 'driver'),
-      constructor: teams.standings.length ? canClinchAt(teamGap, races, round, year, 'constructor') : false,
+      driver: canClinchAt(driverGap, races, round, year, 'driver', afterRound + 1),
+      constructor: teams.standings.length ? canClinchAt(teamGap, races, round, year, 'constructor', afterRound + 1) : false,
     },
   };
 }

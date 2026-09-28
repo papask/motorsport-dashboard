@@ -60,6 +60,24 @@ export const DRIVER_NAMES_KR: Record<string, string> = {
   'antonelli': '안드레아 키미 안토넬리',
   'hadjar': '아이작 하자르',
   'bortoleto': '가브리엘 보르톨레토',
+  // 과거 우승자: 다음 경기 가이드의 서킷 역대 기록에 나온다 (Jolpica driverId)
+  'vettel': '제바스티안 베텔',
+  'rosberg': '니코 로즈베르크',
+  'button': '젠슨 버튼',
+  'raikkonen': '키미 라이코넨',
+  'webber': '마크 웨버',
+  'massa': '펠리페 마사',
+  'michael_schumacher': '미하엘 슈마허',
+  'ralf_schumacher': '랄프 슈마허',
+  'barrichello': '루벤스 바리첼로',
+  'kubica': '로베르트 쿠비차',
+  'kovalainen': '헤이키 코발라이넨',
+  'maldonado': '파스토르 말도나도',
+  'montoya': '후안 파블로 몬토야',
+  'coulthard': '데이비드 쿨사드',
+  'hakkinen': '미카 하키넨',
+  'fisichella': '잔카를로 피지켈라',
+  'trulli': '야르노 트룰리',
 };
 
 // 세션 이름 매핑

@@ -415,7 +415,7 @@ export default function NextRace() {
                           {g.grid.drivers.filter((d) => d.starts).sort((a, b) =>
                             (a.best?.position ?? 99) - (b.best?.position ?? 99) || b.starts - a.starts).map((d) => (
                             <tr key={d.driverId}>
-                              <td style={{ fontWeight: 600 }} title={getDriverNameKR(d.driverId, d.name)}>{d.code}</td>
+                              <td style={{ fontWeight: 600 }}>{getDriverNameKR(d.driverId, d.name)}</td>
                               <td>{d.starts}</td>
                               <td>{d.best ? t('nrBestResult', { pos: d.best.position, year: d.best.season }) : '–'}</td>
                             </tr>

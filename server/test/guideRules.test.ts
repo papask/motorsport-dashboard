@@ -52,6 +52,10 @@ test('when a title can be settled', () => {
   // Going into the last race, any lead that a 25-point swing can't cover is enough
   assert.equal(canClinchAt(1, races, 22, 2026, 'driver'), true);
   assert.equal(canClinchAt(0, races, 23, 2026, 'driver'), true);
+  // Standings still after R16 when looking at R18: R17 (with its sprint) and R18
+  // add up to 58, against 125 still to score after R18
+  assert.equal(canClinchAt(67, races, 18, 2026, 'driver', 17), false);
+  assert.equal(canClinchAt(68, races, 18, 2026, 'driver', 17), true);
 });
 
 test('notices from the circuit history', () => {

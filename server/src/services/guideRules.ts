@@ -77,11 +77,13 @@ export function remainingMax(races: ScheduleRace[], fromRound: number, year: num
 
 /**
  * Whether the leader could have the title settled by the end of `round`: even
- * outscoring second place by the most one weekend allows, the lead must then
- * exceed everything still to score. Countback ties are left out.
+ * outscoring second place by the most the weekends from `fromRound` to `round`
+ * allow, the lead must then exceed everything still to score. `gap` is the lead
+ * before `fromRound` (standings can lag when a race in between isn't run yet).
+ * Countback ties are left out.
  */
-export function canClinchAt(gap: number, races: ScheduleRace[], round: number, year: number, kind: 'driver' | 'constructor') {
-  const thisWeekend = remainingMax(races.filter((r) => r.round === round), round, year)[kind];
+export function canClinchAt(gap: number, races: ScheduleRace[], round: number, year: number, kind: 'driver' | 'constructor', fromRound = round) {
+  const thisWeekend = remainingMax(races.filter((r) => r.round >= fromRound && r.round <= round), fromRound, year)[kind];
   const after = remainingMax(races, round + 1, year)[kind];
   return gap + thisWeekend > after;
 }
