@@ -395,6 +395,8 @@ export default function NextRace({ year: season }: { year: number }) {
   // ponytail: an hour after qualifying starts stands in for its end; the session's real end isn't in the schedule
   const qualifying = g.sessions.find((s) => s.key === 'qualifying');
   const gridSet = !finished && !!qualifying && Date.parse(qualifying.start) + 60 * 60 * 1000 <= openedAt;
+  // A column of dashes says nothing: show it once any session has a forecast
+  const hasWeather = g.sessions.some((s) => s.weather);
 
   return (
     <div className="page-container" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
@@ -434,7 +436,7 @@ export default function NextRace({ year: season }: { year: number }) {
           </div>
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>{t('nrSession')}</th><th>{t('nrMyTime', { tz: getLocalTZLabel() })}</th><th className="guide-col-weather">{t('nrWeather')}</th></tr></thead>
+              <thead><tr><th>{t('nrSession')}</th><th>{t('nrMyTime', { tz: getLocalTZLabel() })}</th>{hasWeather && <th className="guide-col-weather">{t('nrWeather')}</th>}</tr></thead>
               <tbody>
                 {g.sessions.map((s) => (
                   <tr key={s.key}>
@@ -445,7 +447,7 @@ export default function NextRace({ year: season }: { year: number }) {
                       {/* Phones: under the time instead of a third column that would scroll off */}
                       {s.weather && <div className="guide-weather-inline"><WeatherCell w={s.weather} /></div>}
                     </td>
-                    <td className="guide-col-weather">{s.weather ? <WeatherCell w={s.weather} /> : <span className="guide-muted">–</span>}</td>
+                    {hasWeather && <td className="guide-col-weather">{s.weather ? <WeatherCell w={s.weather} /> : <span className="guide-muted">–</span>}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -558,7 +560,7 @@ export default function NextRace({ year: season }: { year: number }) {
                 <h2 id="nr-profile" className="card-title" style={{ margin: 0 }}>{t('nrPoleLap', { year: tr.year })}</h2>
                 <span className="guide-note" style={{ margin: 0 }}>
                   {getDriverNameKR(g.lastRace?.qualifying[0]?.driverId ?? '', tr.driver.name)} · {getTeamNameKR(tr.driver.team)}
-                  {tr.lapTime != null && ` · ${lapTimeText(tr.lapTime)}`} · {t('nrProfileSource')}
+                  {tr.lapTime != null && ` · ${lapTimeText(tr.lapTime)}`}
                 </span>
               </div>
               {era && <div className="guide-warning" role="note">{t('nrEraNote', { year: tr.year, now: g.year, change: lang === 'en' ? era.en : era.ko })}</div>}
