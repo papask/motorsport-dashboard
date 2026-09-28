@@ -99,7 +99,7 @@ interface TrackProfile {
   topSpeed: number;
   fullThrottle: number | null;
   heavyBraking: number;
-  corners: { number: string; x: number; y: number; distance: number; minSpeed: number | null }[];
+  corners: { number: string; x: number; y: number; angle: number | null; distance: number; minSpeed: number | null }[];
   rotation: number;
   trace: { d: number; s: number }[];
   outline: [number, number][];
@@ -186,21 +186,35 @@ function TrackMap({ track, label }: { track: TrackProfile; label: string }) {
   const w = maxX - minX + pad * 2;
   const h = maxY - minY + pad * 2;
   const font = Math.max(w, h) / 32;
-  // Labels sit just outside the line, pushed away from the circuit's centre
+  const off = font * 1.6;
+  // Where a corner's number goes: along the corner's own angle (MultiViewer places it
+  // off the track that way, as FastF1's corner-annotation example does); without one,
+  // away from the circuit's centre
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
+  const labelAt = (c: (typeof corners)[number]): [number, number] => {
+    if (c.angle != null) {
+      const r = (c.angle * Math.PI) / 180;
+      return turn([c.x + off * Math.cos(r), c.y + off * Math.sin(r)]);
+    }
+    const len = Math.hypot(c.p[0] - cx, c.p[1] - cy) || 1;
+    return [c.p[0] + ((c.p[0] - cx) / len) * off, c.p[1] + ((c.p[1] - cy) / len) * off];
+  };
   return (
     <svg className="guide-map" viewBox={`0 0 ${w.toFixed(0)} ${h.toFixed(0)}`} role="img" aria-label={label}>
       <polyline points={line.map(pt).join(' ')} fill="none" stroke="var(--text-primary)" strokeWidth={font / 3} strokeLinejoin="round" strokeLinecap="round" />
       {corners.map((c) => {
-        const dx = c.p[0] - cx;
-        const dy = c.p[1] - cy;
-        const len = Math.hypot(dx, dy) || 1;
-        const [lx, ly] = pt([c.p[0] + (dx / len) * font * 1.3, c.p[1] + (dy / len) * font * 1.3]).split(',');
+        const [lx, ly] = pt(labelAt(c)).split(',');
+        const [px, py] = pt(c.p).split(',');
         return (
-          <text key={c.number} x={lx} y={ly} fontSize={font} textAnchor="middle" dominantBaseline="middle" fill="var(--text-secondary)" fontWeight={600}>
-            {c.number}
-          </text>
+          <g key={c.number}>
+            {/* A short tick from the track to its number, so a number is never read against the wrong corner */}
+            <line x1={px} y1={py} x2={lx} y2={ly} stroke="var(--border-strong)" strokeWidth={font / 12} />
+            <circle cx={lx} cy={ly} r={font * 0.75} fill="var(--surface-raised)" stroke="var(--border-strong)" strokeWidth={font / 12} />
+            <text x={lx} y={ly} fontSize={font * 0.85} textAnchor="middle" dominantBaseline="central" fill="var(--text-primary)" fontWeight={700}>
+              {c.number}
+            </text>
+          </g>
         );
       })}
     </svg>

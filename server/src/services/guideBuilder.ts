@@ -18,7 +18,7 @@ import { assertNextRaceEnabled, nextRaceEnabled, NextRaceDisabledError, onNextRa
 const GUIDES_DIR = path.join(process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'), 'guides');
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 // Bump when the file's shape changes; older files are rebuilt on the next check
-const GUIDE_VERSION = 3;
+const GUIDE_VERSION = 4;
 // A failed FastF1 load is tried again after this long, not on every hourly check
 const FASTF1_RETRY_MS = 6 * 60 * 60 * 1000;
 
@@ -78,7 +78,7 @@ export interface TrackProfile {
   topSpeed: number;
   fullThrottle: number | null;
   heavyBraking: number;
-  corners: { number: string; x: number; y: number; distance: number; minSpeed: number | null }[];
+  corners: { number: string; x: number; y: number; angle: number | null; distance: number; minSpeed: number | null }[];
   rotation: number;
   trace: { d: number; s: number }[];
   outline: [number, number][];

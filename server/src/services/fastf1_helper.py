@@ -989,6 +989,8 @@ def get_track_profile(year, round_num):
         corners.append({
             'number': f"{int(c['Number'])}{c['Letter'] or ''}",
             'x': float(c['X']), 'y': float(c['Y']),
+            # Which way the number sits off the track (degrees), as MultiViewer places it
+            'angle': float(c['Angle']) if pd.notna(c.get('Angle')) else None,
             'distance': float(c['Distance']),
             'minSpeed': low,
         })
