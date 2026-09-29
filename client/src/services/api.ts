@@ -93,3 +93,39 @@ export const getNextRaceGuide = (year?: number, round?: number, signal?: AbortSi
 
 // The season calendar feed, as a link the viewer's calendar app subscribes to
 export const calendarUrl = () => `${api.defaults.baseURL}/calendar.ics`;
+
+// Admin (/admin page): one login with ADMIN_TOKEN sets an HttpOnly session
+// cookie that every later call carries by itself (same origin), so no token
+// is kept in the page
+export const loginAdmin = (token: string) => api.post('/admin/login', { token });
+export const logoutAdmin = () => api.post('/admin/logout');
+export const getAdminStatus = () =>
+  Promise.all(['threads', 'next-race', 'news'].map((p) => api.get(`/admin/${p}`)))
+    .then(([t, n, news]) => ({ threads: t.data, nextRace: n.data, news: news.data as {
+      enabled: boolean; feeds: string[]; muted: string[]; items: NewsItem[];
+      bulk: { total: number; done: number } | null; // "draft all" progress while it runs
+    } }));
+
+export interface NewsItem {
+  url: string;
+  title: string;
+  found: string;
+  published?: string; // when the outlet published it, if its feed says
+  status: 'new' | 'ready' | 'failed' | 'posted';
+  draft?: { text: string; copied: string[] };
+  error?: string;
+  also?: { url: string; title: string }[]; // the same story from other outlets
+  drafting?: boolean; // a draft is being made right now
+}
+export const setAdminSwitch = (path: 'threads' | 'next-race' | 'news', body: Record<string, boolean | string>) =>
+  api.post(`/admin/${path}`, body).then((r) => r.data);
+// newsUrl marks the watched article the text came from as posted
+export const postThreadsNews = (text: string, newsUrl?: string) =>
+  api.post('/admin/threads/post', { text, newsUrl }).then((r) => r.data as { posts: number });
+// Claude reads the article and drafts a Korean summary; `copied` lists sentences too close to the source
+// `text`: the article pasted from the admin's browser, when the page couldn't be read (a 422 with needsText asks for it)
+export const draftNewsPost = (url: string, text?: string) =>
+  api.post('/admin/news/draft', { url, text }).then((r) => r.data as { text: string; copied: string[] });
+// The posts a text becomes on Threads, split exactly as posting will split it
+export const previewThreadsPosts = (text: string, signal?: AbortSignal) =>
+  api.post('/admin/threads/preview', { text }, { signal }).then((r) => r.data.posts as string[]);

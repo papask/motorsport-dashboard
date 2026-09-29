@@ -565,6 +565,135 @@ body {
 .privacy-page h2 { font-size: 16px; margin: 24px 0 8px; }
 .privacy-page p { line-height: 1.7; color: var(--text-secondary); }
 
+/* Admin page: one card per feature */
+/* Full browser width: the news list and the post sit side by side with room to spare */
+.admin-session { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; color: var(--text-muted); }
+
+/* Site list folded away; the summary says how many are watched */
+.admin-feeds {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.admin-feeds > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.admin-feeds[open] > summary { margin-bottom: 8px; }
+
+/* News list | post being written, side by side from tablet width up */
+.admin-news-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) {
+  .admin-news-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  /* the post stays in view while scrolling a long news list */
+  .admin-compose { position: sticky; top: 16px; }
+}
+.admin-panel {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.admin-panel-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.admin-panel-title small { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+.admin-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.admin-panel > ul { list-style: none; margin: 0; padding: 0; }
+.admin-page p { line-height: 1.7; color: var(--text-secondary); }
+.admin-card { margin-bottom: 16px; }
+.admin-page .admin-card:hover { box-shadow: none; } /* a card here is a panel, not a link */
+/* The list scrolls inside its panel; Admin.tsx sets max-height to fit 10 rows */
+.admin-panel .admin-news-list {
+  overflow-y: auto;
+  overscroll-behavior: contain; /* reaching the end doesn't scroll the page instead */
+  padding-right: 8px;
+}
+.admin-news-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-faint);
+}
+.admin-news-row:first-child { border-top: 0; padding-top: 0; }
+.admin-news-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.admin-news-actions .btn-secondary { white-space: nowrap; }
+@media (max-width: 600px) {
+  /* card + panel padding would leave too little room on a phone */
+  .admin-page .admin-card { padding: 16px; }
+  .admin-panel { padding: 12px; }
+  .admin-news-actions { margin-left: 0; }
+  .admin-news-meta { flex-basis: 100%; }
+}
+.admin-news-also { flex-basis: 100%; color: var(--text-muted); }
+.admin-news-also a { color: var(--text-secondary); }
+.admin-news-title { flex: 1 1 280px; color: var(--text-primary); text-decoration: none; line-height: 1.5; }
+.admin-news-title:hover { text-decoration: underline; }
+.admin-news-title strong { display: block; margin-top: 2px; }
+.admin-news-meta { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.admin-card > .card-title { margin-bottom: 12px; }
+
+/* A switch row: label and hint on the left, the shared .switch on the right */
+.admin-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-faint);
+  cursor: pointer;
+}
+.admin-switch-row:first-of-type { border-top: 0; padding-top: 0; }
+.admin-switch-label { display: block; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.admin-switch-hint { display: block; margin-top: 2px; font-size: 12px; color: var(--text-muted); }
+.admin-switch-row .switch-input:disabled + .switch { opacity: 0.6; cursor: wait; }
+
+/* Admin page: the post box reads like the post it will become */
+.admin-input,
+.admin-textarea {
+  padding: 10px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+.admin-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  resize: vertical;
+  field-sizing: content; /* grows with the draft where supported; rows is the fallback */
+  min-height: 12lh;
+}
+.admin-input:focus-visible,
+.admin-textarea:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.admin-count { font-size: 13px; color: var(--text-muted); }
+.admin-paste { margin-bottom: 12px; padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
+.admin-paste p { margin: 0 0 8px; font-size: 13px; }
+.admin-paste .admin-textarea { min-height: 6lh; }
+.admin-count.over { color: var(--text-primary); font-weight: 600; }
+/* Split preview: one card per Threads post, joined by a line like a reply chain */
+.admin-posts { list-style: none; margin: 16px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--border-strong); }
+.admin-posts li {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-post-label { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
 /* ===== WIREFRAME PRIMITIVES =====
    The canvas builds every screen from four pieces: a kicker, a large heading,
    an English subtitle, and tabular display numerals. They are utilities rather
