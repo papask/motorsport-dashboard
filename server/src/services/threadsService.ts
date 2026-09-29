@@ -132,9 +132,14 @@ const GP_NAMES_KO: Record<string, string> = {
  * event held elsewhere keeps its name and adds the host: "바레인 그랑프리 (말레이시아)".
  */
 export function gpHeading(year: string | number, round: number | undefined, raceName: string) {
+  return `${year}${round ? ` ${round} 라운드` : ''} ${gpNameKo(raceName)}`;
+}
+
+/** "Bahrain Grand Prix in Malaysia" → "바레인 그랑프리 (말레이시아)" */
+export function gpNameKo(raceName: string) {
   const gp = raceName.replace(/ Grand Prix.*$/i, '');
   const host = raceName.match(/ Grand Prix in (.+)$/i)?.[1];
-  return `${year}${round ? ` ${round} 라운드` : ''} ${GP_NAMES_KO[gp] ?? gp} 그랑프리${host ? ` (${GP_NAMES_KO[host] ?? host})` : ''}`;
+  return `${GP_NAMES_KO[gp] ?? gp} 그랑프리${host ? ` (${GP_NAMES_KO[host] ?? host})` : ''}`;
 }
 
 const POST_MAX_CHARS = 500; // Threads' limit per post
@@ -165,16 +170,36 @@ export function packPosts(units: [string, string][]) {
   return posts.map((post, i) => render(post) + (i < posts.length - 1 ? CONTINUED : ''));
 }
 
+/**
+ * Free text as packPosts units: one per sentence, like the FiA posts, so a
+ * reply starts between sentences. A line's first sentence keeps the line
+ * break before it (a blank line stays blank); the rest follow a space. A line
+ * that is only a URL stays with the line above it ("… 가이드 페이지" and its
+ * address), so a reply never opens on a link whose label was left behind.
+ */
+export function textUnits(text: string) {
+  const units: [string, string][] = [];
+  let blank = false;
+  for (const line of text.split('\n').map((l) => l.trim())) {
+    if (!line) { blank = true; continue; }
+    if (!blank && units.length && /^https?:\/\/\S+$/.test(line)) units[units.length - 1][0] += `\n${line}`;
+    else line.split(/(?<=[.!?])\s+/).forEach((sentence, i) => units.push([sentence, i ? ' ' : blank ? '\n\n' : '\n']));
+    blank = false;
+  }
+  return units;
+}
+
 // Threads allows one topic per post; this one files posts under the F1 community
 const TOPIC_TAG = 'F1 Threads';
 
 /**
  * Posts the first text (under TOPIC_TAG) and chains the rest as replies, each
  * to the one before (needs threads_manage_replies). Text only, 500 chars each.
- * No-op without a token or while switched off.
+ * No-op without a token or while switched off; `manual` posts (from the admin
+ * page) skip the switch, which only gates the automatic posters.
  */
-export async function postToThreads(texts: string[]) {
-  if (!token || !enabled) return;
+export async function postToThreads(texts: string[], { manual = false } = {}) {
+  if (!token || (!enabled && !manual)) return;
   let replyTo: string | undefined;
   for (const text of texts) {
     const params: Record<string, string> = { media_type: 'TEXT', text, ...(replyTo ? { reply_to_id: replyTo } : { topic_tag: TOPIC_TAG }) };

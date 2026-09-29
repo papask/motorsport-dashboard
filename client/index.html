@@ -27,9 +27,14 @@
         var CLARITY_ID = 'yo3elhzq8a';
         if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
         // Owner opt-out: open any page once with ?notrack=1 on a browser to keep it out of GA and Clarity for good; ?notrack=0 undoes it.
+        // Signing in to the admin page sets it by default, and a switch there turns it off. The admin page itself is never tracked: its drafts stay out of Clarity's recordings.
+        if (/^\/admin(\/|$)/.test(location.pathname)) return;
         try {
           var nt = /[?&]notrack=([01])/.exec(location.search);
-          if (nt) nt[1] === '1' ? localStorage.setItem('no-track', '1') : localStorage.removeItem('no-track');
+          // no-track-off remembers an explicit "track me", so signing in to /admin won't turn no-track back on
+          if (nt) nt[1] === '1'
+            ? (localStorage.setItem('no-track', '1'), localStorage.removeItem('no-track-off'))
+            : (localStorage.removeItem('no-track'), localStorage.setItem('no-track-off', '1'));
           if (localStorage.getItem('no-track')) return;
         } catch (e) { /* storage blocked: track as usual */ }
 

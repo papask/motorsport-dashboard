@@ -11,6 +11,7 @@ import RaceIncidents from './pages/RaceIncidents';
 import FiaDocuments from './pages/FiaDocuments';
 import NextRace from './pages/NextRace';
 import Privacy from './pages/Privacy';
+import Admin from './pages/Admin';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
 import useFeatures from './hooks/useFeatures';
@@ -317,6 +318,8 @@ function Header({ selectedYear, setSelectedYear }: { selectedYear: number; setSe
 // a fresh ad request instead of one slot living across the whole visit.
 function FooterAd() {
   const { pathname } = useLocation();
+  // No ad scripts where the admin session and drafts live
+  if (pathname.startsWith('/admin')) return null;
   return (
     <div className="footer-ad">
       <AdSlot key={pathname} variant="display" />
@@ -360,6 +363,7 @@ function App() {
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
           <FooterAd />
           <footer className="site-disclaimer">
