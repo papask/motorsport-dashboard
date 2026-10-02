@@ -351,8 +351,12 @@ export default function NextRace({ year: season }: { year: number }) {
   const year = round ? season : undefined; // plain /next follows the calendar
   const { data, loading, error, refetch, failures } = useApi<Response>(
     (signal) => getNextRaceGuide(year, round, signal), [year, round]);
-  // Marks the sessions already under way when the page was opened
-  const [openedAt] = useState(() => Date.now());
+  // Ticks so the schedule's next-session mark moves on once a session starts
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   if (loading) {
     return (
@@ -394,7 +398,8 @@ export default function NextRace({ year: season }: { year: number }) {
   // After qualifying the grid is set, so what is listed is what the race grid carries.
   // ponytail: an hour after qualifying starts stands in for its end; the session's real end isn't in the schedule
   const qualifying = g.sessions.find((s) => s.key === 'qualifying');
-  const gridSet = !finished && !!qualifying && Date.parse(qualifying.start) + 60 * 60 * 1000 <= openedAt;
+  const gridSet = !finished && !!qualifying && Date.parse(qualifying.start) + 60 * 60 * 1000 <= now;
+  const nextKey = g.sessions.find((s) => s.timeKnown && Date.parse(s.start) > now)?.key;
   // A column of dashes says nothing: show it once any session has a forecast
   const hasWeather = g.sessions.some((s) => s.weather);
 
@@ -443,7 +448,7 @@ export default function NextRace({ year: season }: { year: number }) {
                     <td style={{ fontWeight: 600 }}>{getSessionNameKR(SESSION_NAME[s.key])}</td>
                     <td>
                       {s.timeKnown ? localTime(s.start) : t('nrTimeTbc')}
-                      {Date.parse(s.start) <= openedAt && <span className="stat-badge" style={{ marginLeft: 8, fontSize: 11 }}>{t('nrStarted')}</span>}
+                      {s.key === nextKey && <span className="stat-badge" style={{ marginLeft: 8, fontSize: 11 }}>{t('nrNext')}</span>}
                       {/* Phones: under the time instead of a third column that would scroll off */}
                       {s.weather && <div className="guide-weather-inline"><WeatherCell w={s.weather} /></div>}
                     </td>
