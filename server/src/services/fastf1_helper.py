@@ -36,6 +36,41 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
 
 
+def load_telemetry_for(session, drivers):
+    """session.load(telemetry=True), but builds car/pos data for `drivers` only.
+
+    A full load keeps every driver's telemetry (~320MB peak on a race), which
+    with Node alongside overflows the 512MB host. t0_date is still taken over
+    every driver, as FastF1 does, so lap slicing stays identical.
+    """
+    from fastf1 import _api
+    drivers = {str(d) for d in drivers}
+    offsets = []
+
+    def only(fetch):
+        def wrapped(*args, **kwargs):
+            data = fetch(*args, **kwargs)
+            offsets.extend(max(d['Date'] - d['Time']) for d in data.values())
+            return {k: v for k, v in data.items() if k in drivers}
+        return wrapped
+
+    def t0_from_all(*_):
+        session._t0_date = max(offsets).round('ms') if offsets else None
+
+    car_data, position_data = _api.car_data, _api.position_data
+    _api.car_data, _api.position_data = only(car_data), only(position_data)
+    session._calculate_t0_date = t0_from_all
+    try:
+        session.load(laps=True, telemetry=True, weather=False, messages=False)
+    finally:
+        _api.car_data, _api.position_data = car_data, position_data
+        del session._calculate_t0_date
+    # DriverAhead needs every driver's position and nothing here reads it; one
+    # action per process, so the stub can't reach a full load
+    fastf1.core.Telemetry.add_driver_ahead = \
+        lambda self, drop_existing=True: self.assign(DriverAhead='', DistanceToDriverAhead=np.nan)
+
+
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
     if isinstance(obj, (pd.Timestamp, pd.Timedelta)):
@@ -617,8 +652,8 @@ def get_telemetry(year, round_num, driver_number, lap_number=None):
     driver_number = str(driver_number)
     
     session = fastf1.get_session(year, round_num, 'Race')
-    session.load(telemetry=True, weather=False, messages=False)
-    
+    load_telemetry_for(session, [driver_number])
+
     driver_laps = session.laps.pick_drivers(driver_number)
     
     if driver_laps.empty:
@@ -952,10 +987,12 @@ def get_track_profile(year, round_num):
     totals (top speed, full-throttle share, heavy braking zones).
     """
     session = fastf1.get_session(int(year), int(round_num), 'Q')
-    session.load(laps=True, telemetry=True, weather=False, messages=False)
+    session.load(laps=True, telemetry=False, weather=False, messages=False)
     lap = session.laps.pick_fastest()
     if lap is None or (hasattr(lap, 'empty') and lap.empty):
         return {'error': 'no qualifying lap'}
+    load_telemetry_for(session, [lap['DriverNumber']])
+    lap = session.laps.pick_fastest()
     tel = lap.get_telemetry().dropna(subset=['Distance', 'Speed'])
     dist = tel['Distance'].to_numpy()
     speed = tel['Speed'].to_numpy()
