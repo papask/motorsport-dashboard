@@ -2,7 +2,7 @@ import PageMasthead from '../components/PageMasthead';
 import { useLang } from '../i18n';
 
 // Shown on the page only when set. AdSense reviewers look for a way to reach the operator.
-const CONTACT_EMAIL = '';
+export const CONTACT_EMAIL = '';
 const UPDATED = '2026-09-25';
 
 // Long-form legal copy lives here per language rather than in messages.ts.

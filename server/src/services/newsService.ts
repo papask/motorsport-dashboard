@@ -388,6 +388,26 @@ export const newsStatus = () => ({
   items: shownItems().map((i) => (drafting.has(i.url) ? { ...i, drafting: true } : i)),
 });
 
+/**
+ * The public news page: drafted articles the admin didn't dismiss and the
+ * copy check passed, newest first. Headline and bullets come back out of the
+ * draft text newsPostText wrote.
+ */
+export const publicNews = () => items
+  .filter((i) => i.draft && i.status !== 'dismissed' && !i.draft.copied.length)
+  .map((i) => {
+    const [title_ko, bullets = ''] = i.draft!.text.split('\n\n');
+    return {
+      url: i.url,
+      title: i.title,
+      published: i.published ?? i.found,
+      title_ko,
+      summary_ko: bullets.split('\n').filter((l) => l.startsWith('• ')).map((l) => l.slice(2)),
+      also: i.also ?? [],
+    };
+  })
+  .sort((a, b) => b.published.localeCompare(a.published));
+
 /** The articles the admin page lists: collected within LIST_MS, not dismissed, newest first. */
 const shownItems = () => items.filter((i) => i.status !== 'dismissed' && Date.now() - Date.parse(i.found) < LIST_MS);
 

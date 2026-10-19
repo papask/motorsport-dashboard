@@ -76,6 +76,9 @@ export const getRaceIncidents = (year: number, round: number, signal?: AbortSign
 export const getFiaDocuments = (event: string | null, signal?: AbortSignal) =>
   api.get('/fia/documents', { params: { event: event ?? undefined }, signal }).then((r) => r.data);
 
+export const getNews = (signal?: AbortSignal) =>
+  api.get('/news', { signal }).then((r) => r.data);
+
 // Optional features the server has switched on
 export const getFeatures = (signal?: AbortSignal) =>
   api.get('/features', { signal }).then((r) => r.data as { nextRace: boolean; calendar: boolean });
