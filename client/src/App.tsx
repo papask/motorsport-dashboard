@@ -9,8 +9,10 @@ import RaceTimeline from './pages/RaceTimeline';
 import Telemetry from './pages/Telemetry';
 import RaceIncidents from './pages/RaceIncidents';
 import FiaDocuments from './pages/FiaDocuments';
+import News from './pages/News';
 import NextRace from './pages/NextRace';
 import Privacy from './pages/Privacy';
+import About from './pages/About';
 import Admin from './pages/Admin';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
@@ -320,6 +322,8 @@ function FooterAd() {
   const { pathname } = useLocation();
   // No ad scripts where the admin session and drafts live
   if (pathname.startsWith('/admin')) return null;
+  // nor on the site's own notice pages, which aren't content
+  if (pathname === '/about' || pathname === '/privacy') return null;
   return (
     <div className="footer-ad">
       <AdSlot key={pathname} variant="display" />
@@ -356,6 +360,7 @@ function App() {
             <Route path="/timeline" element={<RaceTimeline year={selectedYear} />} />
             <Route path="/telemetry" element={<Telemetry year={selectedYear} />} />
             <Route path="/incidents" element={<RaceIncidents year={selectedYear} />} />
+            <Route path="/news" element={<News />} />
             <Route path="/docs" element={<FiaDocuments />} />
             <Route path="/next" element={<NextRaceRoute year={selectedYear} />} />
             {/* The season comes from the header's selector, not the address */}
@@ -363,6 +368,7 @@ function App() {
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/about" element={<About />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
           <FooterAd />
@@ -373,7 +379,7 @@ function App() {
               {' · '}
               <a href="https://github.com/theOehrly/Fast-F1" target="_blank" rel="noreferrer">FastF1</a>
             </p>
-            {t('disclaimer')} · <Link to="/privacy">{t('privacyLink')}</Link>
+            {t('disclaimer')} · <Link to="/about">{t('aboutLink')}</Link> · <Link to="/privacy">{t('privacyLink')}</Link>
           </footer>
         </main>
       </div>

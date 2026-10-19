@@ -15,7 +15,7 @@ import {
   packPosts, postToThreads, setThreadsEnabled, startThreadsTokenRefresh, textUnits, threadsStatus,
 } from './services/threadsService';
 import {
-  addFeed, draftAllListed, draftOnRequest, newsStatus, removeFeed, setFeedMuted, setNewsEnabled, setNewsStatus, startNewsWatcher,
+  addFeed, draftAllListed, draftOnRequest, newsStatus, publicNews, removeFeed, setFeedMuted, setNewsEnabled, setNewsStatus, startNewsWatcher,
 } from './services/newsService';
 import { startResultsPoster } from './services/resultsPoster';
 import {
@@ -24,7 +24,7 @@ import {
 import { checkGuidePost, startGuidePoster } from './services/guidePoster';
 import { guideBuilderStatus, startGuideBuilder } from './services/guideBuilder';
 import { decisionEntries, startStewardDecisions } from './services/stewardDecisions';
-import { renderPage } from './pageMeta';
+import { renderPage, sitemap } from './pageMeta';
 import { issueSession, readCookie, SESSION_COOKIE, SESSION_MAX_AGE_MS, verifySession } from './adminSession';
 
 const app = express();
@@ -47,6 +47,9 @@ app.get('/api/features', (_req, res) => {
 });
 app.get('/api/fia/documents', (req, res) => {
   res.json(getFiaDocuments(typeof req.query.event === 'string' ? req.query.event : undefined));
+});
+app.get('/api/news', (_req, res) => {
+  res.json(publicNews());
 });
 
 // Admin routes need `Authorization: Bearer <ADMIN_TOKEN>`; with no ADMIN_TOKEN set they stay closed
@@ -240,9 +243,12 @@ if (fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
   app.use(express.static(CLIENT_DIST, { index: false }));
   const template = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf8');
   // Client-side routes fall back to index.html, with that page's meta tags; unknown /api paths stay 404
-  app.get(/^\/(?!api(\/|$)).*/, (req, res) => {
-    const site = process.env.SITE_URL || `https://${req.get('host')}`;
-    res.type('html').send(renderPage(template, req.path, site));
+  const siteOf = (req: express.Request) => process.env.SITE_URL || `https://${req.get('host')}`;
+  app.get('/sitemap.xml', async (req, res) => {
+    res.type('application/xml').send(await sitemap(siteOf(req)));
+  });
+  app.get(/^\/(?!api(\/|$)).*/, async (req, res) => {
+    res.type('html').send(await renderPage(template, req.path, siteOf(req)));
   });
 }
 
