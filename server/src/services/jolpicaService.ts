@@ -112,6 +112,34 @@ async function limitedGet<T>(url: string, attempt = 0): Promise<T> {
   }
 }
 
+const DAY_S = 24 * 60 * 60;
+// By then the results and post-race penalties have settled
+const SETTLED_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * A day's cache life for data that no longer changes: a past season's, or a
+ * round's whose race started SETTLED_AFTER_MS ago. Undefined keeps the default.
+ * A round's date comes from the response, or (for round standings, which carry
+ * none) from the season schedule if it's cached.
+ */
+export function settledTtl(url: string, data: any, now = Date.now()): number | undefined {
+  const [, year, round] = url.slice(BASE_URL.length).match(/^\/(\d{4})(?:\/(\d+))?\//) ?? [];
+  if (!year) return undefined;
+  if (+year < new Date(now).getUTCFullYear()) return DAY_S;
+  if (!round) return undefined;
+  const race = data?.MRData?.RaceTable?.Races?.[0]
+    ?? cache.get<any>(`${BASE_URL}/${year}/`)?.MRData?.RaceTable?.Races?.find((r: any) => r.round === round);
+  if (!race?.date) return undefined;
+  return now - Date.parse(`${race.date}T${race.time ?? '00:00:00Z'}`) > SETTLED_AFTER_MS ? DAY_S : undefined;
+}
+
+/** Whether a round's data has settled: a past season, or its race started SETTLED_AFTER_MS ago. */
+export async function raceSettled(year: number, round: number, now = Date.now()) {
+  if (year < new Date(now).getUTCFullYear()) return true;
+  const race = (await getSeasonSchedule(year)).races.find((r: any) => r.round === round);
+  return !!race && now - Date.parse(`${race.date}T${race.time ?? '00:00:00Z'}`) > SETTLED_AFTER_MS;
+}
+
 async function cachedGet<T>(url: string): Promise<T> {
   const cached = cache.get<T>(url);
   if (cached !== undefined) return cached;
@@ -121,7 +149,9 @@ async function cachedGet<T>(url: string): Promise<T> {
 
   const request = limitedGet<T>(url)
     .then((data) => {
-      cache.set(url, data);
+      const ttl = settledTtl(url, data);
+      if (ttl) cache.set(url, data, ttl);
+      else cache.set(url, data);
       return data;
     })
     .finally(() => {

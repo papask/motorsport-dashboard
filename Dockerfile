@@ -31,10 +31,12 @@ COPY --from=server /app/server/package.json ./
 COPY server/src/services/fastf1_helper.py ./src/services/
 COPY --from=client /app/client/dist /app/client/dist
 
+# FASTF1_CACHE_MAX_MB: half the 1GB disk; the rest holds saved results, news and FIA summaries
 ENV NODE_ENV=production \
     PORT=3001 \
     PYTHON_PATH=/opt/venv/bin/python \
     FASTF1_CACHE_DIR=/data/fastf1_cache \
+    FASTF1_CACHE_MAX_MB=500 \
     DATA_DIR=/data
 # Mount a volume at /data to keep the FastF1 cache and FIA summaries across restarts
 VOLUME /data
