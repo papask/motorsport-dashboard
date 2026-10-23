@@ -88,6 +88,63 @@ export function canClinchAt(gap: number, races: ScheduleRace[], round: number, y
   return gap + thisWeekend > after;
 }
 
+/**
+ * The drivers who can still be champion, leader first: those who would draw
+ * level or better by scoring everything left (`left`, from remainingMax) while
+ * the leader scores nothing. A draw counts if winning every race left would
+ * give them more wins than the leader, or as many (further countback unknown).
+ */
+export function titleContenders(standings: { code: string; points: number; wins: number }[], left: { driver: number; races: number }) {
+  const [leader] = standings;
+  return standings
+    .filter((s) => s.points + left.driver > leader.points
+      || (s.points + left.driver === leader.points && s.wins + left.races >= leader.wins))
+    .map((s) => s.code);
+}
+
+const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
+
+/**
+ * How the drivers' leader settles the title at `round`, place by place: for
+ * each place the leader could take, the best place each rival may take without
+ * stopping it (rivals with no limit left out). Stops at the first place that
+ * can't settle it. `standings` must be the table right before `round`, leader
+ * first. A sprint weekend assumes the same place in the sprint and the race;
+ * the fastest-lap point, where it counts, goes to the rival. A tie counts when
+ * the leader has more Grand Prix wins than the rival could reach by winning
+ * every race left; a tie on wins too is left out.
+ */
+export function clinchScenarios(standings: { code: string; points: number; wins: number }[], races: ScheduleRace[], round: number, year: number) {
+  const sprint = Boolean(races.find((r) => r.round === round)?.sprint);
+  const fl = fastestLapPoint(year);
+  const weekend = (place: number) => (RACE_POINTS[place - 1] ?? 0) + (sprint ? SPRINT_POINTS[place - 1] ?? 0 : 0);
+  const { driver: after, races: racesAfter } = remainingMax(races, round + 1, year);
+  const [leader, ...rivals] = standings;
+  const rows: { place: number; rivals: { code: string; from: number }[] }[] = [];
+  for (let place = 1; place <= RACE_POINTS.length; place++) {
+    const limits = [];
+    for (const r of rivals) {
+      // The rival must score less than this for the lead to stay out of reach
+      const below = leader.points - r.points + weekend(place) - after;
+      // Level on points, the leader takes it on wins if the rival can't reach as many
+      const winsTie = (from: number) =>
+        leader.wins + (place === 1 ? 1 : 0) > r.wins + (from === 1 ? 1 : 0) + racesAfter;
+      const safe = (from: number) => {
+        const scored = weekend(from) + (from <= 10 ? fl : 0);
+        return scored < below || (scored === below && winsTie(from));
+      };
+      let from = 1;
+      // Past the points every place scores 0, so RACE_POINTS.length + 1 is the last to check
+      while (from <= RACE_POINTS.length + 1 && (from === place || !safe(from))) from++;
+      if (from > RACE_POINTS.length + 1) return rows; // not even a pointless finish is enough
+      if (from > (place === 1 ? 2 : 1)) limits.push({ code: r.code, from });
+    }
+    rows.push({ place, rivals: limits });
+  }
+  return rows;
+}
+
 // ---------------------------------------------------------------------------
 // Notices
 

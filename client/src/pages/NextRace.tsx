@@ -53,7 +53,11 @@ interface Guide {
     drivers: { position: number; driverId: string; code: string; name: string; team: string; points: number; gap: number }[];
     constructors: { position: number; team: string; points: number; gap: number }[];
     remaining: { races: number; sprints: number; driver: number; constructor: number };
+    /** Codes of the drivers who can still be champion, leader first */
+    contenders: string[];
     canClinch: { driver: boolean; constructor: boolean };
+    /** Per place the leader takes, the best place each rival may take; rivals with no limit left out */
+    clinchScenarios: { place: number; rivals: { code: string; from: number }[] }[];
   };
   penalties: {
     checkedAt: string | null;
@@ -490,6 +494,9 @@ export default function NextRace({ year: season }: { year: number }) {
                   <span className="guide-num guide-muted">{d.gap ? d.gap : '—'}</span>
                 </div>
               ))}
+              <p className="guide-note">
+                {t('nrContenders', { n: g.championship.contenders.length })} {g.championship.contenders.join(' · ')}
+              </p>
               <div className="guide-subhead">{t('navConstructors')}</div>
               {g.championship.constructors.map((c) => (
                 <div key={c.team} className="guide-standing guide-standing--team">
@@ -503,7 +510,10 @@ export default function NextRace({ year: season }: { year: number }) {
               <div className="guide-tiles">
                 <Tile label={t('nrRacesLeft')} value={String(g.championship.remaining.races)}
                   note={g.championship.remaining.sprints ? t('nrSprintsLeft', { n: g.championship.remaining.sprints }) : t('nrIncludingThis')} />
-                <Tile label={t('nrMaxDriver')} value={String(g.championship.remaining.driver)} note={t('nrMaxNote')} />
+                <Tile label={t('nrMaxDriver')} value={String(g.championship.remaining.driver)} note={(({ races, sprints, driver }) =>
+                    // per-race win points backed out of the total, so a fastest-lap season shows 26
+                    t('nrMaxNote', { races, pts: races ? (driver - sprints * 8) / races : 25 })
+                    + (sprints ? t('nrMaxNoteSprint', { n: sprints }) : ''))(g.championship.remaining)} />
                 <Tile label={t('nrClinch')}
                   value={g.championship.canClinch.driver || g.championship.canClinch.constructor ? t('nrClinchPossible') : t('nrClinchNo')}
                   note={[
@@ -511,6 +521,25 @@ export default function NextRace({ year: season }: { year: number }) {
                     g.championship.canClinch.constructor && t('navConstructors'),
                   ].filter(Boolean).join(' · ') || t('nrClinchBoth')} />
               </div>
+              {g.championship.clinchScenarios.length > 0 && (() => {
+                const leader = g.championship!.drivers[0].code;
+                const rows = g.championship!.clinchScenarios;
+                // Places with no condition come first; one line covers them all
+                const free = rows.filter((r) => !r.rivals.length).length;
+                return (
+                  <>
+                    <div className="guide-subhead">{t('nrClinchHow', { code: leader })}</div>
+                    {free > 0 && <div className="guide-note" style={{ margin: '2px 0' }}>{t('nrClinchFree', { code: leader, n: free })}</div>}
+                    {rows.slice(free).map((r) => (
+                      <div key={r.place} className="guide-note" style={{ margin: '2px 0' }}>
+                        {t('nrClinchRow', { code: leader, n: r.place })}{' '}
+                        {r.rivals.map((x) => t(x.from > 10 ? 'nrClinchRivalNone' : 'nrClinchRival', { code: x.code, n: x.from })).join(' · ')}
+                      </div>
+                    ))}
+                    <p className="guide-note">{t(g.sessions.some((s) => s.key === 'sprint') ? 'nrClinchNoteSprint' : 'nrClinchNote')}</p>
+                  </>
+                );
+              })()}
             </>
           )}
         </section>

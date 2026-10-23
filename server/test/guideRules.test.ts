@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { parseDecision } from '../src/services/decisionParser';
 import {
-  canClinchAt, circuitNotices, gridPenaltiesFor, guidePhase, guideRace, regulationChange,
+  canClinchAt, clinchScenarios, circuitNotices, titleContenders, gridPenaltiesFor, guidePhase, guideRace, regulationChange,
   remainingMax, startOf, SWITCH_AFTER_MS, targetRound,
   type DatedDecision, type ScheduleRace,
 } from '../src/services/guideRules';
@@ -56,6 +56,39 @@ test('when a title can be settled', () => {
   // add up to 58, against 125 still to score after R18
   assert.equal(canClinchAt(67, races, 18, 2026, 'driver', 17), false);
   assert.equal(canClinchAt(68, races, 18, 2026, 'driver', 17), true);
+});
+
+test('what each rival must finish below for the title to be settled', () => {
+  const table = [{ code: 'AAA', points: 100, wins: 0 }, { code: 'BBB', points: 90, wins: 0 }, { code: 'CCC', points: 80, wins: 0 }];
+  // Last race: nothing after it
+  const last = clinchScenarios(table, races, 23, 2026);
+  assert.deepEqual(last[0], { place: 1, rivals: [] });
+  assert.deepEqual(last[2], { place: 3, rivals: [{ code: 'BBB', from: 2 }] }); // 10 + 15 must beat BBB's haul
+  assert.deepEqual(last[9], { place: 10, rivals: [{ code: 'BBB', from: 5 }, { code: 'CCC', from: 2 }] });
+  // One race to go after this one (25 left): a 5-point lead settles it only with a win and BBB 8th or lower
+  assert.deepEqual(clinchScenarios([{ code: 'AAA', points: 95, wins: 0 }, { code: 'BBB', points: 90, wins: 0 }], races, 22, 2026),
+    [{ place: 1, rivals: [{ code: 'BBB', from: 8 }] }]);
+  // Austin, after R17: ANT winning with RUS 9th leaves a 125-point lead with 125 to play
+  // for. RUS can only draw level, and with 8 wins at most loses to ANT's 9 on countback
+  const austin = [
+    { code: 'ANT', points: 340, wins: 8 }, { code: 'RUS', points: 238, wins: 3 }, { code: 'HAM', points: 229, wins: 2 },
+  ];
+  assert.deepEqual(clinchScenarios(austin, races, 18, 2026),
+    [{ place: 1, rivals: [{ code: 'RUS', from: 9 }, { code: 'HAM', from: 5 }] }]);
+  // One more RUS win to his name and the countback no longer holds
+  assert.deepEqual(clinchScenarios([austin[0], { ...austin[1], wins: 4 }], races, 18, 2026)[0].rivals, [{ code: 'RUS', from: 10 }]);
+});
+
+test('who can still be champion', () => {
+  const left = { driver: 50, races: 2 };
+  const table = [
+    { code: 'AAA', points: 100, wins: 5 },
+    { code: 'BBB', points: 60, wins: 0 },
+    { code: 'CCC', points: 50, wins: 3 }, // level at best, 5 wins against 5: still in
+    { code: 'DDD', points: 50, wins: 2 }, // level at best, 4 wins against 5: out
+    { code: 'EEE', points: 40, wins: 9 },
+  ];
+  assert.deepEqual(titleContenders(table, left), ['AAA', 'BBB', 'CCC']);
 });
 
 test('notices from the circuit history', () => {
