@@ -248,7 +248,8 @@ if (fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
     res.type('application/xml').send(await sitemap(siteOf(req)));
   });
   app.get(/^\/(?!api(\/|$)).*/, async (req, res) => {
-    res.type('html').send(await renderPage(template, req.path, siteOf(req)));
+    const event = typeof req.query.event === 'string' ? req.query.event : undefined;
+    res.type('html').send(await renderPage(template, req.path, siteOf(req), event));
   });
 }
 

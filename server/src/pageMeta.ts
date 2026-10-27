@@ -42,21 +42,27 @@ const kst = (date: string, time?: string) => new Date(`${date}T${time ?? '00:00:
   timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short', ...(time && { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
 });
 
-interface Body { title?: string; description?: string; body: string }
+// canonical: the page's own URL when it differs from the pathname (a past event's /docs?event=)
+interface Body { title?: string; description?: string; body: string; canonical?: string }
 
-/** The latest event's summaries, marked up with the page's own classes. */
-function docsBody(): Body | null {
-  const { event, documents } = getFiaDocuments();
+const eventPath = (event: string) => `/docs?event=${encodeURIComponent(event)}`;
+
+/** One event's summaries (the latest by default), marked up with the page's own classes, and links to every other event. */
+function docsBody(requested?: string): Body | null {
+  const { events, event, documents } = getFiaDocuments(requested);
   const summarized = documents.filter((d) => d.summary);
   if (!event || !summarized.length) return null;
   const items = summarized.map((d) => `
     <article class="card"><h3>${esc(d.summary!.title_ko)}</h3>
     <ul>${d.summary!.summary_ko.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
     <a href="${esc(d.url)}">원문 PDF</a></article>`).join('');
+  const others = events.filter((e) => e !== event).reverse()
+    .map((e) => `<li><a href="${esc(eventPath(e))}">${esc(e)} FiA 문서</a></li>`).join('');
   return {
     title: `${event} FiA 문서 한국어 요약`,
     description: `${event} 스튜어드 결정, 페널티, 레이스 디렉터 노트 등 FiA 문서 ${summarized.length}건을 한국어로 요약.`,
-    body: `<h1>${esc(event)} FiA 문서</h1>${items}`,
+    body: `<h1>${esc(event)} FiA 문서</h1>${items}${others ? `<h2>다른 대회 FiA 문서</h2><ul>${others}</ul>` : ''}`,
+    canonical: requested === event ? eventPath(event) : undefined,
   };
 }
 
@@ -169,13 +175,13 @@ const LINKS = `<nav><ul>${[
   ['/results', '레이스 결과'], ['/docs', 'FiA 문서'], ['/about', '소개'], ['/privacy', '개인정보처리방침'],
 ].map(([href, label]) => `<li><a href="${href}">${label}</a></li>`).join('')}</ul></nav>`;
 
-async function bodyFor(pathname: string): Promise<Body | null> {
+async function bodyFor(pathname: string, event?: string): Promise<Body | null> {
   const year = new Date().getUTCFullYear();
   const guide = pathname.match(/^\/next\/(\d{1,2})$/);
   if (guide) return guideBody(year, Number(guide[1]));
   switch (pathname) {
     case '/': return homeBody();
-    case '/docs': return docsBody();
+    case '/docs': return docsBody(event);
     case '/schedule': return scheduleBody(year);
     case '/drivers': return driversBody(year);
     case '/constructors': return constructorsBody(year);
@@ -188,13 +194,14 @@ const NEXT_RACE: [string, string] = ['다음 경기 가이드', '다음 그랑�
 const pageFor = (pathname: string) =>
   PAGES[pathname] ?? (nextRaceEnabled() && /^\/next(\/\d{1,2})?$/.test(pathname) ? NEXT_RACE : undefined);
 
-export async function renderPage(template: string, pathname: string, site: string) {
+/** event: the ?event= of /docs, which opens a past event's documents */
+export async function renderPage(template: string, pathname: string, site: string, event?: string) {
   const page = pageFor(pathname);
   if (!page) return template;
   let [title, description] = page;
   let html = template;
   // A data source being down costs only the crawler's text, never the page
-  const content = await bodyFor(pathname).catch((err) => {
+  const content = await bodyFor(pathname, event).catch((err) => {
     console.error(`[pageMeta] ${pathname}:`, err.message);
     return null;
   });
@@ -204,7 +211,7 @@ export async function renderPage(template: string, pathname: string, site: strin
     html = html.replace('<div id="root"></div>', () => `<div id="root"><div class="page-container">${content.body}${LINKS}</div></div>`);
   }
   const fullTitle = `${title} · ${SITE}`;
-  const url = `${site}${pathname}`;
+  const url = `${site}${content?.canonical ?? pathname}`;
   html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${esc(fullTitle)}</title>`);
   html = setAttr(html, /<meta name="description"[^>]*>/, description);
   html = setAttr(html, /<meta property="og:title"[^>]*>/, fullTitle);
@@ -215,12 +222,13 @@ export async function renderPage(template: string, pathname: string, site: strin
   return html;
 }
 
-/** sitemap.xml: the fixed pages, and each guide that has been built while the guide is on. */
+/** sitemap.xml: the fixed pages, each past event's FiA documents, and each guide that has been built while the guide is on. */
 export async function sitemap(site: string) {
   const year = new Date().getUTCFullYear();
   const guides = nextRaceEnabled()
     ? (await openGuides(year).catch(() => [])).map((r) => `/next/${r.round}`)
     : [];
-  const urls = [...SITEMAP_PATHS, ...guides].map((p) => `<url><loc>${esc(site + p)}</loc></url>`).join('');
+  const pastEvents = getFiaDocuments().events.slice(0, -1).map(eventPath); // the latest is /docs itself
+  const urls = [...SITEMAP_PATHS, ...pastEvents, ...guides].map((p) => `<url><loc>${esc(site + p)}</loc></url>`).join('');
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
 }
