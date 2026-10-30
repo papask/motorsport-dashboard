@@ -132,3 +132,15 @@ export const draftNewsPost = (url: string, text?: string) =>
 // The posts a text becomes on Threads, split exactly as posting will split it
 export const previewThreadsPosts = (text: string, signal?: AbortSignal) =>
   api.post('/admin/threads/preview', { text }, { signal }).then((r) => r.data.posts as string[]);
+
+// Quiz: questions carry their answers so the reveal is instant; the server re-scores on submit
+export interface QuizQuestion { template: string; params: Record<string, string | number>; answer: boolean }
+export interface QuizEntry { id: string; nick: string; score: number; ms: number }
+export const startQuiz = (era: string) =>
+  api.post('/quiz/start', { era }).then((r) => r.data as { gameId: string; questions: QuizQuestion[] });
+export const submitQuiz = (body: { gameId: string; device: string; nick: string; answers: (boolean | null)[]; ms: number }) =>
+  api.post('/quiz/result', body).then((r) => r.data as { score: number; rank: number });
+export const getQuizLeaderboard = (era: string) =>
+  api.get('/quiz/leaderboard', { params: { era } }).then((r) => r.data as QuizEntry[]);
+export const getQuizResult = (id: string) =>
+  api.get(`/quiz/result/${encodeURIComponent(id)}`).then((r) => r.data as Omit<QuizEntry, 'id'> & { era: string });

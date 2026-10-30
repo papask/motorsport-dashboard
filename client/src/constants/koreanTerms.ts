@@ -154,6 +154,20 @@ export const COUNTRY_NAMES_KR: Record<string, string> = {
   'Azerbaijan': '아제르바이잔',
   'Las Vegas': '라스베이거스',
   'Miami': '마이애미',
+  // Past venues, for the quiz
+  'Switzerland': '스위스',
+  'France': '프랑스',
+  'Germany': '독일',
+  'Argentina': '아르헨티나',
+  'Portugal': '포르투갈',
+  'Morocco': '모로코',
+  'South Africa': '남아프리카공화국',
+  'Sweden': '스웨덴',
+  'Malaysia': '말레이시아',
+  'Turkey': '튀르키예',
+  'Korea': '한국',
+  'India': '인도',
+  'Russia': '러시아',
 };
 
 // UI 레이블 — 현재 언어의 메시지 테이블을 조회하는 프록시. `UI_LABELS.xxx`

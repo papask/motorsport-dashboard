@@ -14,6 +14,7 @@ import NextRace from './pages/NextRace';
 import Privacy from './pages/Privacy';
 import About from './pages/About';
 import Admin from './pages/Admin';
+import Quiz from './pages/Quiz';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
 import useFeatures from './hooks/useFeatures';
@@ -368,6 +369,7 @@ function App() {
             {/* old address, kept for links already shared */}
             <Route path="/fia" element={<Navigate to="/docs" replace />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/quiz" element={<Quiz />} />
             <Route path="/about" element={<About />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
