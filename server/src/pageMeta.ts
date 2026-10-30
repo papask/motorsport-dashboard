@@ -208,7 +208,8 @@ export async function renderPage(template: string, pathname: string, site: strin
   if (content) {
     title = content.title ?? title;
     description = content.description ?? description;
-    html = html.replace('<div id="root"></div>', () => `<div id="root"><div class="page-container">${content.body}${LINKS}</div></div>`);
+    // hidden: crawlers read the text, but people never see it flash before React mounts
+    html = html.replace('<div id="root"></div>', () => `<div id="root"><div class="page-container" hidden>${content.body}${LINKS}</div></div>`);
   }
   const fullTitle = `${title} · ${SITE}`;
   const url = `${site}${content?.canonical ?? pathname}`;
