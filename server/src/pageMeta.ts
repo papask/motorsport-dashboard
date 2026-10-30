@@ -24,12 +24,13 @@ const PAGES: Record<string, [title: string, description: string]> = {
   '/incidents': ['F1 레이스 인시던트', '레이스 컨트롤 메시지와 인시던트 기록.'],
   '/news': ['F1 뉴스 한국어 요약', '해외 F1 매체 기사를 한국어로 짧게 요약하고 원문으로 연결.'],
   '/docs': ['FiA 문서 한국어 요약', 'FiA 스튜어드 결정, 레이스 디렉터 노트 등 F1 공식 문서를 한국어로 요약.'],
+  '/quiz': ['F1 참/거짓 퀴즈', '1950년부터 지금까지 F1 기록으로 만든 참/거짓 퀴즈. 목숨 3개로 몇 문제나 버틸 수 있을까?'],
   '/about': ['온더리밋 소개', `${SITE}은 한국 F1 팬을 위한 레이스 데이터·분석 사이트입니다. 운영 방식과 데이터 출처, 문의처.`],
   '/privacy': ['개인정보처리방침', `${SITE} 개인정보처리방침.`],
 };
 
-/** The pages the sitemap lists (the hidden /news page left out). */
-export const SITEMAP_PATHS = Object.keys(PAGES).filter((p) => p !== '/news');
+/** The pages the sitemap lists (the hidden /news and /quiz pages left out). */
+export const SITEMAP_PATHS = Object.keys(PAGES).filter((p) => p !== '/news' && p !== '/quiz');
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

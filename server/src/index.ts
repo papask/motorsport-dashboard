@@ -10,6 +10,7 @@ import resultsRouter from './routes/results';
 import telemetryRouter from './routes/telemetry';
 import nextRaceRouter from './routes/nextRace';
 import calendarRouter from './routes/calendar';
+import quizRouter from './routes/quiz';
 import { getFiaDocuments, startFiaWatcher } from './services/fiaService';
 import {
   packPosts, postToThreads, setThreadsEnabled, startThreadsTokenRefresh, textUnits, threadsStatus,
@@ -39,6 +40,7 @@ app.use('/api/schedule', scheduleRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/telemetry', telemetryRouter);
 app.use('/api/next-race', nextRaceRouter);
+app.use('/api/quiz', quizRouter);
 app.use('/api', calendarRouter);
 
 // Which optional features are on, so the client can hide what is off

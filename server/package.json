@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "quiz:facts": "tsx scripts/buildQuizFacts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
