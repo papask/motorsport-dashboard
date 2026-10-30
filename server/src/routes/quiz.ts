@@ -30,13 +30,14 @@ const BEST = `SELECT id, nick, score, ms FROM (
 ) WHERE r = 1`;
 const eraOf = (v: unknown) => (typeof v === 'string' && Object.hasOwn(ERAS, v) ? v : 'all');
 
-// Each start writes a row, so starts are capped per IP. The last X-Forwarded-For entry is the
-// one Render's proxy appended (earlier ones are client-supplied); locally there is no header.
+// Each start writes a row, so starts are capped per IP. In production Cloudflare (in front of
+// Render) sets CF-Connecting-IP to the visitor and overwrites any client value; X-Forwarded-For
+// ends in a proxy address that changes per request, so it can't key a limit. Locally: the socket.
 const STARTS_PER_WINDOW = 30;
 const WINDOW_MS = 10 * 60_000;
 const starts = new Map<string, { n: number; reset: number }>();
 function allowStart(req: Request): boolean {
-  const ip = String(req.headers['x-forwarded-for'] ?? '').split(',').pop()?.trim() || req.socket.remoteAddress || '';
+  const ip = String(req.headers['cf-connecting-ip'] ?? '') || req.socket.remoteAddress || '';
   const now = Date.now();
   if (starts.size > 10_000) for (const [k, v] of starts) if (v.reset < now) starts.delete(k);
   const e = starts.get(ip);
