@@ -107,6 +107,7 @@ export default function ConstructorStandings({ year }: Props) {
                 <td>
                   <span className="team-indicator" style={{ backgroundColor: getTeamColor(s.constructor.name) }} />
                   <span className="driver-name">{getTeamNameKR(s.constructor.name)}</span>
+                  {data?.clinched && s.position === 1 && <span className="badge badge-champion">{t('champBadge')}</span>}
                   <span className="driver-points-sub">
                     <span>{t('subPrev', { n: s.prevPoints })}</span>
                     <span className="gain">{t('subGain', { n: s.racePoints })}{hasSprint && s.sprintPoints > 0 ? ` (🏁+${s.sprintPoints})` : ''}</span>

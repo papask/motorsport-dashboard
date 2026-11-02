@@ -127,6 +127,7 @@ export default function DriverStandings({ year }: Props) {
                   <span className="team-indicator" style={{ backgroundColor: getTeamColor(s.constructor.name) }} />
                   <span className="driver-name">{getDriverNameKR(s.driver.id, `${s.driver.firstName} ${s.driver.lastName}`)}</span>
                   <span className="driver-code" style={{ marginLeft: 8, color: 'var(--text-muted)' }}>{s.driver.code}</span>
+                  {data?.clinched && s.position === 1 && <span className="badge badge-champion">{t('champBadge')}</span>}
                   <span className="driver-team-sub">{getTeamNameKR(s.constructor.name)}</span>
                   <span className="driver-points-sub">
                     <span>{t('subPrev', { n: s.prevPoints })}</span>

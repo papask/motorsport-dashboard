@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { parseDecision } from '../src/services/decisionParser';
 import {
-  canClinchAt, clinchScenarios, circuitNotices, titleContenders, gridPenaltiesFor, guidePhase, guideRace, regulationChange,
+  canClinchAt, clinchScenarios, circuitNotices, isClinched, titleContenders, gridPenaltiesFor, guidePhase, guideRace, regulationChange,
   remainingMax, startOf, SWITCH_AFTER_MS, targetRound,
   type DatedDecision, type ScheduleRace,
 } from '../src/services/guideRules';
@@ -56,6 +56,14 @@ test('when a title can be settled', () => {
   // add up to 58, against 125 still to score after R18
   assert.equal(canClinchAt(67, races, 18, 2026, 'driver', 17), false);
   assert.equal(canClinchAt(68, races, 18, 2026, 'driver', 17), true);
+});
+
+test('when a title is already settled', () => {
+  // After R15, 208 is still to score: a lead past it is settled, one level with it is not
+  assert.equal(isClinched(209, races, 15, 2026, 'driver'), true);
+  assert.equal(isClinched(208, races, 15, 2026, 'driver'), false);
+  // Season over: any lead is settled
+  assert.equal(isClinched(1, races, 24, 2026, 'constructor'), true);
 });
 
 test('what each rival must finish below for the title to be settled', () => {

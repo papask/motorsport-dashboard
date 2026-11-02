@@ -140,7 +140,7 @@ export default function Dashboard({ year }: DashboardProps) {
       {/* Season at a glance — four figures, hairline-divided, no card chrome. */}
       <div className="stat-row fade-in">
         <div className="stat-cell">
-          <div className="k">{t('kpiLeader')}</div>
+          <div className="k">{standings.data?.clinched ? t('kpiChampion') : t('kpiLeader')}</div>
           <span className="num">{leader ? surname(leader) : '–'}</span>
           <div className="en">
             {leader ? `${t('subPts', { n: leader.points })} · ${getTeamNameKR(leader.constructor.name)}` : ''}
@@ -154,7 +154,7 @@ export default function Dashboard({ year }: DashboardProps) {
           </div>
         </div>
         <div className="stat-cell">
-          <div className="k">{t('kpiConstructor')}</div>
+          <div className="k">{teams.data?.clinched ? t('kpiTeamChampion') : t('kpiConstructor')}</div>
           <span className="num">{teamLeader ? getTeamNameKR(teamLeader.constructor.name) : '–'}</span>
           <div className="en">{teamLeader ? t('subPts', { n: teamLeader.points }) : ''}</div>
         </div>
@@ -208,6 +208,7 @@ export default function Dashboard({ year }: DashboardProps) {
                     <td>
                       <span className="team-indicator" style={{ backgroundColor: getTeamColor(s.constructor.name) }} />
                       <span className="driver-name">{getDriverNameKR(s.driver.id, `${s.driver.firstName} ${s.driver.lastName}`)}</span>
+                      {standings.data?.clinched && s.position === 1 && <span className="badge badge-champion">{t('champBadge')}</span>}
                       <span className="driver-team-sub">{getTeamNameKR(s.constructor.name)}</span>
                     </td>
                     <td className="col-team" style={{ color: 'var(--text-secondary)' }}>{getTeamNameKR(s.constructor.name)}</td>
