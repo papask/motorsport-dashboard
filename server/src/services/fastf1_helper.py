@@ -21,6 +21,7 @@ import sys
 import json
 import logging
 import os
+import re
 import warnings
 import traceback
 
@@ -49,6 +50,26 @@ class _TimingFailed(logging.Handler):
 
 
 logging.getLogger('fastf1').addHandler(_TimingFailed())
+
+
+# A stream recorded for over a day stamps lines "1.01:46:26.209" (days.h:m:s),
+# but FastF1 cuts every timestamp at 12 characters, so those lines fail to
+# parse and the whole timing load is lost (2026 R19). Rewritten as hours,
+# "25:46:26.209", the stamp is 12 characters again and means the same time.
+# ponytail: drop once FastF1 reads day-prefixed stamps itself
+_DAY_STAMP = re.compile(rb'^(\d+)\.(\d\d):(\d\d:\d\d\.\d{3})', re.M)
+_requests_get = fastf1.req.Cache.requests_get.__func__
+
+
+def _requests_get_hours(cls, url, **kwargs):
+    resp = _requests_get(cls, url, **kwargs)
+    if resp.status_code == 200 and b'jsonStream' in str(url).encode() and _DAY_STAMP.search(resp.content):
+        resp._content = _DAY_STAMP.sub(
+            lambda m: b'%02d:%s' % (int(m[1]) * 24 + int(m[2]), m[3]), resp.content)
+    return resp
+
+
+fastf1.req.Cache.requests_get = classmethod(_requests_get_hours)
 
 
 def load_telemetry_for(session, drivers):
