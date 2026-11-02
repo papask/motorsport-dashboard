@@ -53,9 +53,12 @@ function readSaved(file: string | undefined) {
   }
 }
 
-/** Saves an output once its race has settled; a `reason` answer (data not out yet) is left to be asked again. */
+/**
+ * Saves an output once its race has settled; a `reason` answer (data not out
+ * yet) or a `partial` one (FastF1 got no timing data) is left to be asked again.
+ */
 async function saveIfSettled(file: string | undefined, args: string[], result: any) {
-  if (!file || result?.reason || !(await raceSettled(Number(args[0]), Number(args[1])))) return;
+  if (!file || result?.reason || result?.partial || !(await raceSettled(Number(args[0]), Number(args[1])))) return;
   fs.mkdirSync(SAVED_DIR, { recursive: true });
   fs.writeFileSync(file, JSON.stringify(result));
 }
