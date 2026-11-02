@@ -60,6 +60,7 @@ export const DRIVER_NAMES_KR: Record<string, string> = {
   'antonelli': '안드레아 키미 안토넬리',
   'hadjar': '아이작 하자르',
   'bortoleto': '가브리엘 보르톨레토',
+  'ryo_hirakawa': '료 히라가와',
   // 과거 우승자: 다음 경기 가이드의 서킷 역대 기록에 나온다 (Jolpica driverId)
   'vettel': '제바스티안 베텔',
   'rosberg': '니코 로즈베르크',
