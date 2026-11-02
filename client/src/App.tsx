@@ -18,7 +18,7 @@ import Quiz from './pages/Quiz';
 import HeaderCountdown from './components/HeaderCountdown';
 import AdSlot from './components/AdSlot';
 import useFeatures from './hooks/useFeatures';
-import { useLang, useT, type Lang } from './i18n';
+import { useLang, useT, type Lang, type MessageKey } from './i18n';
 import { useTheme, type ThemePref } from './theme/useTheme';
 import './index.css';
 
@@ -332,6 +332,26 @@ function FooterAd() {
   );
 }
 
+const TITLE_KEYS: Record<string, MessageKey> = {
+  '/': 'dashboard', '/drivers': 'navDrivers', '/constructors': 'navConstructors', '/schedule': 'navSchedule',
+  '/results': 'navResults', '/timeline': 'navTimeline', '/telemetry': 'navTelemetry', '/incidents': 'navIncidents',
+  '/news': 'navNews', '/docs': 'navFia', '/next': 'navNext', '/quiz': 'quizTitle', '/about': 'aboutLink', '/privacy': 'privacyLink',
+};
+
+// The tab title follows in-app navigation. The first page keeps the title the
+// server wrote (it carries the season and round), so only later moves change it.
+function PageTitle() {
+  const { pathname } = useLocation();
+  const t = useT();
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    const key = TITLE_KEYS[pathname.replace(/^\/next\/\d+$/, '/next')];
+    document.title = key ? `${t(key)} · ${t('logoTitle')}` : t('logoTitle');
+  }, [pathname, t]);
+  return null;
+}
+
 // The guide's pages exist only while it is switched on; until the server
 // answers nothing renders, then a switched-off guide sends the visitor home.
 function NextRaceRoute({ year }: { year: number }) {
@@ -350,6 +370,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-layout" data-lang={lang}>
+        <PageTitle />
         <Header selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
         <main className="main-content">
           <Routes>
