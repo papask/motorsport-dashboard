@@ -89,6 +89,14 @@ export function canClinchAt(gap: number, races: ScheduleRace[], round: number, y
 }
 
 /**
+ * Whether the leader's title is already settled after `afterRound`: the lead
+ * is more than everything still to score. Countback ties are left out.
+ */
+export function isClinched(gap: number, races: ScheduleRace[], afterRound: number, year: number, kind: 'driver' | 'constructor') {
+  return gap > remainingMax(races, afterRound + 1, year)[kind];
+}
+
+/**
  * The drivers who can still be champion, leader first: those who would draw
  * level or better by scoring everything left (`left`, from remainingMax) while
  * the leader scores nothing. A draw counts if winning every race left would

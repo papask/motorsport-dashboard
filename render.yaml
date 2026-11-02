@@ -9,6 +9,10 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false # entered in the dashboard on first deploy, never committed
+      - key: F1_USERNAME # F1TV account; FastF1 signs in with it to read F1 live timing
+        sync: false
+      - key: F1_PASSWORD
+        sync: false
       - key: THREADS_ACCESS_TOKEN # long-lived token; posts new FiA summaries to Threads
         sync: false
       - key: ADMIN_TOKEN # guards /api/admin (Threads on/off); Render generates it, read it in the dashboard

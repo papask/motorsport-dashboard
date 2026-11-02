@@ -55,6 +55,8 @@ interface Guide {
     remaining: { races: number; sprints: number; driver: number; constructor: number };
     /** Codes of the drivers who can still be champion, leader first */
     contenders: string[];
+    /** Titles already settled before this race */
+    clinched: { driver: boolean; constructor: boolean };
     canClinch: { driver: boolean; constructor: boolean };
     /** Per place the leader takes, the best place each rival may take; rivals with no limit left out */
     clinchScenarios: { place: number; rivals: { code: string; from: number }[] }[];
@@ -514,12 +516,18 @@ export default function NextRace({ year: season }: { year: number }) {
                     // per-race win points backed out of the total, so a fastest-lap season shows 26
                     t('nrMaxNote', { races, pts: races ? (driver - sprints * 8) / races : 25 })
                     + (sprints ? t('nrMaxNoteSprint', { n: sprints }) : ''))(g.championship.remaining)} />
-                <Tile label={t('nrClinch')}
-                  value={g.championship.canClinch.driver || g.championship.canClinch.constructor ? t('nrClinchPossible') : t('nrClinchNo')}
-                  note={[
-                    g.championship.canClinch.driver && t('navDrivers'),
-                    g.championship.canClinch.constructor && t('navConstructors'),
-                  ].filter(Boolean).join(' · ') || t('nrClinchBoth')} />
+                {(({ canClinch, clinched }) => {
+                  // Open titles first; with none left to settle here, show the ones already settled
+                  const shown = canClinch.driver || canClinch.constructor || !(clinched.driver || clinched.constructor) ? canClinch : clinched;
+                  return (
+                    <Tile label={t('nrClinch')}
+                      value={shown === clinched ? t('nrClinched') : shown.driver || shown.constructor ? t('nrClinchPossible') : t('nrClinchNo')}
+                      note={[
+                        shown.driver && t('navDrivers'),
+                        shown.constructor && t('navConstructors'),
+                      ].filter(Boolean).join(' · ') || t('nrClinchBoth')} />
+                  );
+                })(g.championship)}
               </div>
               {g.championship.clinchScenarios.length > 0 && (() => {
                 const leader = g.championship!.drivers[0].code;

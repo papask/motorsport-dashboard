@@ -1,3 +1,3 @@
-fastf1
+fastf1>=3.9.0  # F1 live timing needs an F1TV sign-in from 3.9.0
 pandas
 numpy

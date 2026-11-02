@@ -165,6 +165,7 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `PYTHON_PATH` | `/opt/venv/bin/python` | Python interpreter with FastF1 installed |
 | `CLIENT_DIST` | `../client/dist` | Built client served by Express |
 | `ANTHROPIC_API_KEY` | — | Claude API key for FiA document summaries. Locally, put it in `server/.env`. |
+| `F1_USERNAME`, `F1_PASSWORD` | — | F1TV account (Access plan or higher). F1 live timing needs a sign-in since FastF1 3.9.0; without it every FastF1 feature fails with 401. FastF1 signs in again by itself when its token expires (about every 4 days). |
 | `DATA_DIR` | `/data` | Where the FiA summaries are stored (`fia-documents.json`) |
 
 FastF1 loads whole sessions into memory. The server runs one FastF1 helper at a time, so 512 MB of RAM is enough.
@@ -319,6 +320,7 @@ docker run -p 3001:3001 -v onthelimit-data:/data onthelimit
 | `PYTHON_PATH` | `/opt/venv/bin/python` | FastF1이 설치된 파이썬 |
 | `CLIENT_DIST` | `../client/dist` | Express가 제공할 빌드된 화면 |
 | `ANTHROPIC_API_KEY` | — | FiA 문서 요약용 Claude API 키. 로컬에서는 `server/.env`에 넣습니다. |
+| `F1_USERNAME`, `F1_PASSWORD` | — | F1TV 계정(Access 이상). FastF1 3.9.0부터 F1 라이브 타이밍에 로그인이 필요해, 없으면 FastF1 기능이 모두 401로 실패합니다. 토큰이 만료되면(약 4일) FastF1이 알아서 다시 로그인합니다. |
 | `DATA_DIR` | `/data` | FiA 요약 저장 위치(`fia-documents.json`) |
 
 FastF1은 세션 데이터를 통째로 메모리에 올립니다. 서버가 FastF1 헬퍼를 한 번에 하나씩만 실행하므로 메모리는 512 MB면 충분합니다.

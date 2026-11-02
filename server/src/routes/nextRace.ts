@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { getConstructorStandings, getDriverStandings, getSeasonSchedule } from '../services/jolpicaService';
 import {
-  canClinchAt, clinchScenarios, circuitNotices, titleContenders, gridPenaltiesFor, guidePhase, guideRace, regulationChange, remainingMax,
+  canClinchAt, clinchScenarios, circuitNotices, isClinched, titleContenders, gridPenaltiesFor, guidePhase, guideRace, regulationChange, remainingMax,
   sessionsOf, startOf, SWITCH_AFTER_MS, type DatedDecision, type ScheduleRace,
 } from '../services/guideRules';
 import { readGuide, type GuideFile } from '../services/guideBuilder';
@@ -46,6 +46,10 @@ async function standingsBefore(year: number, round: number, races: ScheduleRace[
   const teamGap = teams.standings.length ? teams.standings[0].points - (teams.standings[1]?.points ?? 0) : 0;
   const remaining = remainingMax(races, afterRound + 1, year);
   const table = drivers.standings.map((s: any) => ({ code: s.driver.code, points: s.points, wins: s.wins }));
+  const clinched = {
+    driver: isClinched(driverGap, races, afterRound, year, 'driver'),
+    constructor: teams.standings.length > 0 && isClinched(teamGap, races, afterRound, year, 'constructor'),
+  };
   return {
     afterRound,
     drivers: drivers.standings.slice(0, TOP).map((s: any) => ({
@@ -66,12 +70,14 @@ async function standingsBefore(year: number, round: number, races: ScheduleRace[
     // Counted from the first race after these standings, so a lagging table still adds up
     remaining,
     contenders: titleContenders(table, remaining),
+    clinched,
+    // A title already settled can't be settled here
     canClinch: {
-      driver: canClinchAt(driverGap, races, round, year, 'driver', afterRound + 1),
-      constructor: teams.standings.length ? canClinchAt(teamGap, races, round, year, 'constructor', afterRound + 1) : false,
+      driver: !clinched.driver && canClinchAt(driverGap, races, round, year, 'driver', afterRound + 1),
+      constructor: !clinched.constructor && teams.standings.length > 0 && canClinchAt(teamGap, races, round, year, 'constructor', afterRound + 1),
     },
     // Only off the table right before this race; a lagging one leaves races in between unknown
-    clinchScenarios: afterRound + 1 === round
+    clinchScenarios: !clinched.driver && afterRound + 1 === round
       ? clinchScenarios(table, races, round, year)
       : [],
   };
