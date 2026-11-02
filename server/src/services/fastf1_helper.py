@@ -19,6 +19,7 @@ Actions:
 
 import sys
 import json
+import logging
 import os
 import warnings
 import traceback
@@ -34,6 +35,20 @@ import numpy as np
 CACHE_DIR = os.environ.get('FASTF1_CACHE_DIR') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'fastf1_cache')
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
+
+
+class _TimingFailed(logging.Handler):
+    """Notes when FastF1 couldn't fetch timing data (e.g. F1 live timing
+    refused the sign-in): it still returns laps from Ergast, without tyres,
+    and that partial output must not be saved as the race's answer."""
+    seen = False
+
+    def emit(self, record):
+        if 'Failed to load timing data' in record.getMessage():
+            _TimingFailed.seen = True
+
+
+logging.getLogger('fastf1').addHandler(_TimingFailed())
 
 
 def load_telemetry_for(session, drivers):
@@ -1110,7 +1125,9 @@ def main():
             result = get_track_profile(sys.argv[2], sys.argv[3])
         else:
             result = {'error': f'Unknown action: {action}'}
-        
+
+        if _TimingFailed.seen and isinstance(result, dict):
+            result['partial'] = True
         print(json.dumps(result, default=json_serial, ensure_ascii=False))
     except Exception as e:
         error_msg = {
