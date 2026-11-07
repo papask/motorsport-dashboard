@@ -1,4 +1,6 @@
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 import NodeCache from 'node-cache';
 
 const BASE_URL = 'https://api.jolpi.ca/ergast/f1';
@@ -140,9 +142,40 @@ export async function raceSettled(year: number, round: number, now = Date.now())
   return !!race && now - Date.parse(`${race.date}T${race.time ?? '00:00:00Z'}`) > SETTLED_AFTER_MS;
 }
 
+// Settled responses are kept on disk too, so a restart or deploy doesn't
+// re-fetch whole seasons through the rate limiter.
+const SAVED_DIR = path.join(process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data'), 'jolpica');
+export const savedFile = (url: string) =>
+  path.join(SAVED_DIR, `${url.slice(BASE_URL.length).replace(/\W+/g, '_').replace(/^_|_$/g, '')}.json`);
+
+function readSaved(url: string) {
+  try {
+    return JSON.parse(fs.readFileSync(savedFile(url), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+function save(url: string, data: any) {
+  // An empty answer may just be "not published yet"; leave it to be asked again
+  if (data?.MRData?.total === '0') return;
+  try {
+    fs.mkdirSync(SAVED_DIR, { recursive: true });
+    fs.writeFileSync(savedFile(url), JSON.stringify(data));
+  } catch (err: any) {
+    console.error('[Jolpica] save failed:', err.message);
+  }
+}
+
 async function cachedGet<T>(url: string): Promise<T> {
   const cached = cache.get<T>(url);
   if (cached !== undefined) return cached;
+
+  const saved = readSaved(url);
+  if (saved !== undefined) {
+    cache.set(url, saved, DAY_S);
+    return saved;
+  }
 
   const inFlight = inFlightRequests.get(url) as Promise<T> | undefined;
   if (inFlight) return inFlight;
@@ -150,8 +183,10 @@ async function cachedGet<T>(url: string): Promise<T> {
   const request = limitedGet<T>(url)
     .then((data) => {
       const ttl = settledTtl(url, data);
-      if (ttl) cache.set(url, data, ttl);
-      else cache.set(url, data);
+      if (ttl) {
+        cache.set(url, data, ttl);
+        save(url, data);
+      } else cache.set(url, data);
       return data;
     })
     .finally(() => {
